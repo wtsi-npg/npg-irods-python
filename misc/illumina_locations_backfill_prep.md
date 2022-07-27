@@ -10,8 +10,10 @@ FROM
   iseq_run_lane_metrics AS irlm 
   JOIN iseq_run_status AS irs
     ON irlm.id_run=irs.id_run
+  JOIN iseq_run_status_dict AS irsd
+    ON irsd.id_run_status_dict=irs.id_run_status_dict
 WHERE 
-  irs.id_run_status_dict=20
+  irsd='qc complete'
   AND irlm.id_run NOT IN
     (
       SELECT DISTINCT

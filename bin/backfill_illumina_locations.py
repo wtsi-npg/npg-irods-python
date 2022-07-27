@@ -18,14 +18,13 @@
 #
 # @author Michael Kubiak <mk35@sanger.ac.uk>
 
-import subprocess
 import argparse
 import logging
 import structlog
-from math import ceil, floor
+from math import floor
 
 parser = argparse.ArgumentParser(
-    description="A script to backfill the irods location mlwh table for a set of run ids"
+    description="A script to backfill the iRODS location mlwh table for a set of run ids"
 )
 
 parser.add_argument("run_ids", nargs="+", type=str, help="A list of runs to load")
@@ -82,7 +81,7 @@ def main():
     else:
         colls = [f"/seq/{str(run_id)}" for run_id in args.run_ids]
 
-    generate_files(log, colls, args.processes, args.json)
+    generate_files(colls, args.processes, args.json)
 
 
 if __name__ == "__main__":

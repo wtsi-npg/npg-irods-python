@@ -19,9 +19,12 @@
 # @author Michael Kubiak <mk35@sanger.ac.uk>
 
 import json
-from typing import List, Any, Dict
+import structlog
+from typing import List, Dict
 from multiprocessing import Pool
 from partisan.irods import DataObject, Collection, client_pool
+
+log = structlog.get_logger(__file__)
 
 JSON_FILE_VERSION = "1.0"
 ILLUMINA = "illumina"
@@ -37,11 +40,7 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
     # rebuild un-pickleable objects inside subprocess
     with client_pool(1) as baton_pool:
         obj = DataObject(obj_path, baton_pool)
-        if (
-            obj.name.split(".")[-1] == ext
-            and "phix" not in obj.name
-            and "human" not in obj.name
-        ):
+        if obj.name.split(".")[-1] == ext and "ranger" not in obj.path:
             product = {
                 "seq_platform_name": ILLUMINA,
                 "pipeline_name": NPG_PROD,
@@ -50,21 +49,33 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
             }
 
             for meta in obj.metadata():
+                # Check for unwanted files
+                if (
+                    (meta.attribute == "tag_index" and meta.value == "0")
+                    or (meta.attribute == "reference" and "PhiX" in meta.value)
+                    or (
+                        # subset is not present alone, but is part of the component metadata
+                        meta.attribute == "component"
+                        and "subset" in json.loads(meta.value).keys()
+                    )
+                ):
+                    raise ExcludedObjectException
 
                 if meta.attribute == "id_product":
                     product["id_product"] = meta.value
-                elif meta.attribute == "alt_process":
+                if meta.attribute == "alt_process":
                     product["pipeline_name"] = ALT_PROCESS
 
             if "id_product" in product.keys():
                 return product
             else:
-                raise MissingMetadataError(
-                    f"id_product metadata not found for {obj.path}/{obj.name}"
-                )
+                # The error is only raised when the ApplyResult object
+                # has its .get method run, so can be handled (logged)
+                # in the main process
+                raise MissingMetadataError(f"id_product metadata not found for {obj}")
 
 
-def find_products(coll: Collection, processes: int, log: Any) -> List[dict]:
+def find_products(coll: Collection, processes: int) -> List[dict]:
     """
     Recursively finds all (non-human, non-phix) cram data objects in
     a collection.
@@ -75,17 +86,24 @@ def find_products(coll: Collection, processes: int, log: Any) -> List[dict]:
 
     with Pool(processes) as p:
         cram_results = [
-            p.apply_async(create_product_dict, (str(obj.path / obj.name), "cram"))
+            p.apply_async(create_product_dict, (str(obj), "cram"))
             for obj in coll.iter_contents()
-            if not isinstance(obj, Collection)
+            if isinstance(obj, DataObject)
         ]
-        products = [
-            product.get() for product in cram_results if product.get() is not None
-        ]
+        for result in cram_results:
+            try:
+                product = result.get()
+                if product is not None:
+                    products.append(product)
+            except MissingMetadataError as error:
+                log.warn(error)
+            except ExcludedObjectException:
+                pass  # ignore object
+
         if not products:
-            log.warn(f"No cram files found in {coll.path}, searching for bam files")
+            log.warn(f"No cram files found in {coll}, searching for bam files")
             bam_results = [
-                p.apply_async(create_product_dict, (str(obj.path / obj.name), "bam"))
+                p.apply_async(create_product_dict, (str(obj), "bam"))
                 for obj in coll.iter_contents()
                 if not isinstance(obj, Collection)
             ]
@@ -96,7 +114,7 @@ def find_products(coll: Collection, processes: int, log: Any) -> List[dict]:
     return products
 
 
-def generate_files(log: Any, colls: List[str], processes: int, out_file: str) -> int:
+def generate_files(colls: List[str], processes: int, out_file: str) -> int:
 
     log.info(
         f"Creating product rows for products in {colls} to output into {out_file} this is more test"
@@ -108,9 +126,9 @@ def generate_files(log: Any, colls: List[str], processes: int, out_file: str) ->
             coll = Collection(coll_path, baton_pool)
             if coll.exists():
                 # find all contained products and get metadata
-                coll_products = find_products(coll, processes, log)
+                coll_products = find_products(coll, processes)
                 products.extend(coll_products)
-                log.info(f"Found {len(coll_products)} products in {coll.path}")
+                log.info(f"Found {len(coll_products)} products in {coll}")
             else:
                 log.warn(f"collection {coll} not found")
                 not_found += 1
@@ -122,5 +140,18 @@ def generate_files(log: Any, colls: List[str], processes: int, out_file: str) ->
 
 class MissingMetadataError(Exception):
     """Raise when expected metadata is not present on an object."""
+
+    pass
+
+
+class ExcludedObjectException(Exception):
+    """
+    Raise when an object is one of the excluded set:
+
+    - Has tag 0
+    - Reference is PhiX (mostly controls)
+    - Is a subset (such as 'phix' or 'human')
+
+    """
 
     pass
