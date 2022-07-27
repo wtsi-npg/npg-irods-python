@@ -46,13 +46,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "-d",
-    "--dry-run",
-    action="store_true",
-    help="Run loading script with dry-run option",
-)
-
-parser.add_argument(
     "-j",
     "--json",
     type=str,
@@ -78,10 +71,6 @@ log = structlog.get_logger(__file__)
 
 from npg_irods.mlwh_locations.illumina import generate_files
 
-LOGS_DIR = "./backfill_logs"
-PERL_ENV = "PERL5LIB=$PERL5LIB:/software/npg/current/lib/perl5"
-LOADING_SCRIPT = "/software/npg/current/bin/npg_irods_locations2ml_warehouse"
-
 
 def main():
 
@@ -94,17 +83,6 @@ def main():
         colls = [f"/seq/{str(run_id)}" for run_id in args.run_ids]
 
     generate_files(log, colls, args.processes, args.json)
-
-    dry_run = ["--dry-run"] if args.dry_run else []
-    load = subprocess.run(
-        [PERL_ENV, LOADING_SCRIPT, "--path", args.json, "--verbose"] + dry_run,
-        capture_output=True,
-        encoding="utf8",
-    )
-
-    with open(f"{LOGS_DIR}/{args.start_id}_{args.end_id}_loading.log", "a") as log_file:
-        log_file.write(load.stdout)
-        log_file.write(load.stderr)
 
 
 if __name__ == "__main__":

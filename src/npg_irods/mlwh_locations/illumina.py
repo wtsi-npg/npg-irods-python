@@ -22,9 +22,6 @@ import json
 from typing import List, Any, Dict
 from multiprocessing import Pool
 from partisan.irods import DataObject, Collection, client_pool
-from ml_warehouse.schema import SeqProductIrodsLocations
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 JSON_FILE_VERSION = "1.0"
 ILLUMINA = "illumina"
