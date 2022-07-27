@@ -19,55 +19,12 @@
 # @author Michael Kubiak <mk35@sanger.ac.uk>
 
 import json
-import argparse
-import logging
-import structlog
-from typing import List
+from typing import List, Any, Dict
 from multiprocessing import Pool
-
-parser = argparse.ArgumentParser(
-    description="A script to create json files that can be used to backfill the irods location mlwh table"
-)
-
-parser.add_argument(
-    "colls",
-    type=str,
-    nargs="+",
-    help="A list of collections in which to find products",
-)
-
-parser.add_argument(
-    "-o",
-    "--out",
-    type=str,
-    default="out.json",
-    help="The output filename, defaults to out.json",
-)
-
-parser.add_argument(
-    "-p",
-    "--processes",
-    type=int,
-    default=1,
-    help="The number of baton processes to run",
-)
-
-parser.add_argument(
-    "-v", "--verbose", action="store_true", help="Enable INFO level logging"
-)
-
-args = parser.parse_args()
-logging_level = logging.WARN
-if args.verbose:
-    logging_level = logging.INFO
-
-logging.basicConfig(level=logging_level, encoding="utf-8")
-
-structlog.configure(logger_factory=structlog.stdlib.LoggerFactory())
-
-log = structlog.get_logger(__file__)
-
 from partisan.irods import DataObject, Collection, client_pool
+from ml_warehouse.schema import SeqProductIrodsLocations
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 JSON_FILE_VERSION = "1.0"
 ILLUMINA = "illumina"
@@ -75,7 +32,7 @@ ALT_PROCESS = "npg-prod-alt-process"
 NPG_PROD = "npg-prod"
 
 
-def create_product_dict(obj_path: str, ext: str):
+def create_product_dict(obj_path: str, ext: str) -> Dict:
     """
     Gathers information about a data object that is required to load
     it into the seq_product_irods_locations table.
@@ -110,7 +67,7 @@ def create_product_dict(obj_path: str, ext: str):
                 )
 
 
-def find_products(coll: Collection) -> List[dict]:
+def find_products(coll: Collection, processes: int, log: Any) -> List[dict]:
     """
     Recursively finds all (non-human, non-phix) cram data objects in
     a collection.
@@ -119,7 +76,7 @@ def find_products(coll: Collection) -> List[dict]:
     """
     products = []
 
-    with Pool(args.processes - 1) as p:
+    with Pool(processes) as p:
         cram_results = [
             p.apply_async(create_product_dict, (str(obj.path / obj.name), "cram"))
             for obj in coll.iter_contents()
@@ -142,32 +99,31 @@ def find_products(coll: Collection) -> List[dict]:
     return products
 
 
-def main():
+def generate_files(log: Any, colls: List[str], processes: int, out_file: str) -> int:
 
     log.info(
-        f"Creating product rows for products in {args.colls} to output into {args.out} this is more test"
+        f"Creating product rows for products in {colls} to output into {out_file} this is more test"
     )
     products = []
+    not_found = 0
     with client_pool(1) as baton_pool:
-        for coll_path in args.colls:
+        for coll_path in colls:
             coll = Collection(coll_path, baton_pool)
             if coll.exists():
                 # find all contained products and get metadata
-                coll_products = find_products(coll)
+                coll_products = find_products(coll, processes, log)
                 products.extend(coll_products)
                 log.info(f"Found {len(coll_products)} products in {coll.path}")
             else:
                 log.warn(f"collection {coll} not found")
+                not_found += 1
     mlwh_json = {"version": JSON_FILE_VERSION, "products": products}
-    with open(args.out, "w") as out:
+    with open(out_file, "w") as out:
         json.dump(mlwh_json, out)
+    return not_found
 
 
 class MissingMetadataError(Exception):
     """Raise when expected metadata is not present on an object."""
 
     pass
-
-
-if __name__ == "__main__":
-    main()
