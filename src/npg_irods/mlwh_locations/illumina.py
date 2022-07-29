@@ -40,7 +40,7 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
     # rebuild un-pickleable objects inside subprocess
     with client_pool(1) as baton_pool:
         obj = DataObject(obj_path, baton_pool)
-        if obj.name.split(".")[-1] == ext and "ranger" not in obj.path:
+        if obj.name.split(".")[-1] == ext and "ranger" not in str(obj.path):
             product = {
                 "seq_platform_name": ILLUMINA,
                 "pipeline_name": NPG_PROD,
@@ -56,10 +56,12 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
                     or (
                         # subset is not present alone, but is part of the component metadata
                         meta.attribute == "component"
-                        and "subset" in json.loads(meta.value).keys()
+                        and "subset" in meta.value
                     )
                 ):
-                    raise ExcludedObjectException
+                    raise ExcludedObjectException(
+                        f"{obj} is in an excluded object class"
+                    )
 
                 if meta.attribute == "id_product":
                     product["id_product"] = meta.value
@@ -73,6 +75,8 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
                 # has its .get method run, so can be handled (logged)
                 # in the main process
                 raise MissingMetadataError(f"id_product metadata not found for {obj}")
+        else:
+            raise ExcludedObjectException(f"{obj} is in an excluded class")
 
 
 def find_products(coll: Collection, processes: int) -> List[dict]:
@@ -97,8 +101,8 @@ def find_products(coll: Collection, processes: int) -> List[dict]:
                     products.append(product)
             except MissingMetadataError as error:
                 log.warn(error)
-            except ExcludedObjectException:
-                pass  # ignore object
+            except ExcludedObjectException as error:
+                log.debug(error)
 
         if not products:
             log.warn(f"No cram files found in {coll}, searching for bam files")
@@ -114,13 +118,12 @@ def find_products(coll: Collection, processes: int) -> List[dict]:
     return products
 
 
-def generate_files(colls: List[str], processes: int, out_file: str) -> int:
+def generate_files(colls: List[str], processes: int, out_file: str):
 
     log.info(
         f"Creating product rows for products in {colls} to output into {out_file} this is more test"
     )
     products = []
-    not_found = 0
     with client_pool(1) as baton_pool:
         for coll_path in colls:
             coll = Collection(coll_path, baton_pool)
@@ -131,11 +134,9 @@ def generate_files(colls: List[str], processes: int, out_file: str) -> int:
                 log.info(f"Found {len(coll_products)} products in {coll}")
             else:
                 log.warn(f"collection {coll} not found")
-                not_found += 1
     mlwh_json = {"version": JSON_FILE_VERSION, "products": products}
     with open(out_file, "w") as out:
         json.dump(mlwh_json, out)
-    return not_found
 
 
 class MissingMetadataError(Exception):
