@@ -249,7 +249,7 @@ def illumina_products(tmp_path):
             AVU("component", "{'id_run': 12345, 'position': 1, 'tag_index': 2"),
             AVU("component", "{'id_run': 12345, 'position': 2, 'tag_index': 2"),
             AVU("tag_index", 2),
-            AVU("alt_process", "alternative process"),
+            AVU("alt_process", "Alternative Process"),
         ),
         "12345/12345#1_phix.cram": (
             AVU("id_product", "31a3d460bb3c7d98845187c716a30db81c44b615"),

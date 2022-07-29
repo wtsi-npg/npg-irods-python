@@ -75,7 +75,7 @@ def main():
 
     if args.novaseq:
         colls = [
-            f"/seq/illumina/runs/{str(floor(run_id/1000))}/{str(run_id)}"
+            f"/seq/illumina/runs/{str(floor(int(run_id)/1000))}/{str(run_id)}"
             for run_id in args.run_ids
         ]
     else:

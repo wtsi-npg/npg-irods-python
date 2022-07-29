@@ -28,7 +28,6 @@ log = structlog.get_logger(__file__)
 
 JSON_FILE_VERSION = "1.0"
 ILLUMINA = "illumina"
-ALT_PROCESS = "npg-prod-alt-process"
 NPG_PROD = "npg-prod"
 
 
@@ -66,7 +65,7 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
                 if meta.attribute == "id_product":
                     product["id_product"] = meta.value
                 if meta.attribute == "alt_process":
-                    product["pipeline_name"] = ALT_PROCESS
+                    product["pipeline_name"] = f"alt_{meta.value}"
 
             if "id_product" in product.keys():
                 return product

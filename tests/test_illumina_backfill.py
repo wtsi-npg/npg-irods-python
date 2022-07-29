@@ -54,7 +54,7 @@ class TestCreateProductDict:
     def test_alt_process_object(self, illumina_products):
         expected = {
             "seq_platform_name": "illumina",
-            "pipeline_name": illumina.ALT_PROCESS,
+            "pipeline_name": "alt_Alternative Process",
             "irods_root_collection": f"{illumina_products}/12345",
             "irods_data_relative_path": "12345#2.cram",
             "id_product": "0b3bd00f1d186247f381aa87e213940b8c7ab7e5",
@@ -107,7 +107,7 @@ class TestFindProducts:
             },
             {
                 "seq_platform_name": "illumina",
-                "pipeline_name": illumina.ALT_PROCESS,
+                "pipeline_name": "alt_Alternative Process",
                 "irods_root_collection": f"{illumina_products}/12345",
                 "irods_data_relative_path": "12345#2.cram",
                 "id_product": "0b3bd00f1d186247f381aa87e213940b8c7ab7e5",
@@ -157,7 +157,7 @@ class TestGenerateFiles:
                 },
                 {
                     "seq_platform_name": "illumina",
-                    "pipeline_name": illumina.ALT_PROCESS,
+                    "pipeline_name": "alt_Alternative Process",
                     "irods_root_collection": f"{illumina_products}/12345",
                     "irods_data_relative_path": "12345#2.cram",
                     "id_product": "0b3bd00f1d186247f381aa87e213940b8c7ab7e5",
@@ -195,7 +195,7 @@ class TestGenerateFiles:
                 },
                 {
                     "seq_platform_name": "illumina",
-                    "pipeline_name": illumina.ALT_PROCESS,
+                    "pipeline_name": "alt_Alternative Process",
                     "irods_root_collection": f"{illumina_products}/12345",
                     "irods_data_relative_path": "12345#2.cram",
                     "id_product": "0b3bd00f1d186247f381aa87e213940b8c7ab7e5",
