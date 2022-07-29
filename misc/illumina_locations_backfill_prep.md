@@ -13,7 +13,7 @@ FROM
   JOIN iseq_run_status_dict AS irsd
     ON irsd.id_run_status_dict=irs.id_run_status_dict
 WHERE 
-  irsd='qc complete'
+  irsd.description='qc complete'
   AND irlm.id_run NOT IN
     (
       SELECT DISTINCT
