@@ -31,6 +31,6 @@ setup(
     packages=find_packages("src"),
     package_dir={"": "src"},
     setup_requires=["setuptools_scm"],
-    install_requires=["ml-warehouse-python", "partisan", "sqlalchemy", "structlog"],
+    install_requires=["ml-warehouse", "partisan", "sqlalchemy", "structlog"],
     tests_require=["black", "pytest", "pytest-it"],
 )
