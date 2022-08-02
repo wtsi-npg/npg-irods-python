@@ -20,6 +20,7 @@
 from pytest import mark as m, raises
 
 from npg_irods.mlwh_locations import illumina
+from typing import Dict
 
 from partisan.irods import Collection
 import json
@@ -28,6 +29,20 @@ import json
 def assert_excluded_object(obj_path: str):
     with raises(illumina.ExcludedObjectException):
         illumina.create_product_dict(obj_path, "cram")
+
+
+class ApplyResult:  # Mock class because pytest doesn't like directly multiprocessing
+    def __init__(self, dictionary: Dict):
+        self.d = dictionary
+
+    def get(self):
+        if "fail_missing_meta" in self.d.keys():
+            raise illumina.MissingMetadataError
+        if "fail_excluded_object" in self.d.keys():
+            raise illumina.ExcludedObjectException
+        if "fail_io" in self.d.keys():
+            raise IOError
+        return self.d
 
 
 @m.describe("Making a product dictionary for a data object")
@@ -90,6 +105,72 @@ class TestCreateProductDict:
     @m.it("Fails with an ExcludedObjectException")
     def test_wrong_extension(self, illumina_products):
         assert_excluded_object(illumina_products / "12345/12345#1.bam")
+
+
+@m.describe("Extracting product dictionaries from results of multiprocessing")
+class TestExtractProducts:
+    @m.context("When the result contains a dict")
+    @m.it("Returns a list containing that dict")
+    def test_product_result(self, illumina_products):
+        expected = [
+            {
+                "seq_platform_name": "illumina",
+                "pipeline_name": illumina.NPG_PROD,
+                "irods_root_collection": f"{illumina_products}/12345",
+                "irods_data_relative_path": "12345#1.cram",
+                "id_product": "31a3d460bb3c7d98845187c716a30db81c44b615",
+            }
+        ]
+        results = [ApplyResult(expected[0])]
+        assert illumina.extract_products(results) == expected
+
+    @m.context("When the result contains an expected error")
+    @m.it("Returns an empty list")
+    def test_expected_error_result(self):
+        missing_meta_results = [ApplyResult({"fail_missing_meta": True})]
+        excluded_object_results = [ApplyResult({"fail_excluded_object": True})]
+        assert illumina.extract_products(missing_meta_results) == []
+        assert illumina.extract_products(excluded_object_results) == []
+
+    @m.context("When the result contains an unexpected error")
+    @m.it("Fails")
+    def test_unexpected_error_result(self):
+        results = [ApplyResult({"fail_io": True})]
+        with raises(IOError):
+            illumina.extract_products(results)
+
+    @m.context("When there are multiple results, some expected errors")
+    @m.it("Produces a list of the good results and handles the errors")
+    def test_mixed_result(self, illumina_products):
+        expected = [
+            {
+                "seq_platform_name": "illumina",
+                "pipeline_name": illumina.NPG_PROD,
+                "irods_root_collection": f"{illumina_products}/12345",
+                "irods_data_relative_path": "12345#1.cram",
+                "id_product": "31a3d460bb3c7d98845187c716a30db81c44b615",
+            },
+            {
+                "seq_platform_name": "illumina",
+                "pipeline_name": "alt_Alternative Process",
+                "irods_root_collection": f"{illumina_products}/12345",
+                "irods_data_relative_path": "12345#2.cram",
+                "id_product": "0b3bd00f1d186247f381aa87e213940b8c7ab7e5",
+            },
+            {
+                "seq_platform_name": "illumina",
+                "pipeline_name": illumina.NPG_PROD,
+                "irods_root_collection": f"{illumina_products}/54321",
+                "irods_data_relative_path": "54321#1.bam",
+                "id_product": "1a08a7027d9f9c20d01909989370ea6b70a5bccc",
+            },
+        ]
+        results = (
+            [ApplyResult(product) for product in expected]
+            + [ApplyResult({"fail_excluded_object": True})]
+            + [ApplyResult({"fail_missing_meta": True})]
+        )
+        assert illumina.extract_products(results) == expected
 
 
 @m.describe("Making a list of product dictionaries for a collection")

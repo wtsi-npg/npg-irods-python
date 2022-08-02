@@ -19,9 +19,10 @@
 # @author Michael Kubiak <mk35@sanger.ac.uk>
 
 import json
+
 import structlog
 from typing import List, Dict
-from multiprocessing import Pool
+from multiprocessing import Pool, pool
 from partisan.irods import DataObject, Collection, client_pool
 
 log = structlog.get_logger(__file__)
@@ -78,6 +79,23 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
             raise ExcludedObjectException(f"{obj} is in an excluded class")
 
 
+def extract_products(results: List[pool.ApplyResult]) -> List[Dict]:
+    """
+    Extracts products from result list and handles errors raised.
+    """
+    products = []
+    for result in results:
+        try:
+            product = result.get()
+            if product is not None:
+                products.append(product)
+        except MissingMetadataError as error:
+            log.warn(error)
+        except ExcludedObjectException as error:
+            log.debug(error)
+    return products
+
+
 def find_products(coll: Collection, processes: int) -> List[dict]:
     """
     Recursively finds all (non-human, non-phix) cram data objects in
@@ -85,7 +103,6 @@ def find_products(coll: Collection, processes: int) -> List[dict]:
     Runs a pool of processes to create a list of dictionaries containing
     information to load them into the seq_product_irods_locations table.
     """
-    products = []
 
     with Pool(processes) as p:
         cram_results = [
@@ -93,15 +110,7 @@ def find_products(coll: Collection, processes: int) -> List[dict]:
             for obj in coll.iter_contents()
             if isinstance(obj, DataObject)
         ]
-        for result in cram_results:
-            try:
-                product = result.get()
-                if product is not None:
-                    products.append(product)
-            except MissingMetadataError as error:
-                log.warn(error)
-            except ExcludedObjectException as error:
-                log.debug(error)
+        products = extract_products(cram_results)
 
         if not products:
             log.warn(f"No cram files found in {coll}, searching for bam files")
@@ -110,9 +119,7 @@ def find_products(coll: Collection, processes: int) -> List[dict]:
                 for obj in coll.iter_contents()
                 if not isinstance(obj, Collection)
             ]
-            products = [
-                product.get() for product in bam_results if product.get() is not None
-            ]
+            products = extract_products(bam_results)
 
     return products
 
