@@ -23,7 +23,8 @@ import json
 import structlog
 from typing import List, Dict
 from multiprocessing import Pool, pool
-from partisan.irods import DataObject, Collection, client_pool
+from partisan.irods import DataObject, Collection, client_pool, AVU
+from npg_irods.metadata.lims import SeqConcept
 
 log = structlog.get_logger(__file__)
 
@@ -32,15 +33,99 @@ ILLUMINA = "illumina"
 NPG_PROD = "npg-prod"
 
 
+def has_expected_extension(name: str, ext: str) -> bool:
+    """
+    Returns True if an object name has the expected extension.
+
+    Args:
+         name: Filename to check
+         ext: Expected extension
+
+    Returns: bool
+    """
+    return name.split(".")[-1] == ext
+
+
+def is_10x(path: str) -> bool:
+    """
+    Returns True if an object path contains "ranger", i.e. the object belongs
+    to a 10x collection.
+
+    Args:
+         path: Object path to check
+
+    Returns: bool
+    """
+    return "ranger" in path
+
+
+def has_zero_tag_index(obj: DataObject) -> bool:
+    """
+    Returns True if a data object's metadata shows that it contains
+    multiplex tag "0" assigned reads, i.e. reads that could not be assigned
+    a real tag during de-multiplexing.
+
+    Args:
+        obj: The data object to check
+
+    Returns: bool
+    """
+    return AVU(SeqConcept.TAG_INDEX, "0") in obj.metadata()
+
+
+def has_phix_reference(obj: DataObject) -> bool:
+    """
+    Returns True if a data object's metadata shows that it uses PhiX as a
+    reference, i.e. that it is most likely to be a control.
+
+    Args:
+        obj: The data object to check
+
+    Returns: bool
+    """
+    for meta in obj.metadata():
+        if meta.attribute == SeqConcept.REFERENCE and "PhiX" in meta.value:
+            return True
+
+    return False
+
+
+def has_subset(obj: DataObject) -> bool:
+    """
+    Returns True if a data object's metadata shows that it is part of a subset,
+    this is usually "phix" or "human" but can have other values, and should
+    always be excluded.
+
+    Args:
+        obj: The data object to check
+
+    Returns: bool
+    """
+    for meta in obj.metadata():
+        # subset is not present alone, but is part of the component metadata
+        if meta.attribute == SeqConcept.COMPONENT and "subset" in meta.value:
+            return True
+
+    return False
+
+
 def create_product_dict(obj_path: str, ext: str) -> Dict:
     """
     Gathers information about a data object that is required to load
     it into the seq_product_irods_locations table.
+
+    Args:
+        obj_path: iRODS path to the data object
+        ext: Expected extension of data objects that should be in
+             seq_product_irods_locations - either "cram" or "bam" for
+             illumina data
+
+    Returns: Dict
     """
     # rebuild un-pickleable objects inside subprocess
     with client_pool(1) as baton_pool:
         obj = DataObject(obj_path, baton_pool)
-        if obj.name.split(".")[-1] == ext and "ranger" not in str(obj.path):
+        if has_expected_extension(obj.name, ext) and not is_10x(str(obj.path)):
             product = {
                 "seq_platform_name": ILLUMINA,
                 "pipeline_name": NPG_PROD,
@@ -48,24 +133,14 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
                 "irods_data_relative_path": str(obj.name),
             }
 
-            for meta in obj.metadata():
-                # Check for unwanted files
-                if (
-                    (meta.attribute == "tag_index" and meta.value == "0")
-                    or (meta.attribute == "reference" and "PhiX" in meta.value)
-                    or (
-                        # subset is not present alone, but is part of the component metadata
-                        meta.attribute == "component"
-                        and "subset" in meta.value
-                    )
-                ):
-                    raise ExcludedObjectException(
-                        f"{obj} is in an excluded object class"
-                    )
+            # Check for unwanted files
+            if has_zero_tag_index(obj) or has_phix_reference(obj) or has_subset(obj):
+                raise ExcludedObjectException(f"{obj} is in an excluded object class")
 
-                if meta.attribute == "id_product":
+            for meta in obj.metadata():
+                if meta.attribute == SeqConcept.ID_PRODUCT:
                     product["id_product"] = meta.value
-                if meta.attribute == "alt_process":
+                if meta.attribute == SeqConcept.ALT_PROCESS:
                     product["pipeline_name"] = f"alt_{meta.value}"
 
             if "id_product" in product.keys():
@@ -82,6 +157,12 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
 def extract_products(results: List[pool.ApplyResult]) -> List[Dict]:
     """
     Extracts products from result list and handles errors raised.
+
+    Args:
+        results: A list of ApplyResult objects created by running
+                 create_product_dict in subprocesses
+
+    Returns: List[Dict]
     """
     products = []
     for result in results:
@@ -96,12 +177,19 @@ def extract_products(results: List[pool.ApplyResult]) -> List[Dict]:
     return products
 
 
-def find_products(coll: Collection, processes: int) -> List[dict]:
+def find_products(coll: Collection, processes: int) -> List[Dict]:
     """
     Recursively finds all (non-human, non-phix) cram data objects in
     a collection.
     Runs a pool of processes to create a list of dictionaries containing
     information to load them into the seq_product_irods_locations table.
+
+    Args:
+        coll: Collection to find required data objects inside
+        processes: Number of subprocesses to run - also sets number of baton
+                   processes
+
+    Returns: List[Dict]
     """
 
     with Pool(processes) as p:
@@ -125,6 +213,18 @@ def find_products(coll: Collection, processes: int) -> List[dict]:
 
 
 def generate_files(colls: List[str], processes: int, out_file: str):
+    """
+    Writes a json file containing information to be loaded into
+    seq_product_irods_locations table for each product data object in a set of
+    collections.
+
+    Args:
+        colls: List of collection paths to find product data objects inside
+        processes: Number of subprocesses/ baton processes to spawn
+        out_file: File name to write the json file to
+
+    Return: None
+    """
 
     log.info(
         f"Creating product rows for products in {colls} to output into {out_file} this is more test"

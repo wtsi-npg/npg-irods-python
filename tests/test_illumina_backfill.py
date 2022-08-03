@@ -91,7 +91,7 @@ class TestCreateProductDict:
     def test_tag_0_object(self, illumina_products):
         assert_excluded_object(illumina_products / "12345/12345#0.cram")
 
-    @m.context("When the data object uses a phix reference")
+    @m.context("When the data object uses a PhiX reference")
     @m.it("Fails with an ExcludedObjectException")
     def test_phix_reference_object(self, illumina_products):
         assert_excluded_object(illumina_products / "12345/12345#888.cram")
