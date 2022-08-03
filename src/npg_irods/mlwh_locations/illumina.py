@@ -154,20 +154,23 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
             raise ExcludedObjectException(f"{obj} is in an excluded class")
 
 
-def extract_products(results: List[pool.ApplyResult]) -> List[Dict]:
+def extract_products(
+    results: List[pool.ApplyResult], timeout: int = None
+) -> List[Dict]:
     """
     Extracts products from result list and handles errors raised.
 
     Args:
         results: A list of ApplyResult objects created by running
                  create_product_dict in subprocesses
+        timeout: Timeout for ApplyResult.get()
 
     Returns: List[Dict]
     """
     products = []
     for result in results:
         try:
-            product = result.get()
+            product = result.get(timeout=timeout)
             if product is not None:
                 products.append(product)
         except MissingMetadataError as error:

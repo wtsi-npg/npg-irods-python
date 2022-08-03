@@ -24,6 +24,7 @@ from typing import Dict
 
 from partisan.irods import Collection
 import json
+from multiprocessing import Pool
 
 
 def assert_excluded_object(obj_path: str):
@@ -35,7 +36,7 @@ class ApplyResult:  # Mock class because pytest doesn't like directly multiproce
     def __init__(self, dictionary: Dict):
         self.d = dictionary
 
-    def get(self):
+    def get(self, timeout: int):
         if "fail_missing_meta" in self.d.keys():
             raise illumina.MissingMetadataError
         if "fail_excluded_object" in self.d.keys():
@@ -43,6 +44,16 @@ class ApplyResult:  # Mock class because pytest doesn't like directly multiproce
         if "fail_io" in self.d.keys():
             raise IOError
         return self.d
+
+
+def applied_function(product_dict: Dict):
+    if "missing_meta" in product_dict.keys():
+        raise illumina.MissingMetadataError
+    if "excluded_object" in product_dict.keys():
+        raise illumina.ExcludedObjectException
+    if "unexpected_error" in product_dict.keys():
+        raise IOError
+    return product_dict
 
 
 @m.describe("Making a product dictionary for a data object")
@@ -109,6 +120,23 @@ class TestCreateProductDict:
 
 @m.describe("Extracting product dictionaries from results of multiprocessing")
 class TestExtractProducts:
+    @m.xfail(
+        reason="pytest doesn't like multiprocessing - see https://github.com/pytest-dev/pytest/issues/958"
+    )
+    def test_product_result_using_pool(self, illumina_products):
+        expected = [
+            {
+                "seq_platform_name": "illumina",
+                "pipeline_name": illumina.NPG_PROD,
+                "irods_root_collection": f"{illumina_products}/12345",
+                "irods_data_relative_path": "12345#1.cram",
+                "id_product": "31a3d460bb3c7d98845187c716a30db81c44b615",
+            }
+        ]
+        with Pool(1) as p:
+            results = [p.apply_async(applied_function, product) for product in expected]
+        assert illumina.extract_products(results, timeout=10) == expected
+
     @m.context("When the result contains a dict")
     @m.it("Returns a list containing that dict")
     def test_product_result(self, illumina_products):
