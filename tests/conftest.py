@@ -279,8 +279,13 @@ def illumina_products(tmp_path):
         "12345/cellranger/12345.cram": (),
         "54321/54321#1.bam": (
             AVU("id_product", "1a08a7027d9f9c20d01909989370ea6b70a5bccc"),
-            AVU("component", "{'id_run': 12345, 'position': 1, 'tag_index': 1}"),
-            AVU("component", "{'id_run': 12345, 'position': 2, 'tag_index': 1}"),
+            AVU("component", "{'id_run': 54321, 'position': 1, 'tag_index': 1}"),
+            AVU("component", "{'id_run': 54321, 'position': 2, 'tag_index': 1}"),
+            AVU("tag_index", 1),
+        ),
+        "67890/67890#1.cram": (
+            AVU("component", "{'id_run': 54321, 'position': 1, 'tag_index': 1}"),
+            AVU("component", "{'id_run': 54321, 'position': 2, 'tag_index': 1}"),
             AVU("tag_index", 1),
         ),
     }
