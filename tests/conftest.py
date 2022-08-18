@@ -36,6 +36,7 @@ from partisan.icommands import imkdir, iput, irm, mkgroup, rmgroup
 from partisan.irods import (
     AVU,
     Collection,
+    DataObject,
 )
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -226,6 +227,78 @@ def ont_synthetic(tmp_path):
     finally:
         irm(root_path, force=True, recurse=True)
         remove_test_groups()
+
+
+@pytest.fixture(scope="function")
+def illumina_products(tmp_path):
+    root_path = PurePath("/testZone/home/irods/test")
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    Collection(rods_path).create(parents=True)
+
+    metadata = {
+        "12345/12345#1.cram": (
+            AVU("id_product", "31a3d460bb3c7d98845187c716a30db81c44b615"),
+            AVU("component", "{'id_run': 12345, 'position': 1, 'tag_index': 1}"),
+            AVU("component", "{'id_run': 12345, 'position': 2, 'tag_index': 1}"),
+            AVU("reference", "Any/other/reference"),
+            AVU("tag_index", 1),
+        ),
+        "12345/12345#2.cram": (
+            AVU("id_product", "0b3bd00f1d186247f381aa87e213940b8c7ab7e5"),
+            AVU("component", "{'id_run': 12345, 'position': 1, 'tag_index': 2"),
+            AVU("component", "{'id_run': 12345, 'position': 2, 'tag_index': 2"),
+            AVU("tag_index", 2),
+            AVU("alt_process", "Alternative Process"),
+        ),
+        "12345/12345#1_phix.cram": (
+            AVU("id_product", "31a3d460bb3c7d98845187c716a30db81c44b615"),
+            AVU(
+                "component",
+                "{'id_run': 12345, 'position': 1, 'subset': 'phix', tag_index': 1}",
+            ),
+            AVU(
+                "component",
+                "{'id_run': 12345, 'position': 2, 'subset': 'phix', tag_index': 1}",
+            ),
+            AVU("tag_index", 1),
+        ),
+        "12345/12345#888.cram": (
+            AVU("id_product", "5e67fc5c63b7ceb4e63bbb8e62ab58dcc57b6e64"),
+            AVU("component", "{'id_run': 12345, 'position': 1, 'tag_index': 888"),
+            AVU("component", "{'id_run': 12345, 'position': 2, 'tag_index': 888"),
+            AVU("reference", "A/reference/with/PhiX/present"),
+            AVU("tag_index", 888),
+        ),
+        "12345/12345#0.cram": (
+            AVU("id_product", "f54f4a5c3eba5bdf302c1ce4a7c18add33a04315"),
+            AVU("component", "{'id_run': 12345, 'position': 1, 'tag_index': 0"),
+            AVU("component", "{'id_run': 12345, 'position': 2, 'tag_index': 0"),
+            AVU("tag_index", 0),
+        ),
+        "12345/cellranger/12345.cram": (),
+        "54321/54321#1.bam": (
+            AVU("id_product", "1a08a7027d9f9c20d01909989370ea6b70a5bccc"),
+            AVU("component", "{'id_run': 54321, 'position': 1, 'tag_index': 1}"),
+            AVU("component", "{'id_run': 54321, 'position': 2, 'tag_index': 1}"),
+            AVU("tag_index", 1),
+        ),
+        "67890/67890#1.cram": (
+            AVU("component", "{'id_run': 54321, 'position': 1, 'tag_index': 1}"),
+            AVU("component", "{'id_run': 54321, 'position': 2, 'tag_index': 1}"),
+            AVU("tag_index", 1),
+        ),
+    }
+
+    iput("./tests/data/illumina/mlwh_locations", rods_path, recurse=True)
+    for path in metadata.keys():
+        obj = DataObject(rods_path / "mlwh_locations" / path)
+        for avu in metadata[path]:
+            obj.add_metadata(avu)
+    try:
+        yield rods_path / "mlwh_locations"
+    finally:
+        irm(root_path, force=True, recurse=True)
 
 
 BEGIN = datetime(year=2020, month=1, day=1, hour=0, minute=0, second=0)
