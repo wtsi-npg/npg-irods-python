@@ -30,7 +30,14 @@ from datetime import datetime
 from pathlib import PurePath
 
 import pytest
-from ml_warehouse.schema import Base, OseqFlowcell, Sample, Study
+from ml_warehouse.schema import (
+    Base,
+    OseqFlowcell,
+    Sample,
+    Study,
+    IseqFlowcell,
+    IseqProductMetrics,
+)
 from partisan import icommands
 from partisan.icommands import imkdir, iput, irm, mkgroup, rmgroup
 from partisan.irods import (
@@ -107,7 +114,8 @@ def mlwh_session(config: configparser.ConfigParser) -> Session:
     session_maker = sessionmaker(bind=engine)
     sess: Session() = session_maker()
 
-    initialize_mlwh(sess)
+    initialize_mlwh_ont(sess)
+    initialize_mlwh_illumina(sess)
 
     try:
         yield sess
@@ -307,7 +315,7 @@ LATE = datetime(year=2020, month=6, day=14, hour=0, minute=0, second=0)
 LATEST = datetime(year=2020, month=6, day=30, hour=0, minute=0, second=0)
 
 
-def initialize_mlwh(session: Session):
+def initialize_mlwh_ont(session: Session):
     """Create test data for all synthetic simple and multiplexed experiments.
 
     This is a superset of the experiments represented by the files in
@@ -438,3 +446,191 @@ def initialize_mlwh(session: Session):
 
     session.add_all(flowcells)
     session.commit()
+
+
+def initialize_mlwh_illumina(sess: Session):
+
+    changed_study = Study(
+        id_lims="LIMS_05",
+        id_study_lims="study_04",
+        name="Recently Changed",
+        study_title="Recently changed study",
+        accession_number="ST0000000001",
+        last_updated=BEGIN,
+        recorded_at=LATEST,
+    )
+    unchanged_study = Study(
+        id_lims="LIMS_05",
+        id_study_lims="study_05",
+        name="Unchanged",
+        study_title="Unchanged study",
+        accession_number="ST0000000002",
+        last_updated=BEGIN,
+        recorded_at=BEGIN,
+    )
+    sess.add_all([changed_study, unchanged_study])
+    sess.commit()
+    sess.refresh(changed_study)
+    sess.refresh(unchanged_study)
+
+    changed_sample = Sample(
+        id_lims="LIMS_05",
+        id_sample_lims="SAMPLE_01",
+        name="Recently changed",
+        accession_number="SA000001",
+        public_name="Recently changed",
+        common_name="Recently changed",
+        supplier_name="Recently_changed_supplier",
+        cohort="cohort_01",
+        donor_id="DONOR_01",
+        consent_withdrawn=0,
+        last_updated=BEGIN,
+        recorded_at=LATEST,
+    )
+    unchanged_sample = Sample(
+        id_lims="LIMS_05",
+        id_sample_lims="SAMPLE_02",
+        name="Unchanged",
+        accession_number="SA000002",
+        public_name="Unchanged",
+        common_name="Unchanged",
+        supplier_name="Unchanged_supplier",
+        cohort="cohort_02",
+        donor_id="DONOR_02",
+        consent_withdrawn=0,
+        last_updated=BEGIN,
+        recorded_at=BEGIN,
+    )
+    sess.add_all([changed_sample, unchanged_sample])
+    sess.commit()
+    sess.refresh(changed_sample)
+    sess.refresh(unchanged_sample)
+
+    study_changed_flowcell = IseqFlowcell(
+        id_lims="LIMS_05",
+        id_flowcell_lims="FLOWCELL_01",
+        id_library_lims="LIBRARY_01",
+        primer_panel="Primer_panel_01",
+        position=1,
+        last_updated=BEGIN,
+        recorded_at=BEGIN,
+        id_study_tmp=changed_study.id_study_tmp,
+        id_sample_tmp=unchanged_sample.id_sample_tmp,
+        entity_type="library_indexed",
+        entity_id_lims="ENTITY_01",
+        id_pool_lims="ABC1234",
+    )
+    sample_changed_flowcell = IseqFlowcell(
+        id_lims="LIMS_05",
+        id_flowcell_lims="FLOWCELL_02",
+        id_library_lims="LIBRARY_02",
+        primer_panel="Primer_panel_02",
+        position=2,
+        last_updated=BEGIN,
+        recorded_at=BEGIN,
+        id_study_tmp=unchanged_study.id_study_tmp,
+        id_sample_tmp=changed_sample.id_sample_tmp,
+        entity_type="library_indexed",
+        entity_id_lims="ENTITY_01",
+        id_pool_lims="ABC1234",
+    )
+    product_changed_flowcell = IseqFlowcell(
+        id_lims="LIMS_05",
+        id_flowcell_lims="FLOWCELL_03",
+        id_library_lims="LIBRARY_03",
+        primer_panel="Primer_panel_03",
+        position=1,
+        last_updated=BEGIN,
+        recorded_at=LATEST,
+        id_study_tmp=unchanged_study.id_study_tmp,
+        id_sample_tmp=unchanged_sample.id_sample_tmp,
+        entity_type="library_indexed",
+        entity_id_lims="ENTITY_01",
+        id_pool_lims="ABC1234",
+    )
+    self_changed_flowcell = IseqFlowcell(
+        id_lims="LIMS_05",
+        id_flowcell_lims="FLOWCELL_04",
+        id_library_lims="LIBRARY_04",
+        primer_panel="Primer_panel_04",
+        position=2,
+        last_updated=BEGIN,
+        recorded_at=LATEST,
+        id_study_tmp=unchanged_study.id_study_tmp,
+        id_sample_tmp=unchanged_sample.id_sample_tmp,
+        entity_type="library_indexed",
+        entity_id_lims="ENTITY_01",
+        id_pool_lims="ABC1234",
+    )
+    no_change_flowcell = IseqFlowcell(
+        id_lims="LIMS_05",
+        id_flowcell_lims="FLOWCELL_05",
+        id_library_lims="LIBRARY_05",
+        primer_panel="Primer_panel_05",
+        position=2,
+        last_updated=BEGIN,
+        recorded_at=BEGIN,
+        id_study_tmp=unchanged_study.id_study_tmp,
+        id_sample_tmp=unchanged_sample.id_sample_tmp,
+        entity_type="library_indexed",
+        entity_id_lims="ENTITY_01",
+        id_pool_lims="ABC1234",
+    )
+    flowcells = [
+        study_changed_flowcell,
+        sample_changed_flowcell,
+        self_changed_flowcell,
+        product_changed_flowcell,
+        no_change_flowcell,
+    ]
+    sess.add_all(flowcells)
+    sess.commit()
+    for flowcell in flowcells:
+        sess.refresh(flowcell)
+
+    study_changed_product_metrics = IseqProductMetrics(
+        id_iseq_product="PRODUCT_01",
+        id_run=12111,
+        last_changed=BEGIN,
+        id_iseq_flowcell_tmp=study_changed_flowcell.id_iseq_flowcell_tmp,
+        qc="study_changed_qc",
+    )
+    sample_changed_product_metrics = IseqProductMetrics(
+        id_iseq_product="PRODUCT_02",
+        id_run=12111,
+        last_changed=BEGIN,
+        id_iseq_flowcell_tmp=sample_changed_flowcell.id_iseq_flowcell_tmp,
+        qc="sample_changed_qc",
+    )
+    flowcell_changed_product_metrics = IseqProductMetrics(
+        id_iseq_product="PRODUCT_03",
+        id_run=12111,
+        last_changed=BEGIN,
+        id_iseq_flowcell_tmp=self_changed_flowcell.id_iseq_flowcell_tmp,
+        qc="flowcell_changed_qc",
+    )
+    self_changed_product_metrics = IseqProductMetrics(
+        id_iseq_product="PRODUCT_04",
+        id_run=12111,
+        last_changed=LATEST,
+        id_iseq_flowcell_tmp=product_changed_flowcell.id_iseq_flowcell_tmp,
+        qc="self_changed_qc",
+    )
+
+    no_change_product_metrics = IseqProductMetrics(
+        id_iseq_product="PRODUCT_05",
+        id_run=12111,
+        last_changed=BEGIN,
+        id_iseq_flowcell_tmp=no_change_flowcell.id_iseq_flowcell_tmp,
+        qc="no_change_qc",
+    )
+    sess.add_all(
+        [
+            study_changed_product_metrics,
+            sample_changed_product_metrics,
+            flowcell_changed_product_metrics,
+            self_changed_product_metrics,
+            no_change_product_metrics,
+        ]
+    )
+    sess.commit()

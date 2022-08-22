@@ -17,16 +17,17 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from pytest import mark as m
 
-from conftest import EARLY, LATE, LATEST
+from conftest import BEGIN, EARLY, LATE, LATEST
 from npg_irods.ont import find_recent_expt, find_recent_expt_slot
+from npg_irods.metadata.illumina import illumina_recently_changed
 
 
-@m.describe("Finding updated experiments by datetime")
-class TestMLWarehouseQueries(object):
+@m.describe("Finding updated ONT experiments by datetime")
+class TestONTMLWarehouseQueries(object):
     @m.context("When a query date is provided")
     @m.it("Finds the correct experiments")
     def test_find_recent_expt(self, mlwh_session):
@@ -104,3 +105,117 @@ class TestMLWarehouseQueries(object):
 
         after_latest = LATEST + timedelta(days=1)
         assert find_recent_expt_slot(mlwh_session, after_latest) == []
+
+
+@m.describe("Finding illumina recently changed information in illumina tables")
+class TestIlluminaMLWarehouseQueries(object):
+    @m.context("When given a datetime")
+    @m.it("Finds rows updated since that datetime")
+    def test_illumina_recently_changed(self, mlwh_session):
+
+        late_expected = [
+            (
+                "ST0000000001",
+                "Recently Changed",
+                "Recently changed study",
+                "study_04",
+                "SA000002",
+                "SAMPLE_02",
+                "Unchanged",
+                "Unchanged",
+                "Unchanged",
+                "Unchanged_supplier",
+                "cohort_02",
+                "DONOR_02",
+                0,
+                "LIBRARY_01",
+                0,
+                "Primer_panel_01",
+            ),
+            (
+                "ST0000000002",
+                "Unchanged",
+                "Unchanged study",
+                "study_05",
+                "SA000001",
+                "SAMPLE_01",
+                "Recently changed",
+                "Recently changed",
+                "Recently changed",
+                "Recently_changed_supplier",
+                "cohort_01",
+                "DONOR_01",
+                0,
+                "LIBRARY_02",
+                0,
+                "Primer_panel_02",
+            ),
+            (
+                "ST0000000002",
+                "Unchanged",
+                "Unchanged study",
+                "study_05",
+                "SA000002",
+                "SAMPLE_02",
+                "Unchanged",
+                "Unchanged",
+                "Unchanged",
+                "Unchanged_supplier",
+                "cohort_02",
+                "DONOR_02",
+                0,
+                "LIBRARY_04",
+                0,
+                "Primer_panel_04",
+            ),
+            (
+                "ST0000000002",
+                "Unchanged",
+                "Unchanged study",
+                "study_05",
+                "SA000002",
+                "SAMPLE_02",
+                "Unchanged",
+                "Unchanged",
+                "Unchanged",
+                "Unchanged_supplier",
+                "cohort_02",
+                "DONOR_02",
+                0,
+                "LIBRARY_03",
+                0,
+                "Primer_panel_03",
+            ),
+        ]
+        before_early_expected = late_expected + [
+            (
+                "ST0000000002",
+                "Unchanged",
+                "Unchanged study",
+                "study_05",
+                "SA000002",
+                "SAMPLE_02",
+                "Unchanged",
+                "Unchanged",
+                "Unchanged",
+                "Unchanged_supplier",
+                "cohort_02",
+                "DONOR_02",
+                0,
+                "LIBRARY_05",
+                0,
+                "Primer_panel_05",
+            )
+        ]
+        before_early = BEGIN - timedelta(days=1)
+        after_latest = LATEST + timedelta(days=1)
+
+        # only recently updated
+        assert illumina_recently_changed(mlwh_session, LATE) == late_expected
+        # all
+        assert (
+            illumina_recently_changed(mlwh_session, before_early)
+            == before_early_expected
+        )
+        # none
+        assert illumina_recently_changed(mlwh_session, after_latest) == []
