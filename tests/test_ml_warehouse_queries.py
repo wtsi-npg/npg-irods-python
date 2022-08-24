@@ -23,7 +23,9 @@ from pytest import mark as m
 
 from conftest import BEGIN, EARLY, LATE, LATEST
 from npg_irods.ont import find_recent_expt, find_recent_expt_slot
-from npg_irods.metadata.illumina import illumina_recently_changed
+from npg_irods.metadata import illumina
+from npg_irods.metadata.lims import TrackedStudy, TrackedSample
+from partisan.irods import AVU
 
 
 @m.describe("Finding updated ONT experiments by datetime")
@@ -111,111 +113,111 @@ class TestONTMLWarehouseQueries(object):
 class TestIlluminaMLWarehouseQueries(object):
     @m.context("When given a datetime")
     @m.it("Finds rows updated since that datetime")
-    def test_illumina_recently_changed(self, mlwh_session):
+    def test_recently_changed(self, mlwh_session):
 
         late_expected = [
-            (
-                "ST0000000001",
-                "Recently Changed",
-                "Recently changed study",
-                "study_04",
-                "SA000002",
-                "SAMPLE_02",
-                "Unchanged",
-                "Unchanged",
-                "Unchanged",
-                "Unchanged_supplier",
-                "cohort_02",
-                "DONOR_02",
-                0,
-                "LIBRARY_01",
-                0,
-                "Primer_panel_01",
-            ),
-            (
-                "ST0000000002",
-                "Unchanged",
-                "Unchanged study",
-                "study_05",
-                "SA000001",
-                "SAMPLE_01",
-                "Recently changed",
-                "Recently changed",
-                "Recently changed",
-                "Recently_changed_supplier",
-                "cohort_01",
-                "DONOR_01",
-                0,
-                "LIBRARY_02",
-                0,
-                "Primer_panel_02",
-            ),
-            (
-                "ST0000000002",
-                "Unchanged",
-                "Unchanged study",
-                "study_05",
-                "SA000002",
-                "SAMPLE_02",
-                "Unchanged",
-                "Unchanged",
-                "Unchanged",
-                "Unchanged_supplier",
-                "cohort_02",
-                "DONOR_02",
-                0,
-                "LIBRARY_04",
-                0,
-                "Primer_panel_04",
-            ),
-            (
-                "ST0000000002",
-                "Unchanged",
-                "Unchanged study",
-                "study_05",
-                "SA000002",
-                "SAMPLE_02",
-                "Unchanged",
-                "Unchanged",
-                "Unchanged",
-                "Unchanged_supplier",
-                "cohort_02",
-                "DONOR_02",
-                0,
-                "LIBRARY_03",
-                0,
-                "Primer_panel_03",
-            ),
+            [
+                AVU(TrackedStudy.ACCESSION_NUMBER, "ST0000000001"),
+                AVU(TrackedStudy.NAME, "Recently Changed"),
+                AVU(TrackedStudy.TITLE, "Recently changed study"),
+                AVU(TrackedStudy.ID, "study_04"),
+                AVU(TrackedSample.ACCESSION_NUMBER, "SA000002"),
+                AVU(TrackedSample.ID, "SAMPLE_02"),
+                AVU(TrackedSample.NAME, "Unchanged"),
+                AVU(TrackedSample.PUBLIC_NAME, "Unchanged"),
+                AVU(TrackedSample.COMMON_NAME, "Unchanged"),
+                AVU(TrackedSample.SUPPLIER_NAME, "Unchanged_supplier"),
+                AVU(TrackedSample.COHORT, "cohort_02"),
+                AVU(TrackedSample.DONOR_ID, "DONOR_02"),
+                AVU(TrackedSample.CONSENT_WITHDRAWN, 0),
+                AVU("library_id", "LIBRARY_01"),
+                AVU("manual_qc", 0),
+                AVU("primer_panel", "Primer_panel_01"),
+            ],
+            [
+                AVU(TrackedStudy.ACCESSION_NUMBER, "ST0000000002"),
+                AVU(TrackedStudy.NAME, "Unchanged"),
+                AVU(TrackedStudy.TITLE, "Unchanged study"),
+                AVU(TrackedStudy.ID, "study_05"),
+                AVU(TrackedSample.ACCESSION_NUMBER, "SA000001"),
+                AVU(TrackedSample.ID, "SAMPLE_01"),
+                AVU(TrackedSample.NAME, "Recently changed"),
+                AVU(TrackedSample.PUBLIC_NAME, "Recently changed"),
+                AVU(TrackedSample.COMMON_NAME, "Recently changed"),
+                AVU(TrackedSample.SUPPLIER_NAME, "Recently_changed_supplier"),
+                AVU(TrackedSample.COHORT, "cohort_01"),
+                AVU(TrackedSample.DONOR_ID, "DONOR_01"),
+                AVU(TrackedSample.CONSENT_WITHDRAWN, 0),
+                AVU("library_id", "LIBRARY_02"),
+                AVU("manual_qc", 0),
+                AVU("primer_panel", "Primer_panel_02"),
+            ],
+            [
+                AVU(TrackedStudy.ACCESSION_NUMBER, "ST0000000002"),
+                AVU(TrackedStudy.NAME, "Unchanged"),
+                AVU(TrackedStudy.TITLE, "Unchanged study"),
+                AVU(TrackedStudy.ID, "study_05"),
+                AVU(TrackedSample.ACCESSION_NUMBER, "SA000002"),
+                AVU(TrackedSample.ID, "SAMPLE_02"),
+                AVU(TrackedSample.NAME, "Unchanged"),
+                AVU(TrackedSample.PUBLIC_NAME, "Unchanged"),
+                AVU(TrackedSample.COMMON_NAME, "Unchanged"),
+                AVU(TrackedSample.SUPPLIER_NAME, "Unchanged_supplier"),
+                AVU(TrackedSample.COHORT, "cohort_02"),
+                AVU(TrackedSample.DONOR_ID, "DONOR_02"),
+                AVU(TrackedSample.CONSENT_WITHDRAWN, 0),
+                AVU("library_id", "LIBRARY_04"),
+                AVU("manual_qc", 0),
+                AVU("primer_panel", "Primer_panel_04"),
+            ],
+            [
+                AVU(TrackedStudy.ACCESSION_NUMBER, "ST0000000002"),
+                AVU(TrackedStudy.NAME, "Unchanged"),
+                AVU(TrackedStudy.TITLE, "Unchanged study"),
+                AVU(TrackedStudy.ID, "study_05"),
+                AVU(TrackedSample.ACCESSION_NUMBER, "SA000002"),
+                AVU(TrackedSample.ID, "SAMPLE_02"),
+                AVU(TrackedSample.NAME, "Unchanged"),
+                AVU(TrackedSample.PUBLIC_NAME, "Unchanged"),
+                AVU(TrackedSample.COMMON_NAME, "Unchanged"),
+                AVU(TrackedSample.SUPPLIER_NAME, "Unchanged_supplier"),
+                AVU(TrackedSample.COHORT, "cohort_02"),
+                AVU(TrackedSample.DONOR_ID, "DONOR_02"),
+                AVU(TrackedSample.CONSENT_WITHDRAWN, 0),
+                AVU("library_id", "LIBRARY_03"),
+                AVU("manual_qc", 0),
+                AVU("primer_panel", "Primer_panel_03"),
+            ],
         ]
         before_early_expected = late_expected + [
-            (
-                "ST0000000002",
-                "Unchanged",
-                "Unchanged study",
-                "study_05",
-                "SA000002",
-                "SAMPLE_02",
-                "Unchanged",
-                "Unchanged",
-                "Unchanged",
-                "Unchanged_supplier",
-                "cohort_02",
-                "DONOR_02",
-                0,
-                "LIBRARY_05",
-                0,
-                "Primer_panel_05",
-            )
+            [
+                AVU(TrackedStudy.ACCESSION_NUMBER, "ST0000000002"),
+                AVU(TrackedStudy.NAME, "Unchanged"),
+                AVU(TrackedStudy.TITLE, "Unchanged study"),
+                AVU(TrackedStudy.ID, "study_05"),
+                AVU(TrackedSample.ACCESSION_NUMBER, "SA000002"),
+                AVU(TrackedSample.ID, "SAMPLE_02"),
+                AVU(TrackedSample.NAME, "Unchanged"),
+                AVU(TrackedSample.PUBLIC_NAME, "Unchanged"),
+                AVU(TrackedSample.COMMON_NAME, "Unchanged"),
+                AVU(TrackedSample.SUPPLIER_NAME, "Unchanged_supplier"),
+                AVU(TrackedSample.COHORT, "cohort_02"),
+                AVU(TrackedSample.DONOR_ID, "DONOR_02"),
+                AVU(TrackedSample.CONSENT_WITHDRAWN, 0),
+                AVU("library_id", "LIBRARY_05"),
+                AVU("manual_qc", 0),
+                AVU("primer_panel", "Primer_panel_05"),
+            ]
         ]
         before_early = BEGIN - timedelta(days=1)
         after_latest = LATEST + timedelta(days=1)
 
         # only recently updated
-        assert illumina_recently_changed(mlwh_session, LATE) == late_expected
+        assert illumina.recently_changed(mlwh_session, LATE) == late_expected
         # all
         assert (
-            illumina_recently_changed(mlwh_session, before_early)
+            illumina.recently_changed(mlwh_session, before_early)
             == before_early_expected
         )
         # none
-        assert illumina_recently_changed(mlwh_session, after_latest) == []
+        assert illumina.recently_changed(mlwh_session, after_latest) == []

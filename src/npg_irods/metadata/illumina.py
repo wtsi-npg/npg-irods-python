@@ -18,11 +18,25 @@
 # @author Michael Kubiak <mk35@sanger.ac.uk>
 
 from ml_warehouse.schema import Study, Sample, IseqFlowcell, IseqProductMetrics
+from typing import List, Tuple
 from sqlalchemy.orm import Session
 from datetime import datetime
+from npg_irods.metadata.lims import TrackedStudy, TrackedSample, avu_if_value
+from partisan.irods import AVU
 
 
-def illumina_recently_changed(sess: Session, max_age: datetime):
+def _recently_changed_query(sess: Session, start_time: datetime) -> List[Tuple]:
+    """
+    Runs a query to find recently changed rows that correspond to
+    irods metadata.
+
+    Args:
+       sess: An open SQL session.
+       start_time: The datetime from which 'recent' is defined.
+
+    Returns:
+        List of tuples.
+    """
     return (
         sess.query(
             Study.accession_number,
@@ -49,10 +63,50 @@ def illumina_recently_changed(sess: Session, max_age: datetime):
             IseqFlowcell.iseq_product_metrics,
         )
         .filter(
-            (Sample.recorded_at > max_age)
-            | (Study.recorded_at > max_age)
-            | (IseqFlowcell.recorded_at > max_age)
-            | (IseqProductMetrics.last_changed > max_age)
+            (Sample.recorded_at > start_time)
+            | (Study.recorded_at > start_time)
+            | (IseqFlowcell.recorded_at > start_time)
+            | (IseqProductMetrics.last_changed > start_time)
         )
         .all()
     )
+
+
+def recently_changed(sess: Session, start_time: datetime) -> List[List[AVU]]:
+    """
+    Gets recently changed metadata values and associates them with
+    their attribute keys.
+
+    Args:
+        sess: An open SQL session.
+        start_time: The datetime from which 'recent' is defined.
+
+    Returns:
+        List of dictionaries.
+    """
+    responses = _recently_changed_query(sess, start_time)
+    attributes = [
+        TrackedStudy.ACCESSION_NUMBER,
+        TrackedStudy.NAME,
+        TrackedStudy.TITLE,
+        TrackedStudy.ID,
+        TrackedSample.ACCESSION_NUMBER,
+        TrackedSample.ID,
+        TrackedSample.NAME,
+        TrackedSample.PUBLIC_NAME,
+        TrackedSample.COMMON_NAME,
+        TrackedSample.SUPPLIER_NAME,
+        TrackedSample.COHORT,
+        TrackedSample.DONOR_ID,
+        TrackedSample.CONSENT_WITHDRAWN,
+        "library_id",
+        "manual_qc",
+        "primer_panel",
+    ]
+    changed = []
+    for response in responses:
+        avus = []
+        for i in range(len(attributes)):
+            avus.append(avu_if_value(attributes[i], response[i]))
+        changed.append(avus)
+    return changed
