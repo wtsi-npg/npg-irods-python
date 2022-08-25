@@ -20,8 +20,11 @@
 
 import argparse
 import logging
-import structlog
 from math import floor
+
+import structlog
+
+from npg_irods.mlwh_locations.illumina import generate_files
 
 parser = argparse.ArgumentParser(
     description="A script to backfill the iRODS location mlwh table for a set of run ids"
@@ -68,14 +71,11 @@ structlog.configure(logger_factory=structlog.stdlib.LoggerFactory())
 
 log = structlog.get_logger(__file__)
 
-from npg_irods.mlwh_locations.illumina import generate_files
-
 
 def main():
-
     if args.novaseq:
         colls = [
-            f"/seq/illumina/runs/{str(floor(int(run_id)/1000))}/{str(run_id)}"
+            f"/seq/illumina/runs/{str(floor(int(run_id) / 1000))}/{str(run_id)}"
             for run_id in args.run_ids
         ]
     else:
