@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 # Copyright © 2022 Genome Research Ltd. All rights reserved.
@@ -229,9 +228,7 @@ def generate_files(colls: List[str], processes: int, out_file: str):
     Return: None
     """
 
-    log.info(
-        f"Creating product rows for products in {colls} to output into {out_file} this is more test"
-    )
+    log.info(f"Creating product rows for products in {colls} to output into {out_file}")
     products = []
     with client_pool(1) as baton_pool:
         for coll_path in colls:
