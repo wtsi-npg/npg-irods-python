@@ -18,13 +18,32 @@
 # @author Michael Kubiak <mk35@sanger.ac.uk>
 
 from ml_warehouse.schema import Study, Sample, IseqFlowcell, IseqProductMetrics
-from typing import List, Tuple, Dict
-from sqlalchemy.orm import Session
+from typing import List, Dict
+from sqlalchemy.orm import Session, Query
 from datetime import datetime
 from npg_irods.metadata.lims import TrackedStudy, TrackedSample
 
+column_to_attribute = {
+    Study.accession_number: TrackedStudy.ACCESSION_NUMBER,
+    Study.name: TrackedStudy.NAME,
+    Study.study_title: TrackedStudy.TITLE,
+    Study.id_study_lims: TrackedStudy.ID,
+    Sample.accession_number: TrackedSample.ACCESSION_NUMBER,
+    Sample.id_sample_lims: TrackedSample.ID,
+    Sample.name: TrackedSample.NAME,
+    Sample.public_name: TrackedSample.PUBLIC_NAME,
+    Sample.common_name: TrackedSample.COMMON_NAME,
+    Sample.supplier_name: TrackedSample.SUPPLIER_NAME,
+    Sample.cohort: TrackedSample.COHORT,
+    Sample.donor_id: TrackedSample.DONOR_ID,
+    Sample.consent_withdrawn: TrackedSample.CONSENT_WITHDRAWN,
+    IseqFlowcell.id_library_lims: "library_id",
+    IseqProductMetrics.qc: "manual_qc",
+    IseqFlowcell.primer_panel: "primer_panel",
+}
 
-def _recently_changed_query(sess: Session, start_time: datetime) -> List[Tuple]:
+
+def _recently_changed_query(sess: Session, start_time: datetime) -> Query:
     """
     Runs a query to find recently changed rows that correspond to
     irods metadata.
@@ -34,26 +53,14 @@ def _recently_changed_query(sess: Session, start_time: datetime) -> List[Tuple]:
        start_time: The datetime from which 'recent' is defined.
 
     Returns:
-        List of tuples.
+        SQLalchemy Query object.
     """
     return (
         sess.query(
-            Study.accession_number,
-            Study.name,
-            Study.study_title,
-            Study.id_study_lims,
-            Sample.accession_number,
-            Sample.id_sample_lims,
-            Sample.name,
-            Sample.public_name,
-            Sample.common_name,
-            Sample.supplier_name,
-            Sample.cohort,
-            Sample.donor_id,
-            Sample.consent_withdrawn,
-            IseqFlowcell.id_library_lims,
-            IseqProductMetrics.qc,
-            IseqFlowcell.primer_panel,
+            *[
+                column.label(str(attribute))
+                for column, attribute in column_to_attribute.items()
+            ]
         )
         .distinct()
         .join(
@@ -67,7 +74,6 @@ def _recently_changed_query(sess: Session, start_time: datetime) -> List[Tuple]:
             | (IseqFlowcell.recorded_at > start_time)
             | (IseqProductMetrics.last_changed > start_time)
         )
-        .all()
     )
 
 
@@ -83,29 +89,13 @@ def recently_changed(sess: Session, start_time: datetime) -> List[Dict]:
     Returns:
         List of dictionaries.
     """
-    responses = _recently_changed_query(sess, start_time)
-    attributes = [
-        TrackedStudy.ACCESSION_NUMBER,
-        TrackedStudy.NAME,
-        TrackedStudy.TITLE,
-        TrackedStudy.ID,
-        TrackedSample.ACCESSION_NUMBER,
-        TrackedSample.ID,
-        TrackedSample.NAME,
-        TrackedSample.PUBLIC_NAME,
-        TrackedSample.COMMON_NAME,
-        TrackedSample.SUPPLIER_NAME,
-        TrackedSample.COHORT,
-        TrackedSample.DONOR_ID,
-        TrackedSample.CONSENT_WITHDRAWN,
-        "library_id",
-        "manual_qc",
-        "primer_panel",
-    ]
+    query = _recently_changed_query(sess, start_time)
+
     changed = []
-    for response in responses:
-        response_dict = {}
-        for i in range(len(attributes)):
-            response_dict[attributes[i]] = response[i]
+    for response in query.all():
+        response_dict = {
+            key: getattr(response, str(key)) for key in column_to_attribute.values()
+        }
+
         changed.append(response_dict)
     return changed
