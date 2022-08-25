@@ -18,11 +18,10 @@
 # @author Michael Kubiak <mk35@sanger.ac.uk>
 
 from ml_warehouse.schema import Study, Sample, IseqFlowcell, IseqProductMetrics
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from sqlalchemy.orm import Session
 from datetime import datetime
-from npg_irods.metadata.lims import TrackedStudy, TrackedSample, avu_if_value
-from partisan.irods import AVU
+from npg_irods.metadata.lims import TrackedStudy, TrackedSample
 
 
 def _recently_changed_query(sess: Session, start_time: datetime) -> List[Tuple]:
@@ -72,7 +71,7 @@ def _recently_changed_query(sess: Session, start_time: datetime) -> List[Tuple]:
     )
 
 
-def recently_changed(sess: Session, start_time: datetime) -> List[List[AVU]]:
+def recently_changed(sess: Session, start_time: datetime) -> List[Dict]:
     """
     Gets recently changed metadata values and associates them with
     their attribute keys.
@@ -105,8 +104,8 @@ def recently_changed(sess: Session, start_time: datetime) -> List[List[AVU]]:
     ]
     changed = []
     for response in responses:
-        avus = []
+        response_dict = {}
         for i in range(len(attributes)):
-            avus.append(avu_if_value(attributes[i], response[i]))
-        changed.append(avus)
+            response_dict[attributes[i]] = response[i]
+        changed.append(response_dict)
     return changed
