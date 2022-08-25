@@ -17,16 +17,19 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from pytest import mark as m
 
-from conftest import EARLY, LATE, LATEST
+from conftest import BEGIN, EARLY, LATE, LATEST
 from npg_irods.ont import find_recent_expt, find_recent_expt_slot
+from npg_irods.metadata import illumina
+from npg_irods.metadata.lims import TrackedStudy, TrackedSample
+from partisan.irods import AVU
 
 
-@m.describe("Finding updated experiments by datetime")
-class TestMLWarehouseQueries(object):
+@m.describe("Finding updated ONT experiments by datetime")
+class TestONTMLWarehouseQueries(object):
     @m.context("When a query date is provided")
     @m.it("Finds the correct experiments")
     def test_find_recent_expt(self, mlwh_session):
@@ -104,3 +107,117 @@ class TestMLWarehouseQueries(object):
 
         after_latest = LATEST + timedelta(days=1)
         assert find_recent_expt_slot(mlwh_session, after_latest) == []
+
+
+@m.describe("Finding illumina recently changed information in illumina tables")
+class TestIlluminaMLWarehouseQueries(object):
+    @m.context("When given a datetime")
+    @m.it("Finds rows updated since that datetime")
+    def test_recently_changed(self, mlwh_session):
+
+        late_expected = [
+            {
+                TrackedStudy.ACCESSION_NUMBER: "ST0000000001",
+                TrackedStudy.NAME: "Recently Changed",
+                TrackedStudy.TITLE: "Recently changed study",
+                TrackedStudy.ID: "study_04",
+                TrackedSample.ACCESSION_NUMBER: "SA000002",
+                TrackedSample.ID: "SAMPLE_02",
+                TrackedSample.NAME: "Unchanged",
+                TrackedSample.PUBLIC_NAME: "Unchanged",
+                TrackedSample.COMMON_NAME: "Unchanged",
+                TrackedSample.SUPPLIER_NAME: "Unchanged_supplier",
+                TrackedSample.COHORT: "cohort_02",
+                TrackedSample.DONOR_ID: "DONOR_02",
+                TrackedSample.CONSENT_WITHDRAWN: 0,
+                "library_id": "LIBRARY_01",
+                "manual_qc": 0,
+                "primer_panel": "Primer_panel_01",
+            },
+            {
+                TrackedStudy.ACCESSION_NUMBER: "ST0000000002",
+                TrackedStudy.NAME: "Unchanged",
+                TrackedStudy.TITLE: "Unchanged study",
+                TrackedStudy.ID: "study_05",
+                TrackedSample.ACCESSION_NUMBER: "SA000001",
+                TrackedSample.ID: "SAMPLE_01",
+                TrackedSample.NAME: "Recently changed",
+                TrackedSample.PUBLIC_NAME: "Recently changed",
+                TrackedSample.COMMON_NAME: "Recently changed",
+                TrackedSample.SUPPLIER_NAME: "Recently_changed_supplier",
+                TrackedSample.COHORT: "cohort_01",
+                TrackedSample.DONOR_ID: "DONOR_01",
+                TrackedSample.CONSENT_WITHDRAWN: 0,
+                "library_id": "LIBRARY_02",
+                "manual_qc": 0,
+                "primer_panel": "Primer_panel_02",
+            },
+            {
+                TrackedStudy.ACCESSION_NUMBER: "ST0000000002",
+                TrackedStudy.NAME: "Unchanged",
+                TrackedStudy.TITLE: "Unchanged study",
+                TrackedStudy.ID: "study_05",
+                TrackedSample.ACCESSION_NUMBER: "SA000002",
+                TrackedSample.ID: "SAMPLE_02",
+                TrackedSample.NAME: "Unchanged",
+                TrackedSample.PUBLIC_NAME: "Unchanged",
+                TrackedSample.COMMON_NAME: "Unchanged",
+                TrackedSample.SUPPLIER_NAME: "Unchanged_supplier",
+                TrackedSample.COHORT: "cohort_02",
+                TrackedSample.DONOR_ID: "DONOR_02",
+                TrackedSample.CONSENT_WITHDRAWN: 0,
+                "library_id": "LIBRARY_04",
+                "manual_qc": 0,
+                "primer_panel": "Primer_panel_04",
+            },
+            {
+                TrackedStudy.ACCESSION_NUMBER: "ST0000000002",
+                TrackedStudy.NAME: "Unchanged",
+                TrackedStudy.TITLE: "Unchanged study",
+                TrackedStudy.ID: "study_05",
+                TrackedSample.ACCESSION_NUMBER: "SA000002",
+                TrackedSample.ID: "SAMPLE_02",
+                TrackedSample.NAME: "Unchanged",
+                TrackedSample.PUBLIC_NAME: "Unchanged",
+                TrackedSample.COMMON_NAME: "Unchanged",
+                TrackedSample.SUPPLIER_NAME: "Unchanged_supplier",
+                TrackedSample.COHORT: "cohort_02",
+                TrackedSample.DONOR_ID: "DONOR_02",
+                TrackedSample.CONSENT_WITHDRAWN: 0,
+                "library_id": "LIBRARY_03",
+                "manual_qc": 0,
+                "primer_panel": "Primer_panel_03",
+            },
+        ]
+        before_early_expected = late_expected + [
+            {
+                TrackedStudy.ACCESSION_NUMBER: "ST0000000002",
+                TrackedStudy.NAME: "Unchanged",
+                TrackedStudy.TITLE: "Unchanged study",
+                TrackedStudy.ID: "study_05",
+                TrackedSample.ACCESSION_NUMBER: "SA000002",
+                TrackedSample.ID: "SAMPLE_02",
+                TrackedSample.NAME: "Unchanged",
+                TrackedSample.PUBLIC_NAME: "Unchanged",
+                TrackedSample.COMMON_NAME: "Unchanged",
+                TrackedSample.SUPPLIER_NAME: "Unchanged_supplier",
+                TrackedSample.COHORT: "cohort_02",
+                TrackedSample.DONOR_ID: "DONOR_02",
+                TrackedSample.CONSENT_WITHDRAWN: 0,
+                "library_id": "LIBRARY_05",
+                "manual_qc": 0,
+                "primer_panel": "Primer_panel_05",
+            }
+        ]
+        before_early = BEGIN - timedelta(days=1)
+        after_latest = LATEST + timedelta(days=1)
+
+        # only recently updated
+        assert illumina.recently_changed(mlwh_session, LATE) == late_expected
+        # all
+        assert (
+            illumina.recently_changed(mlwh_session, before_early)
+            == before_early_expected
+        )
+        # none
+        assert illumina.recently_changed(mlwh_session, after_latest) == []
