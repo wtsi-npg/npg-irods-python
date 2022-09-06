@@ -17,14 +17,13 @@
 #
 # @author Michael Kubiak <mk35@sanger.ac.uk>
 
+import json
+from multiprocessing import Pool
+
+from partisan.irods import Collection
 from pytest import mark as m, raises
 
 from npg_irods.mlwh_locations import illumina
-from typing import Dict
-
-from partisan.irods import Collection
-import json
-from multiprocessing import Pool
 
 
 def assert_excluded_object(obj_path: str):

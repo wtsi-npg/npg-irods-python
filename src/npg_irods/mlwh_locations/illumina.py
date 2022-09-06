@@ -83,7 +83,7 @@ def has_phix_reference(obj: DataObject) -> bool:
     Returns: bool
     """
     for meta in obj.metadata():
-        if meta.attribute == SeqConcept.REFERENCE and "PhiX" in meta.value:
+        if meta.attribute == str(SeqConcept.REFERENCE) and "PhiX" in meta.value:
             return True
 
     return False
@@ -102,7 +102,7 @@ def has_subset(obj: DataObject) -> bool:
     """
     for meta in obj.metadata():
         # subset is not present alone, but is part of the component metadata
-        if meta.attribute == SeqConcept.COMPONENT and "subset" in meta.value:
+        if meta.attribute == str(SeqConcept.COMPONENT) and "subset" in meta.value:
             return True
 
     return False
@@ -122,6 +122,7 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
     Returns: Dict
     """
     # rebuild un-pickleable objects inside subprocess
+
     with client_pool(1) as baton_pool:
         obj = DataObject(obj_path, baton_pool)
         if has_expected_extension(obj.name, ext) and not is_10x(str(obj.path)):
@@ -137,9 +138,9 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
                 raise ExcludedObjectException(f"{obj} is in an excluded object class")
 
             for meta in obj.metadata():
-                if meta.attribute == SeqConcept.ID_PRODUCT:
+                if meta.attribute == str(SeqConcept.ID_PRODUCT):
                     product["id_product"] = meta.value
-                if meta.attribute == SeqConcept.ALT_PROCESS:
+                if meta.attribute == str(SeqConcept.ALT_PROCESS):
                     product["pipeline_name"] = f"alt_{meta.value}"
 
             if "id_product" in product.keys():
