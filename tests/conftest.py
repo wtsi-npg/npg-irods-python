@@ -25,19 +25,23 @@
 # them)."
 
 import configparser
+import logging
 import os
 from datetime import datetime
 from pathlib import PurePath
 
 import pytest
+
+import structlog
 from ml_warehouse.schema import (
     Base,
+    IseqFlowcell,
+    IseqProductMetrics,
     OseqFlowcell,
     Sample,
     Study,
-    IseqFlowcell,
-    IseqProductMetrics,
 )
+
 from partisan import icommands
 from partisan.icommands import imkdir, iput, irm, mkgroup, rmgroup
 from partisan.irods import (
@@ -45,13 +49,22 @@ from partisan.irods import (
     Collection,
     DataObject,
 )
+from partisan.metadata import DublinCore
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy_utils import create_database, database_exists, drop_database
 
+from npg_irods.metadata.common import DataFile
 from npg_irods.metadata.ont import Instrument
 
 test_ini = os.path.join(os.path.dirname(__file__), "testdb.ini")
+
+logging.basicConfig(level=logging.ERROR)
+
+structlog.configure(
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    processors=[structlog.processors.JSONRenderer()],
+)
 
 
 @pytest.fixture(scope="session")
@@ -164,6 +177,42 @@ def add_rods_path(root_path: PurePath, tmp_path: PurePath) -> PurePath:
 
 
 @pytest.fixture(scope="function")
+def simple_data_object(tmp_path):
+    """A fixture providing a collection containing a single data object containing
+    UTF-8 data."""
+    root_path = PurePath("/testZone/home/irods/test")
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    obj_path = rods_path / "lorem.txt"
+    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
+
+    try:
+        yield obj_path
+    finally:
+        irm(root_path, force=True, recurse=True)
+
+
+@pytest.fixture(scope="function")
+def annotated_data_object(simple_data_object):
+    """A fixture providing a collection containing a single, annotated data object
+    containing UTF-8 data."""
+
+    obj = DataObject(simple_data_object)
+    obj.add_metadata(
+        AVU(DublinCore.CREATED, datetime.utcnow().isoformat(timespec="seconds")),
+        AVU(DublinCore.CREATOR, "dummy creator"),
+        AVU(DublinCore.PUBLISHER, "dummy publisher"),
+        AVU(DataFile.TYPE, "txt"),
+        AVU(DataFile.MD5, "39a4aa291ca849d601e4e5b8ed627a04"),
+    )
+
+    try:
+        yield simple_data_object
+    finally:
+        irm(simple_data_object, force=True, recurse=True)
+
+
+@pytest.fixture(scope="function")
 def ont_gridion(tmp_path):
     """A fixture providing a set of files based on output from an ONT GridION
     instrument. This dataset provides an example of file and directory naming
@@ -185,6 +234,9 @@ def ont_gridion(tmp_path):
 
 @pytest.fixture(scope="function")
 def ont_synthetic(tmp_path):
+    """A fixture providing a synthetic set of files and metadata based on output
+    from an ONT GridION instrument, modified to represent the way simple and
+    multiplexed experiments are laid out. The file contents are dummy values."""
     root_path = PurePath("/testZone/home/irods/test")
     rods_path = add_rods_path(root_path, tmp_path)
 

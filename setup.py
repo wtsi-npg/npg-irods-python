@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2022 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,8 +20,8 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="npg-metadata-sync",
-    url="https://github.com/kjsanger/npg-metadata-sync",
+    name="npg-irods-python",
+    url="https://github.com/wtsi-npg/npg-irods-python",
     license="GPL3",
     author="Keith James",
     author_email="kdj@sanger.ac.uk",
@@ -33,4 +33,8 @@ setup(
     setup_requires=["setuptools_scm"],
     install_requires=["ml-warehouse", "partisan", "sqlalchemy", "structlog"],
     tests_require=["black", "pytest", "pytest-it"],
+    scripts=[
+        "scripts/backfill_illumina_locations.py",
+        "scripts/check-common-metadata",
+    ],
 )

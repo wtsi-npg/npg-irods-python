@@ -17,7 +17,8 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-from datetime import datetime
+"""Support for LIMS platform metadata added to iRODS by NPG."""
+
 from enum import unique
 from itertools import starmap
 from typing import List
@@ -25,7 +26,9 @@ from typing import List
 from ml_warehouse.schema import Sample, Study
 from partisan.irods import AC, AVU, Permission
 
-from partisan.metadata import AsValueEnum, DublinCore
+from partisan.metadata import AsValueEnum
+
+from npg_irods.metadata.common import avu_if_value
 
 
 @unique
@@ -44,9 +47,6 @@ class TrackedSample(AsValueEnum):
     PUBLIC_NAME = "sample_public_name"
     SUPPLIER_NAME = "sample_supplier_name"
 
-    def __str__(self):
-        return str(self.__repr__())
-
 
 @unique
 class TrackedStudy(AsValueEnum):
@@ -56,9 +56,6 @@ class TrackedStudy(AsValueEnum):
     ID = "study_id"
     NAME = "study"
     TITLE = "study_title"
-
-    def __str__(self):
-        return str(self.__repr__())
 
 
 @unique
@@ -70,12 +67,6 @@ class SeqConcept(AsValueEnum):
     COMPONENT = "component"
     ID_PRODUCT = "id_product"
     ALT_PROCESS = "alt_process"
-
-    def __str__(self):
-        return str(self.__repr__())
-
-    def __eq__(self, other):
-        return str(self) == str(other)
 
 
 def make_sample_metadata(sample: Sample) -> List[AVU]:
@@ -118,45 +109,8 @@ def make_study_metadata(study: Study):
     return list(filter(lambda avu: avu is not None, starmap(avu_if_value, av)))
 
 
-def make_creation_metadata(creator: str, created: datetime):
-    """Return standard iRODS metadata for data creation:
-
-      - creator
-      - created
-
-    Args:
-        creator: name of user or service creating data
-        created: creation timestamp
-
-    Returns: List[AVU]
-    """
-    return [
-        AVU(DublinCore.CREATOR.value, creator, namespace=DublinCore.namespace),
-        AVU(
-            DublinCore.CREATED.value,
-            created.isoformat(timespec="seconds"),
-            namespace=DublinCore.namespace,
-        ),
-    ]
-
-
-def make_modification_metadata(modified: datetime):
-    return [
-        AVU(
-            DublinCore.MODIFIED.value,
-            modified.isoformat(timespec="seconds"),
-            namespace=DublinCore.namespace,
-        )
-    ]
-
-
 def make_sample_acl(sample: Sample, study: Study) -> List[AC]:
     irods_group = f"ss_{study.id_study_lims}"
     perm = Permission.NULL if sample.consent_withdrawn else Permission.READ
 
     return [AC(irods_group, perm)]
-
-
-def avu_if_value(attribute, value):
-    if value is not None:
-        return AVU(attribute, value)

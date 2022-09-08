@@ -23,11 +23,8 @@ from partisan.metadata import AsValueEnum, with_namespace
 
 
 @unique
-class Instrument(str, AsValueEnum, metaclass=with_namespace("ont")):
+class Instrument(AsValueEnum, metaclass=with_namespace("ont")):
     """Oxford Nanopore platform metadata"""
 
     EXPERIMENT_NAME = "experiment_name"
     INSTRUMENT_SLOT = "instrument_slot"
-
-    def __str__(self):
-        return str(self.__repr__())
