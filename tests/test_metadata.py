@@ -24,6 +24,7 @@ from pytest import mark as m
 
 from conftest import icommands_have_admin
 from npg_irods.metadata.common import (
+    CompressSuffix,
     DataFile,
     RECOGNISED_FILE_SUFFIXES,
     has_checksum_metadata,
@@ -31,6 +32,7 @@ from npg_irods.metadata.common import (
     has_type_metadata,
     make_creation_metadata,
     make_type_metadata,
+    parse_object_type,
     requires_type_metadata,
 )
 
@@ -56,10 +58,19 @@ class TestTypeMetadata:
             assert make_type_metadata(DataObject(f"/dummy/path.{suffix}")) == [
                 AVU(DataFile.TYPE, suffix)
             ]
-        suffix = "unrecognised"
-        assert make_type_metadata(DataObject(f"/dummy/path/name.{suffix}")) == [
-            AVU(DataFile.TYPE, suffix)
-        ]
+
+    @m.context("When a data object path is parsed")
+    @m.it("Finds the correct suffix")
+    def test_parse_object_type(self):
+        for suffix in RECOGNISED_FILE_SUFFIXES:
+            assert parse_object_type(DataObject(f"/dummy/path.{suffix}")) == suffix
+            assert (
+                parse_object_type(DataObject(f"/dummy/path.{suffix}.other")) == "other"
+            )
+            for cs in CompressSuffix:
+                assert (
+                    parse_object_type(DataObject(f"/dummy/path.other.{cs}")) == "other"
+                )
 
 
 @m.describe("Creation metadata")

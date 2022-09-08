@@ -22,6 +22,7 @@
 import re
 from datetime import datetime
 from enum import unique
+from pathlib import PurePath
 
 from partisan.irods import AVU, DataObject
 from partisan.metadata import AsValueEnum, DublinCore
@@ -118,13 +119,13 @@ def requires_creation_metadata(obj: DataObject) -> bool:
 
 
 def has_creation_metadata(obj: DataObject) -> bool:
-    """Return True if the data object has all expected creation metadata.
+    """Return True if the data object has the expected creation metadata.
 
     Args:
         obj: The data object to check.
 
     Returns:
-        True if all metadata are present, or False otherwise.
+        True if the metadata are present, or False otherwise.
     """
     expected = [str(attr) for attr in [DublinCore.CREATED, DublinCore.CREATOR]]
     observed = [avu.attribute for avu in obj.metadata()]
@@ -167,13 +168,13 @@ def requires_modification_metadata(obj: DataObject) -> bool:
 
 
 def has_modification_metadata(obj: DataObject) -> bool:
-    """Return True if the data object has all expected modification metadata.
+    """Return True if the data object has the expected modification metadata.
 
     Args:
         obj: The data object to check.
 
     Returns:
-        True if all metadata are present, or False otherwise.
+        True if the metadata are present, or False otherwise.
     """
     return any(avu.attribute == str(DublinCore.MODIFIED) for avu in obj.metadata())
 
@@ -210,14 +211,14 @@ def requires_checksum_metadata(obj: DataObject) -> bool:
 
 
 def has_checksum_metadata(obj: DataObject) -> bool:
-    """Return True if the data object has all expected checksum metadata. This function
-    does not check that the checksum is valid, only that it is present .
+    """Return True if the data object has the expected checksum metadata. This
+    function does not check that the checksum is valid, only that it is present.
 
     Args:
         obj: The data object to check.
 
     Returns:
-        True if all metadata are present, or False otherwise.
+        True if the metadata are present, or False otherwise.
     """
     return any(avu.attribute == str(DataFile.MD5) for avu in obj.metadata())
 
@@ -250,13 +251,13 @@ def requires_type_metadata(obj: DataObject) -> bool:
 
 
 def has_type_metadata(obj: DataObject) -> bool:
-    """Return True if the data object has all expected data type metadata.
+    """Return True if the data object has the expected data type metadata.
 
     Args:
         obj: The data object to check.
 
     Returns:
-        True if all metadata are present, or False otherwise.
+        True if the metadata are present, or False otherwise.
     """
 
     return any(avu.attribute == str(DataFile.TYPE) for avu in obj.metadata())
@@ -297,26 +298,13 @@ def parse_object_type(obj: DataObject):
 
     Returns: A type string, if one can be parsed, or None.
     """
-    compress = "|".join([s.value for s in CompressSuffix])
+    suffixes = [s.lstrip(".") for s in PurePath(obj).suffixes]
+    compress_suffixes = [s.value for s in CompressSuffix]
 
-    # All the groups are named for documentation and debug purposes, even though
-    # only one is used:
-    #
-    # path: The file path/name, including the suffix.
-    # suffix: The file suffix we are interested in.
-    # dotcsuffix: The compression suffix, including dot.
-    # csuffix: The compression suffix, without dot.
-    regex = re.compile(
-        "(?P<path>[^.]*[.](?P<suffix>[^.]*))"
-        f"(?P<dotcsuffix>[.](?P<csuffix>{compress}))*",
-        re.IGNORECASE,
-    )
-
-    m = regex.match(obj.name)
-    if m:
-        if m.group("suffix"):
-            return m.group("suffix").lower()
-
+    for s in reversed(suffixes):
+        if s in compress_suffixes:
+            continue
+        return s
     return None
 
 
@@ -332,7 +320,7 @@ def has_common_metadata(obj: DataObject) -> bool:
         obj: The data object to check.
 
     Returns:
-        True if all metadata are present, or False otherwise.
+        True if metadata are present, or False otherwise.
     """
     checks = [has_checksum_metadata, has_checksum_metadata]
     if requires_type_metadata(obj):
