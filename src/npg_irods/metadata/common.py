@@ -19,14 +19,20 @@
 
 """Support for metadata common to all data objects added to iRODS by NPG."""
 
-import re
 from datetime import datetime
 from enum import unique
 from pathlib import PurePath
 
-from partisan.irods import AVU, DataObject
+from partisan.irods import AVU, DataObject, RodsItem
 from partisan.metadata import AsValueEnum, DublinCore
+from structlog import get_logger
 
+log = get_logger(__name__)
+
+
+"""A fallback value for dcterms:creator for use when the original process or user 
+that created the data object is not known """
+UNKNOWN_CREATOR = "unknown"
 
 """A lookup table of the file suffixes which will be recognised for iRODS "type" 
 metadata."""
@@ -92,20 +98,6 @@ class CompressSuffix(AsValueEnum):
     ZIP = "zip"
 
 
-def avu_if_value(attribute, value):
-    """Return an AVU if value is not None, otherwise return None.
-
-    Args:
-        attribute: An iRODS AVU attribute.
-        value: An iRODS AVU value.
-
-    Returns:
-        A new AVU instance.
-    """
-    if value is not None:
-        return AVU(attribute, value)
-
-
 def requires_creation_metadata(obj: DataObject) -> bool:
     """Return True if the data object should have these metadata.
 
@@ -155,6 +147,26 @@ def make_creation_metadata(creator: str, created: datetime) -> list[AVU]:
     ]
 
 
+def ensure_creation_metadata(obj: DataObject, creator=None) -> bool:
+    """Ensure that an object has creation metadata, if it should need any. Otherwise,
+    do nothing.
+
+    Args:
+        obj: The data object to repair.
+        creator: The creator name string. Optional, defaults to the UNKNOWN_CREATOR
+        placeholder.
+
+    Returns:
+        True if one or more AVUs required adding.
+    """
+    if not requires_creation_metadata(obj):
+        return False
+
+    c = creator if creator is not None else UNKNOWN_CREATOR
+    t = obj.timestamp()
+    return _ensure_avus_present(obj, *make_creation_metadata(c, t))
+
+
 def requires_modification_metadata(obj: DataObject) -> bool:
     """Return True if the data object should have these metadata.
 
@@ -176,7 +188,7 @@ def has_modification_metadata(obj: DataObject) -> bool:
     Returns:
         True if the metadata are present, or False otherwise.
     """
-    return any(avu.attribute == str(DublinCore.MODIFIED) for avu in obj.metadata())
+    return any(avu.attribute == DublinCore.MODIFIED.value for avu in obj.metadata())
 
 
 def make_modification_metadata(modified: datetime) -> list[AVU]:
@@ -220,7 +232,7 @@ def has_checksum_metadata(obj: DataObject) -> bool:
     Returns:
         True if the metadata are present, or False otherwise.
     """
-    return any(avu.attribute == str(DataFile.MD5) for avu in obj.metadata())
+    return any(avu.attribute == DataFile.MD5.value for avu in obj.metadata())
 
 
 def make_checksum_metadata(checksum: str) -> list[AVU]:
@@ -231,10 +243,29 @@ def make_checksum_metadata(checksum: str) -> list[AVU]:
     Args:
         checksum: The current checksum.
 
-
     Returns: List[AVU]
     """
     return [AVU(DataFile.MD5, checksum)]
+
+
+def ensure_checksum_metadata(obj: DataObject) -> bool:
+    """Ensure that an object has checksum metadata, if it should need have any.
+    Otherwise, do nothing.
+
+    Args:
+        obj: The data object to repair.
+
+    Returns:
+        True if one or more AVUs required adding.
+    """
+    if not requires_checksum_metadata(obj):
+        return False
+
+    c = obj.checksum()
+    if not c:
+        raise ValueError(f"Empty checksum returned from iRODS for {obj}")
+
+    return _ensure_avus_present(obj, *make_checksum_metadata(c))
 
 
 def requires_type_metadata(obj: DataObject) -> bool:
@@ -259,8 +290,7 @@ def has_type_metadata(obj: DataObject) -> bool:
     Returns:
         True if the metadata are present, or False otherwise.
     """
-
-    return any(avu.attribute == str(DataFile.TYPE) for avu in obj.metadata())
+    return any(avu.attribute == DataFile.TYPE.value for avu in obj.metadata())
 
 
 def make_type_metadata(obj: DataObject) -> list[AVU]:
@@ -284,6 +314,22 @@ def make_type_metadata(obj: DataObject) -> list[AVU]:
     if t:
         return [AVU(DataFile.TYPE, t)]
     return []
+
+
+def ensure_type_metadata(obj: DataObject) -> bool:
+    """Ensure that an object has type metadata, if it should need any. Otherwise, do
+    nothing.
+
+    Args:
+        obj: The data object to repair.
+
+    Returns:
+        True if one or more AVUs required adding.
+    """
+    if not requires_type_metadata(obj):
+        return False
+
+    return _ensure_avus_present(obj, *make_type_metadata(obj))
 
 
 def parse_object_type(obj: DataObject):
@@ -322,8 +368,70 @@ def has_common_metadata(obj: DataObject) -> bool:
     Returns:
         True if metadata are present, or False otherwise.
     """
-    checks = [has_checksum_metadata, has_checksum_metadata]
+    checks = [has_creation_metadata, has_checksum_metadata]
     if requires_type_metadata(obj):
         checks.append(has_type_metadata)
 
     return all(fn(obj) for fn in checks)
+
+
+def ensure_common_metadata(obj: DataObject, creator=None) -> bool:
+    """Ensure that an object has any common metadata that it needs. Otherwise,
+    do nothing.
+
+    Args:
+        obj: The data object to repair.
+        creator: The creator name string. Optional, defaults to the UNKNOWN_CREATOR
+        placeholder.
+
+    Returns:
+        True if one or more AVUs required adding.
+    """
+    changed = [
+        ensure_creation_metadata(obj, creator=creator),
+        ensure_checksum_metadata(obj),
+        ensure_type_metadata(obj),
+    ]
+
+    return any(changed)
+
+
+def avu_if_value(attribute, value):
+    """Return an AVU if value is not None, otherwise return None.
+
+    Args:
+        attribute: An iRODS AVU attribute.
+        value: An iRODS AVU value.
+
+    Returns:
+        A new AVU instance.
+    """
+    if value is not None:
+        return AVU(attribute, value)
+
+
+def _ensure_avus_present(item: RodsItem, *avus: AVU) -> bool:
+    """Ensure that an item in iRODS has the specified metadata.
+
+    NB: this function is fore case where we only have a single AVU for each
+    attribute. Do not use it for cases where there are multiple AVUs sharing the same
+    attribute.
+
+    Args:
+        item: An item to update.
+        avu: AVUs to ensure are present.
+
+    Returns:
+        True if one or more AVUs required adding.
+    """
+    missing = []
+
+    # Note: this uses the knowledge that we only have a single AVU for each attribute
+    meta = {avu.attribute: avu for avu in avus}
+    for attr, avu in meta.items():
+        if not any(a.attribute == attr for a in item.metadata()):
+            missing.append(avu)
+
+    item.add_metadata(*missing)
+
+    return True if missing else False

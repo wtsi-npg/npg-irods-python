@@ -1,5 +1,6 @@
 git+https://github.com/wtsi-npg/ml-warehouse-python.git@1.0.0#egg=ml-warehouse
-partisan@https://github.com/wtsi-npg/partisan/releases/download/1.1.0/partisan-1.1.0.tar.gz
+# partisan@https://github.com/wtsi-npg/partisan/releases/download/1.1.0/partisan-1.1.0.tar.gz
+git+https://github.com/kjsanger/partisan.git@feature/add-timestamp-support#egg=partisan
 setuptools==63.1.0
 setuptools_scm==7.0.5
 sqlalchemy==1.4.40

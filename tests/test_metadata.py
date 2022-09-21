@@ -27,6 +27,9 @@ from npg_irods.metadata.common import (
     CompressSuffix,
     DataFile,
     RECOGNISED_FILE_SUFFIXES,
+    ensure_checksum_metadata,
+    ensure_creation_metadata,
+    ensure_type_metadata,
     has_checksum_metadata,
     has_creation_metadata,
     has_type_metadata,
@@ -52,7 +55,7 @@ class TestTypeMetadata:
         assert not requires_type_metadata(DataObject(f"/dummy/path/name.{suffix}"))
 
     @m.context("When type metadata are created")
-    @m.it("It has the correct form")
+    @m.it("Has the correct form")
     def test_make_type_metadata(self):
         for suffix in RECOGNISED_FILE_SUFFIXES:
             assert make_type_metadata(DataObject(f"/dummy/path.{suffix}")) == [
@@ -76,7 +79,7 @@ class TestTypeMetadata:
 @m.describe("Creation metadata")
 class TestCreationMetadata:
     @m.context("When creation metadata are created")
-    @m.it("It has the correct form")
+    @m.it("Has the correct form")
     def test_make_creation_metadata(self):
         now = datetime.datetime.utcnow()
         name = "dummy"
@@ -90,17 +93,21 @@ class TestCreationMetadata:
 class TestCommonMetadata:
     @icommands_have_admin
     @m.context("When common metadata are present")
+    @m.context("A has_ function is called")
     @m.it("Returns True")
-    def test_metadata_present(self, annotated_data_object):
+    def test_has_metadata_present(self, annotated_data_object):
         obj = DataObject(annotated_data_object)
+
         assert has_creation_metadata(obj)
         assert has_type_metadata(obj)
         assert has_checksum_metadata(obj)
 
     @m.context("When common metadata are absent")
+    @m.context("A has_ function is called")
     @m.it("Returns False")
-    def test_metadata_absent(self, annotated_data_object):
+    def test_has_metadata_absent(self, annotated_data_object):
         obj = DataObject(annotated_data_object)
+
         obj.remove_metadata(AVU("dcterms:creator", "dummy creator"))
         assert not has_creation_metadata(obj)
 
@@ -109,3 +116,39 @@ class TestCommonMetadata:
 
         obj.remove_metadata(AVU(DataFile.MD5, "39a4aa291ca849d601e4e5b8ed627a04"))
         assert not has_checksum_metadata(obj)
+
+    @m.context("When common metadata are present")
+    @m.context("An ensure_ function is called")
+    @m.it("Returns False")
+    def test_ensure_metadata_present(self, annotated_data_object):
+        obj = DataObject(annotated_data_object)
+
+        assert has_creation_metadata(obj)
+        assert not ensure_creation_metadata(obj, creator="dummy creator")
+
+        assert has_type_metadata(obj)
+        assert not ensure_type_metadata(obj)
+
+        assert has_checksum_metadata(obj)
+        assert not ensure_checksum_metadata(obj)
+
+    @m.context("When common metadata are absent")
+    @m.context("An ensure_ function is called")
+    @m.it("Adds absent metadata and returns True")
+    def test_ensure_metadata_absent(self, annotated_data_object):
+        obj = DataObject(annotated_data_object)
+
+        obj.remove_metadata(AVU("dcterms:creator", "dummy creator"))
+        assert not has_creation_metadata(obj)
+        assert ensure_creation_metadata(obj, creator="dummy creator")
+        assert has_creation_metadata(obj)
+
+        obj.remove_metadata(AVU(DataFile.TYPE, "txt"))
+        assert not has_type_metadata(obj)
+        assert ensure_type_metadata(obj)
+        assert has_type_metadata(obj)
+
+        obj.remove_metadata(AVU(DataFile.MD5, "39a4aa291ca849d601e4e5b8ed627a04"))
+        assert not has_checksum_metadata(obj)
+        assert ensure_checksum_metadata(obj)
+        assert has_checksum_metadata(obj)
