@@ -77,7 +77,7 @@ def check_common_metadata(
                     if print_pass:
                         _print(p, writer)
                 else:
-                    log.warn(
+                    log.info(
                         "Common metadata",
                         item=i,
                         path=obj,
