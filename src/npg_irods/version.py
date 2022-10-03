@@ -17,25 +17,11 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-from setuptools import find_packages, setup
+import importlib.metadata
 
-setup(
-    name="npg-irods-python",
-    url="https://github.com/wtsi-npg/npg-irods-python",
-    license="GPL3",
-    author="Keith James",
-    author_email="kdj@sanger.ac.uk",
-    description=".",
-    use_scm_version=True,
-    python_requires=">=3.10",
-    packages=find_packages("src"),
-    package_dir={"": "src"},
-    setup_requires=["setuptools_scm"],
-    install_requires=["ml-warehouse", "partisan", "sqlalchemy", "structlog"],
-    tests_require=["black", "pytest", "pytest-it"],
-    scripts=[
-        "scripts/backfill_illumina_locations.py",
-        "scripts/check-common-metadata",
-        "scripts/repair-common-metadata",
-    ],
-)
+__version__ = importlib.metadata.version("npg-irods-python")
+
+
+def version() -> str:
+    """Return the current version."""
+    return __version__
