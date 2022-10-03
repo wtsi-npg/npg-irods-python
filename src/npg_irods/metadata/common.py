@@ -376,8 +376,8 @@ def has_common_metadata(obj: DataObject) -> bool:
 
 
 def ensure_common_metadata(obj: DataObject, creator=None) -> bool:
-    """Ensure that an object has any common metadata that it needs. Otherwise,
-    do nothing.
+    """Ensure that an object has any common metadata that it needs. If it does not
+    need any, or the metadata are present, do nothing.
 
     Args:
         obj: The data object to repair.
