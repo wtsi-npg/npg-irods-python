@@ -155,7 +155,7 @@ def repair_common_metadata(
             try:
                 obj = DataObject(p, pool=bp)
                 if not has_common_metadata(obj):
-                    log.warn(
+                    log.info(
                         "Common metadata",
                         item=i,
                         path=obj,
