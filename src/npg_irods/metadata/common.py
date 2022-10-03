@@ -249,7 +249,7 @@ def make_checksum_metadata(checksum: str) -> list[AVU]:
 
 
 def ensure_checksum_metadata(obj: DataObject) -> bool:
-    """Ensure that an object has checksum metadata, if it should need have any.
+    """Ensure that an object has checksum metadata, if it should need any.
     Otherwise, do nothing.
 
     Args:
