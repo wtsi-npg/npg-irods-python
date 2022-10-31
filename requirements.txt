@@ -2,5 +2,5 @@ git+https://github.com/wtsi-npg/ml-warehouse-python.git@1.0.0#egg=ml-warehouse
 partisan@https://github.com/wtsi-npg/partisan/releases/download/1.2.0/partisan-1.2.0.tar.gz
 setuptools==65.5.0
 setuptools_scm==7.0.5
-sqlalchemy==1.4.40
+sqlalchemy==1.4.42
 structlog==22.1.0
