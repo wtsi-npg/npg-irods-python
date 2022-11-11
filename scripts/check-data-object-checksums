@@ -24,18 +24,12 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import repair_common_metadata
+from npg_irods.utilities import check_data_object_checksums, check_common_metadata
 from npg_irods.version import version
 
 description = """
-Reads iRODS data object paths from a file or STDIN, one per line and repairs
-their metadata, if necessary.
-
-"Common" metadata refers to a subset of primary metadata, namely
-
- - Creation date/creator
- - Checksum
- - File type
+Reads iRODS data object paths from a file or STDIN, one per line and performs
+consistency checks on their iRODS checksums and checksum metadata.
 """
 
 parser = argparse.ArgumentParser(
@@ -59,15 +53,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--print-repair",
-    help="Print to output those paths that were repaired. Defaults to True.",
+    "--print-pass",
+    help="Print to output those paths that pass the check. Defaults to True.",
     action="store_true",
 )
 
 parser.add_argument(
     "--print-fail",
-    help="Print to output those paths that require repair, where the repair failed. "
-    "Defaults to False.",
+    help="Print to output those paths that fail the check. Defaults to False.",
     action="store_true",
 )
 
@@ -78,15 +71,6 @@ parser.add_argument(
     type=int,
     default=4,
 )
-
-
-parser.add_argument(
-    "--creator",
-    help="The data creator name to use in any metadata generated. "
-    "Defaults to a placeholder value.",
-    type=str,
-)
-
 
 parser.add_argument(
     "-t",
@@ -127,16 +111,14 @@ def main():
         print(version())
         exit(0)
 
-    success = repair_common_metadata(
+    success = check_data_object_checksums(
         args.input,
         args.output,
-        creator=args.creator,
-        num_threads=args.threads,
-        num_clients=args.clients,
-        print_repair=args.print_repair,
+        print_pass=args.print_pass,
         print_fail=args.print_fail,
+        num_clients=args.clients,
+        num_threads=args.threads,
     )
-
     if not success:
         exit(1)
 

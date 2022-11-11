@@ -27,6 +27,8 @@ from partisan.irods import AVU, DataObject, RodsItem
 from partisan.metadata import AsValueEnum, DublinCore
 from structlog import get_logger
 
+from npg_irods.exception import ChecksumError
+
 log = get_logger(__name__)
 
 
@@ -96,6 +98,169 @@ class CompressSuffix(AsValueEnum):
     GZ = "gz"
     XZ = "xz"
     ZIP = "zip"
+
+
+# Checksums are not metadata in the sense of iRODS AVUs, but are nevertheless metadata
+def has_complete_checksums(obj: DataObject) -> bool:
+    """Return True if the data object has all required checksums.
+
+    This is defined as having complete checksum coverage i.e. that every valid
+    replica has a checksum. These checksums do not necessarily have to agree (which
+    would indicate a data integrity problem), but simply be present.
+
+    Args:
+        obj: The data object to check.
+
+    Returns:
+        True if there is full checksum coverage, or False otherwise.
+    """
+
+    if len(obj.replicas()) == 0:
+        raise ValueError(f"The replica list of {obj} is empty")
+
+    for r in obj.replicas():
+        if r.valid and r.checksum is None:
+            log.debug("Valid replica has no checksum", path=obj, number=r.number)
+            return False
+
+    return True
+
+
+def has_matching_checksums(obj: DataObject) -> bool:
+    """Return True if the data object has the same checksum for every replica.
+
+    If the data object does not have complete checksums, this function returns False.
+
+    Args:
+        obj: The data object to check.
+
+    Returns:
+        True if all the replicas share the same checksum, or False otherwise.
+    """
+    if not has_complete_checksums(obj):
+        return False
+
+    checksum = obj.checksum()
+    for r in obj.replicas():
+        if r.valid and r.checksum != checksum:
+            log.debug(
+                "Valid replica has non-matching checksum",
+                path=obj,
+                number=r.number,
+                expected=checksum,
+                observed=r.checksum,
+            )
+            return False
+
+    return True
+
+
+def has_matching_checksum_metadata(obj: DataObject) -> bool:
+    """Return True if the data object has complete, matching checksums and checksum
+    metadata, and all of these concur.
+
+    Note that function does not check whether checksum metadata are required to be on
+    the data object.
+
+    Args:
+        obj: The data object to check.
+
+    Returns:
+        True if all checksums and metadata concur, or False otherwise.
+
+    Raises:
+        ChecksumError if there are multiple items of checksum metadata on the
+        data object.
+    """
+    # It's possible, technically, for there to be multiple checksum AVUs in an
+    # object's metadata because iRODS is permissive on this. If we find more than
+    # one, we raise an exception.
+    checksum_meta = [
+        avu for avu in obj.metadata() if avu.attribute == DataFile.MD5.value
+    ]
+    if len(checksum_meta) > 1:
+        checksums = [avu.value for avu in checksum_meta]
+        raise ChecksumError(
+            f"Found {len(checksums)} checksums in iRODS metadata",
+            path=obj,
+            expected=obj.checksum(),
+            observed=checksums,
+        )
+
+    if not has_matching_checksums(obj):
+        return False
+
+    if not has_checksum_metadata(obj):
+        return False
+
+    return AVU(DataFile.MD5, obj.checksum()) in checksum_meta
+
+
+def ensure_matching_checksum_metadata(obj: DataObject) -> bool:
+    """Ensure that a data object has checksum metadata that matches its iRODS checksums.
+
+    This check implies that the data object has full checksum coverage of all its
+    valid replicas, and that those checksums all match each other. This function first
+    attempts to ensure that this is the case. If this cannot be achieved, a
+    ChecksumError is raised.
+
+    If there is no checksum metadata on the data object, a new AVU is added and this
+    function returns True. If there is already checksum metadata on the data object
+    that concurs with the current checksum, this function does nothing and returns
+    False.
+
+    If there is already checksum metadata that does not concur with the
+    current checksum, a ChecksumError is raised.
+
+    Args:
+        obj: The data object to repair.
+
+    Returns:
+        True if a repair was done.
+    """
+    if has_matching_checksum_metadata(obj):
+        return False
+
+    valid_replicas = [r for r in obj.replicas() if r.valid]
+    expected_checksums = [obj.checksum()] * len(valid_replicas)
+    observed_checksums = [r.checksum for r in valid_replicas]
+
+    if not has_complete_checksums(obj):
+        raise ChecksumError(
+            "Failed to ensure that the data object has matching checksum metadata "
+            "because not all of its valid replicas have a checksum",
+            path=obj,
+            expected=expected_checksums,
+            observed=observed_checksums,
+        )
+
+    if not has_matching_checksums(obj):
+        raise ChecksumError(
+            "Failed to ensure that the data object has matching checksum metadata "
+            "because its valid replica checksums do not match each other",
+            path=obj,
+            expected=expected_checksums,
+            observed=observed_checksums,
+        )
+
+    # If we get here we know it either has 0 or 1 checksum AVU,
+    if not has_checksum_metadata(obj):
+        obj.add_metadata(AVU(DataFile.MD5, obj.checksum()))
+        return True
+
+    expected_avu = AVU(DataFile.MD5, obj.checksum())
+    if expected_avu not in obj.metadata():
+        observed_avus = [
+            avu for avu in obj.metadata() if avu.attribute == DataFile.MD5.value
+        ]
+        raise ChecksumError(
+            "Existing checksum metadata did not match the iRODS checksum",
+            path=obj,
+            expected=expected_avu,
+            observed=observed_avus,
+        )
+
+    return False
 
 
 def requires_creation_metadata(obj: DataObject) -> bool:
