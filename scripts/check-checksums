@@ -24,7 +24,7 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import check_data_object_checksums, check_common_metadata
+from npg_irods.utilities import check_checksums, check_common_metadata
 from npg_irods.version import version
 
 description = """
@@ -111,7 +111,7 @@ def main():
         print(version())
         exit(0)
 
-    success = check_data_object_checksums(
+    success = check_checksums(
         args.input,
         args.output,
         print_pass=args.print_pass,

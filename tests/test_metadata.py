@@ -94,7 +94,7 @@ class TestChecksums:
 
     @m.context("When a data object does not have full checksum coverage")
     @m.context("When the replicas not covered are not valid")
-    @m.it("Returns False")
+    @m.it("Returns True")
     def test_has_complete_checksum_incomplete(self):
         obj = DataObject("/dummy/path.txt")
         checksum = "aaaaaaaaaa"

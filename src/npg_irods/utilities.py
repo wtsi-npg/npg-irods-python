@@ -50,7 +50,7 @@ def _print(path, writer):
         print(path, file=writer)
 
 
-def check_data_object_checksums(
+def check_checksums(
     reader, writer, num_threads=1, num_clients=1, print_pass=True, print_fail=False
 ) -> bool:
     """Read iRODS data object paths from a file and check that each one has correct
@@ -94,8 +94,8 @@ def check_data_object_checksums(
                         if avu.attribute == DataFile.MD5.value
                     ]
                     checksums.sort()
-                    log.info(
-                        "Checksum metadata",
+                    log.warn(
+                        "Checksum metadata do not match",
                         item=i,
                         path=obj,
                         checksum=obj.checksum(),
@@ -128,7 +128,7 @@ def check_data_object_checksums(
         return all(succeeded)
 
 
-def repair_data_object_checksums(
+def repair_checksums(
     reader,
     writer,
     num_threads=1,
@@ -247,7 +247,7 @@ def check_common_metadata(
                     if print_pass:
                         _print(p, writer)
                 else:
-                    log.info(
+                    log.warn(
                         "Common metadata incomplete",
                         item=i,
                         path=obj,

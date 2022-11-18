@@ -35,8 +35,8 @@ setup(
     tests_require=["black", "pytest", "pytest-it"],
     scripts=[
         "scripts/backfill_illumina_locations.py",
-        "scripts/check-data-object-checksums",
-        "scripts/repair-data-object-checksums",
+        "scripts/check-checksums",
+        "scripts/repair-checksums",
         "scripts/check-common-metadata",
         "scripts/repair-common-metadata",
     ],
