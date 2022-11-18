@@ -33,8 +33,12 @@ log = get_logger(__name__)
 
 
 """A fallback value for dcterms:creator for use when the original process or user 
-that created the data object is not known """
+that created the data object is not known."""
 UNKNOWN_CREATOR = "unknown"
+
+"""A fallback value for dcterms:creator for use when the original process or user 
+that created the data object is the Wellcome Sanger Institute."""
+WSI_CREATOR = "http://www.sanger.ac.uk"
 
 """A lookup table of the file suffixes which will be recognised for iRODS "type" 
 metadata."""
@@ -327,7 +331,7 @@ def ensure_creation_metadata(obj: DataObject, creator=None) -> bool:
     if not requires_creation_metadata(obj):
         return False
 
-    c = creator if creator is not None else UNKNOWN_CREATOR
+    c = creator if creator is not None else WSI_CREATOR
     t = obj.timestamp()
     return _ensure_avus_present(obj, *make_creation_metadata(c, t))
 
