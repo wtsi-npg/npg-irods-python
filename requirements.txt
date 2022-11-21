@@ -3,4 +3,4 @@ partisan@https://github.com/wtsi-npg/partisan/releases/download/1.2.0/partisan-1
 setuptools==65.5.1
 setuptools_scm==7.0.5
 sqlalchemy==1.4.44
-structlog==22.1.0
+structlog==22.2.0
