@@ -45,9 +45,11 @@ from ml_warehouse.schema import (
 from partisan import icommands
 from partisan.icommands import imkdir, iput, irm, mkgroup, rmgroup
 from partisan.irods import (
+    AC,
     AVU,
     Collection,
     DataObject,
+    Permission,
 )
 from partisan.metadata import DublinCore
 from sqlalchemy import create_engine, text
@@ -177,10 +179,22 @@ def add_rods_path(root_path: PurePath, tmp_path: PurePath) -> PurePath:
 
 
 @pytest.fixture(scope="function")
+def simple_collection(tmp_path):
+    """A fixture providing an empty collection"""
+    root_path = PurePath("/testZone/home/irods/test/simple_collection")
+    coll_path = add_rods_path(root_path, tmp_path)
+
+    try:
+        yield coll_path
+    finally:
+        irm(root_path, force=True, recurse=True)
+
+
+@pytest.fixture(scope="function")
 def simple_data_object(tmp_path):
     """A fixture providing a collection containing a single data object containing
     UTF-8 data."""
-    root_path = PurePath("/testZone/home/irods/test")
+    root_path = PurePath("/testZone/home/irods/test/simple_data_object")
     rods_path = add_rods_path(root_path, tmp_path)
 
     obj_path = rods_path / "lorem.txt"
@@ -193,11 +207,17 @@ def simple_data_object(tmp_path):
 
 
 @pytest.fixture(scope="function")
-def annotated_data_object(simple_data_object):
+def annotated_data_object(tmp_path):
     """A fixture providing a collection containing a single, annotated data object
     containing UTF-8 data."""
 
-    obj = DataObject(simple_data_object)
+    root_path = PurePath("/testZone/home/irods/test/annotated_data_object")
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    obj_path = rods_path / "lorem.txt"
+    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
+
+    obj = DataObject(obj_path)
     obj.add_metadata(
         AVU(DublinCore.CREATED, datetime.utcnow().isoformat(timespec="seconds")),
         AVU(DublinCore.CREATOR, "dummy creator"),
@@ -207,9 +227,45 @@ def annotated_data_object(simple_data_object):
     )
 
     try:
-        yield simple_data_object
+        yield obj_path
     finally:
-        irm(simple_data_object, force=True, recurse=True)
+        irm(root_path, force=True, recurse=True)
+
+
+@pytest.fixture(scope="function")
+def annotated_tree(tmp_path):
+    """A fixture providing a tree of collections and data objects, with both
+    collections and data objects having annotation."""
+
+    root_path = PurePath("/testZone/home/irods/test/annotated_tree")
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    iput("./tests/data/tree", rods_path, recurse=True)
+    tree_root = rods_path / "tree"
+
+    add_test_groups()
+    ac = AC("ss_study_01", Permission.READ, zone="testZone")
+
+    coll = Collection(tree_root)
+
+    # Create some empty collections
+    c = Collection(coll.path / "c")
+    c.create()
+    for x in ["s", "t", "u"]:
+        Collection(c.path / x).create()
+
+    coll.add_metadata(AVU("path", str(coll)))
+    coll.add_permissions(ac)
+
+    for item in coll.contents(recurse=True):
+        item.add_metadata(AVU("path", str(item)))
+        item.add_permissions(ac)
+
+    try:
+        yield tree_root
+    finally:
+        irm(root_path, force=True, recurse=True)
+        remove_test_groups()
 
 
 @pytest.fixture(scope="function")
@@ -217,15 +273,14 @@ def ont_gridion(tmp_path):
     """A fixture providing a set of files based on output from an ONT GridION
     instrument. This dataset provides an example of file and directory naming
     conventions. The file contents are dummy values."""
-    root_path = PurePath("/testZone/home/irods/test")
+    root_path = PurePath("/testZone/home/irods/test/ont_gridion")
     rods_path = add_rods_path(root_path, tmp_path)
 
     iput("./tests/data/ont/gridion", rods_path, recurse=True)
     expt_root = rods_path / "gridion"
+    add_test_groups()
 
     try:
-        add_test_groups()
-
         yield expt_root
     finally:
         irm(root_path, force=True, recurse=True)
@@ -237,10 +292,11 @@ def ont_synthetic(tmp_path):
     """A fixture providing a synthetic set of files and metadata based on output
     from an ONT GridION instrument, modified to represent the way simple and
     multiplexed experiments are laid out. The file contents are dummy values."""
-    root_path = PurePath("/testZone/home/irods/test")
+    root_path = PurePath("/testZone/home/irods/test/ont_synthetic")
     rods_path = add_rods_path(root_path, tmp_path)
 
     expt_root = PurePath(rods_path, "synthetic")
+    add_test_groups()
 
     for expt in range(1, NUM_SIMPLE_EXPTS + 1):
         for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
@@ -281,8 +337,6 @@ def ont_synthetic(tmp_path):
     iput("./tests/data/ont/synthetic", rods_path, recurse=True)
 
     try:
-        add_test_groups()
-
         yield expt_root
     finally:
         irm(root_path, force=True, recurse=True)
@@ -291,7 +345,7 @@ def ont_synthetic(tmp_path):
 
 @pytest.fixture(scope="function")
 def illumina_products(tmp_path):
-    root_path = PurePath("/testZone/home/irods/test")
+    root_path = PurePath("/testZone/home/irods/test/illumina_products")
     rods_path = add_rods_path(root_path, tmp_path)
 
     Collection(rods_path).create(parents=True)

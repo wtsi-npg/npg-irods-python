@@ -31,7 +31,7 @@ setup(
     packages=find_packages("src"),
     package_dir={"": "src"},
     setup_requires=["setuptools_scm"],
-    install_requires=["ml-warehouse", "partisan", "sqlalchemy", "structlog"],
+    install_requires=["ml-warehouse", "partisan", "rich", "sqlalchemy", "structlog"],
     tests_require=["black", "pytest", "pytest-it"],
     scripts=[
         "scripts/backfill_illumina_locations.py",
@@ -39,5 +39,6 @@ setup(
         "scripts/repair-checksums",
         "scripts/check-common-metadata",
         "scripts/repair-common-metadata",
+        "scripts/copy-confirm",
     ],
 )
