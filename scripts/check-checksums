@@ -65,6 +65,18 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--json",
+    help="Use JSON log rendering.",
+    action="store_true",
+)
+
+parser.add_argument(
+    "--colour",
+    help="Use coloured log rendering to the console",
+    action="store_true",
+)
+
+parser.add_argument(
     "-c",
     "--clients",
     help="Number of baton clients to use. Defaults to 4",
@@ -102,7 +114,22 @@ logging.basicConfig(
     encoding="utf-8",
 )
 
-structlog.configure(logger_factory=structlog.stdlib.LoggerFactory())
+log_processors = [
+    structlog.stdlib.add_logger_name,
+    structlog.stdlib.add_log_level,
+    structlog.processors.TimeStamper(fmt="iso", utc=True),
+]
+if args.json:
+    log_processors.append(structlog.processors.JSONRenderer())
+else:
+    log_processors.append(structlog.dev.ConsoleRenderer(colors=args.colour))
+
+structlog.configure(
+    processors=log_processors,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)
+
 log = structlog.get_logger("main")
 
 
@@ -111,7 +138,7 @@ def main():
         print(version())
         exit(0)
 
-    success = check_checksums(
+    num_processed, num_passed, num_errors = check_checksums(
         args.input,
         args.output,
         print_pass=args.print_pass,
@@ -119,8 +146,22 @@ def main():
         num_clients=args.clients,
         num_threads=args.threads,
     )
-    if not success:
+
+    if num_errors:
+        log.error(
+            "Some checks did not pass",
+            num_processed=num_processed,
+            num_passed=num_passed,
+            num_errors=num_errors,
+        )
         exit(1)
+
+    log.info(
+        "All checks passed",
+        num_processed=num_processed,
+        num_passed=num_passed,
+        num_errors=num_errors,
+    )
 
 
 if __name__ == "__main__":

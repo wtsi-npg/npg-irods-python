@@ -55,7 +55,7 @@ def _print(path, writer):
 
 def check_checksums(
     reader, writer, num_threads=1, num_clients=1, print_pass=True, print_fail=False
-) -> bool:
+) -> (int, int, int):
     """Read iRODS data object paths from a file and check that each one has correct
     checksums and checksum metadata, printing the results to a writer.
 
@@ -76,17 +76,20 @@ def check_checksums(
         print_fail: Print the paths of objects failing the check. Defaults to False.
 
     Returns:
-        True if all checks are done.
+        A tuple of the number of paths checked, the number of paths found to be correct
+        and the number of errors (paths with incorrect checksums and/or paths that
+        failed to be checked because of an exception).
     """
     with client_pool(num_clients) as bp:
 
-        def fn(i: int, path: str):
+        def fn(i: int, path: str) -> bool:
             success = False
 
             p = path.strip()
             try:
                 obj = DataObject(p, pool=bp)
                 if has_matching_checksum_metadata(obj):
+                    success = True
                     log.info("Checksums correct", item=i, path=obj)
                     if print_pass:
                         _print(p, writer)
@@ -108,8 +111,6 @@ def check_checksums(
                     if print_fail:
                         _print(p, writer)
 
-                success = True
-
             except RodsError as re:
                 log.error(re.message, item=i, code=re.code)
                 if print_fail:
@@ -126,9 +127,10 @@ def check_checksums(
             return success
 
         with ThreadPool(num_threads) as tp:
-            succeeded = tp.starmap(fn, enumerate(reader))
+            results = tp.starmap(fn, enumerate(reader))
+            num_succeeded = results.count(True)
 
-        return all(succeeded)
+        return len(results), num_succeeded, len(results) - num_succeeded
 
 
 def repair_checksums(
@@ -138,7 +140,7 @@ def repair_checksums(
     num_clients=1,
     print_repair=True,
     print_fail=False,
-) -> bool:
+) -> (int, int, int):
     """Read iRODS data object paths from a file and ensure that each one has correct
     checksums and checksum metadata by making any necessary repairs, printing the
     results to a writer.
@@ -169,12 +171,15 @@ def repair_checksums(
             failed. Defaults to False.
 
     Returns:
-        True if all repairs were done.
+        A tuple of the number of paths checked, the number of paths with repaired and
+        the number of errors (paths with incorrect checksums that could not be fixed
+        and/or paths that failed to be fixed because of an exception).
     """
     with client_pool(num_clients) as bp:
 
-        def fn(i: int, path: str) -> bool:
+        def fn(i: int, path: str) -> (bool, bool):
             success = False
+            repair = False
 
             p = path.strip()
             try:
@@ -191,10 +196,10 @@ def repair_checksums(
                         has_checksum_meta=has_checksum_metadata(obj),
                     )
                     if ensure_matching_checksum_metadata(obj):
+                        repair = True
                         if print_repair:
                             _print(p, writer)
-
-                    success = True
+                success = True
 
             except RodsError as re:
                 log.error(re.message, item=i, code=re.code)
@@ -209,12 +214,13 @@ def repair_checksums(
                 if print_fail:
                     _print(p, writer)
 
-            return success
+            return success, repair
 
         with ThreadPool(num_threads) as tp:
-            succeeded = tp.starmap(fn, enumerate(reader))
+            succeeded, repaired = zip(*tp.starmap(fn, enumerate(reader)))
+            num_succeeded = succeeded.count(True)
 
-        return all(succeeded)
+        return len(succeeded), repaired.count(True), len(succeeded) - num_succeeded
 
 
 def check_common_metadata(
