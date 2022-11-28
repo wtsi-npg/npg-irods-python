@@ -31,11 +31,6 @@ from npg_irods.exception import ChecksumError
 
 log = get_logger(__name__)
 
-
-"""A fallback value for dcterms:creator for use when the original process or user 
-that created the data object is not known."""
-UNKNOWN_CREATOR = "unknown"
-
 """A fallback value for dcterms:creator for use when the original process or user 
 that created the data object is the Wellcome Sanger Institute."""
 WSI_CREATOR = "http://www.sanger.ac.uk"
@@ -322,7 +317,7 @@ def ensure_creation_metadata(obj: DataObject, creator=None) -> bool:
 
     Args:
         obj: The data object to repair.
-        creator: The creator name string. Optional, defaults to the UNKNOWN_CREATOR
+        creator: The creator name string. Optional, defaults to the WSI_CREATOR
         placeholder.
 
     Returns:
@@ -550,7 +545,7 @@ def ensure_common_metadata(obj: DataObject, creator=None) -> bool:
 
     Args:
         obj: The data object to repair.
-        creator: The creator name string. Optional, defaults to the UNKNOWN_CREATOR
+        creator: The creator name string. Optional, defaults to the WSI_CREATOR
         placeholder.
 
     Returns:

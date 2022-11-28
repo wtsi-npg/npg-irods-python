@@ -108,11 +108,11 @@ def check_checksums(
                 success = True
 
             except RodsError as re:
-                log.error(re.message, code=re.code)  # Much more informative diagnostic
+                log.error(re.message, item=i, code=re.code)
                 if print_fail:
                     _print(p, writer)
             except ChecksumError as ce:
-                log.error(ce, expected=ce.expected, observed=ce.observed)
+                log.error(ce, item=i, expected=ce.expected, observed=ce.observed)
                 if print_fail:
                     _print(p, writer)
             except Exception as e:

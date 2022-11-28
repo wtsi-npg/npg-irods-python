@@ -21,7 +21,7 @@ from typing import Any
 
 
 class DataManagementError(Exception):
-    """The base class of all exceptions originating in this package."""
+    """The base class of all exceptions originating in this module."""
 
     pass
 
