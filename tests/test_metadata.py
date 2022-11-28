@@ -18,26 +18,280 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import datetime
+import re
+from unittest.mock import patch
 
-from partisan.irods import AVU, DataObject
+import pytest
+from partisan.irods import AVU, DataObject, Replica
 from pytest import mark as m
 
 from conftest import icommands_have_admin
+from npg_irods.exception import ChecksumError
 from npg_irods.metadata.common import (
     CompressSuffix,
     DataFile,
     RECOGNISED_FILE_SUFFIXES,
     ensure_checksum_metadata,
     ensure_creation_metadata,
+    ensure_matching_checksum_metadata,
     ensure_type_metadata,
     has_checksum_metadata,
+    has_complete_checksums,
     has_creation_metadata,
+    has_matching_checksum_metadata,
+    has_matching_checksums,
     has_type_metadata,
     make_creation_metadata,
     make_type_metadata,
     parse_object_type,
     requires_type_metadata,
 )
+
+
+@m.describe("Checksums")
+class TestChecksums:
+    @m.context("When a data object has full checksum coverage")
+    @m.context("When the checksums for each replica are the same as each other")
+    @m.it("Returns True")
+    def test_has_complete_checksums_same(self):
+        obj = DataObject("/dummy/path.txt")
+        checksum = "aaaaaaaaaa"
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum="aaaaaaaaaa"),
+            Replica("dummy_resource", "dummy_location", 1, checksum="aaaaaaaaaa"),
+        ]
+
+        with patch.multiple(obj, checksum=lambda: checksum, replicas=lambda: replicas):
+            assert has_complete_checksums(obj)
+
+    @m.context("When a data object has full checksum coverage")
+    @m.context("When the checksums for each replica are different from each other")
+    @m.it("Returns True")
+    def test_has_complete_checksums_diff(self):
+        obj = DataObject("/dummy/path.txt")
+        checksum = "aaaaaaaaaa"
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
+            Replica("dummy_resource", "dummy_location", 1, checksum="bbbbbbbbbb"),
+        ]
+
+        with patch.multiple(obj, checksum=lambda: checksum, replicas=lambda: replicas):
+            assert has_complete_checksums(obj)
+
+    @m.context("When a data object does not have full checksum coverage")
+    @m.context("When the replicas not covered are valid")
+    @m.it("Returns False")
+    def test_has_complete_checksums_valid(self):
+        obj = DataObject("/dummy/path.txt")
+        checksum = "aaaaaaaaaa"
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum="aaaaaaaaaa"),
+            Replica("dummy_resource", "dummy_location", 1, checksum=None),
+        ]
+
+        with patch.multiple(obj, checksum=lambda: checksum, replicas=lambda: replicas):
+            assert not has_complete_checksums(obj)
+
+    @m.context("When a data object does not have full checksum coverage")
+    @m.context("When the replicas not covered are not valid")
+    @m.it("Returns True")
+    def test_has_complete_checksum_incomplete(self):
+        obj = DataObject("/dummy/path.txt")
+        checksum = "aaaaaaaaaa"
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
+            Replica("dummy_resource", "dummy_location", 1, checksum=None, valid=False),
+        ]
+
+        with patch.multiple(obj, checksum=lambda: checksum, replicas=lambda: replicas):
+            assert has_complete_checksums(obj)
+
+    @m.context("When a data object cannot retrieve its replica information")
+    @m.it("Raises an exception")
+    def test_has_complete_checksums_error(self):
+        obj = DataObject("/dummy/path.txt")
+        with patch.object(obj, "replicas", return_value=[]):
+            with pytest.raises(ValueError):
+                has_complete_checksums(obj)
+
+    @m.context("When a data object has full checksum coverage")
+    @m.context("When the valid replica checksums match")
+    @m.it("Returns True")
+    def test_has_matching_checksums_same(self):
+        obj = DataObject("/dummy/path.txt")
+        checksum = "aaaaaaaaaa"
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
+            Replica("dummy_resource", "dummy_location", 1, checksum=checksum),
+        ]
+
+        with patch.multiple(obj, checksum=lambda: checksum, replicas=lambda: replicas):
+            assert has_complete_checksums(obj)
+            assert has_matching_checksums(obj)
+
+    @m.context("When a data object has full checksum coverage")
+    @m.context("When the valid replica checksums do not match")
+    @m.it("Returns False")
+    def test_has_matching_checksums_diff(self):
+        obj = DataObject("/dummy/path.txt")
+        checksum = "aaaaaaaaaa"
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
+            Replica("dummy_resource", "dummy_location", 1, checksum="invalid_checksum"),
+        ]
+
+        with patch.multiple(obj, checksum=lambda: checksum, replicas=lambda: replicas):
+            assert has_complete_checksums(obj)
+            assert not has_matching_checksums(obj)
+
+    @m.context("When a data object has complete checksums")
+    @m.context("When there is a single checksum in the metadata")
+    @m.context("When data object checksum matches the metadata checksum")
+    @m.it("Returns True")
+    def test_has_matching_checksum_metadata_same(self):
+        obj = DataObject("/dummy/path.txt")
+        checksum = "aaaaaaaaaa"
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
+            Replica("dummy_resource", "dummy_location", 1, checksum=checksum),
+        ]
+        metadata = [AVU(DataFile.MD5, checksum)]
+
+        with patch.multiple(
+            obj,
+            checksum=lambda: checksum,
+            replicas=lambda: replicas,
+            metadata=lambda: metadata,
+        ):
+            assert has_matching_checksum_metadata(obj)
+
+    @m.context("When a data object has complete checksums")
+    @m.context("When there is a single checksum in the metadata")
+    @m.context("When data object checksum does not match the metadata checksum")
+    @m.it("Returns False")
+    def test_has_matching_checksum_metadata_diff(self):
+        checksum = "aaaaaaaaaa"
+        obj = DataObject("/dummy/path.txt")
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
+            Replica("dummy_resource", "dummy_location", 1, checksum=checksum),
+        ]
+        with patch.multiple(
+            obj,
+            replicas=lambda: replicas,
+            checksum=lambda: "bbbbbbbbbb",
+            metadata=lambda: [AVU(DataFile.MD5, checksum)],
+        ):
+            assert not has_matching_checksums(obj)
+
+    @m.context("When a data object has complete checksums")
+    @m.context("When there are no checksum metadata")
+    @m.it("Returns False")
+    def test_has_matching_checksum_metadata_none(self):
+        checksum = "aaaaaaaaaa"
+        obj = DataObject("/dummy/path.txt")
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
+            Replica("dummy_resource", "dummy_location", 1, checksum=checksum),
+        ]
+
+        with patch.multiple(
+            obj,
+            replicas=lambda: replicas,
+            checksum=lambda: checksum,
+            metadata=lambda: [],
+        ):
+            assert not has_matching_checksum_metadata(obj)
+
+    @m.context("When a data object has complete checksums")
+    @m.context("When there are extra, unexpected checksum metadata")
+    @m.it("Raises an exception")
+    def test_has_matching_checksum_metadata_error(self):
+        checksum = "aaaaaaaaaa"
+        unexpected_checksum = "bbbbbbbbbb"
+        obj = DataObject("/dummy/path.txt")
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
+            Replica("dummy_resource", "dummy_location", 1, checksum=checksum),
+        ]
+        metadata = [AVU(DataFile.MD5, checksum), AVU(DataFile.MD5, unexpected_checksum)]
+
+        with patch.multiple(
+            obj,
+            replicas=lambda: replicas,
+            checksum=lambda: checksum,
+            metadata=lambda: metadata,
+        ):
+            with pytest.raises(ChecksumError) as ce:
+                has_matching_checksum_metadata(obj)
+                assert ce.value.expected == checksum
+
+    @m.context("When a data object has complete checksums")
+    @m.context("When a data object has matching checksums")
+    @m.context("When there are no existing checksum metadata")
+    @m.it("Adds checksum metadata and returns True")
+    def test_ensure_matching_checksum_metadata(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+
+        assert not has_matching_checksum_metadata(obj)
+        assert ensure_matching_checksum_metadata(obj)
+        assert has_matching_checksum_metadata(obj)
+
+    @m.context("When a data object has complete checksums")
+    @m.context("When a data object has matching checksums")
+    @m.context("When there are existing existing, correct checksum metadata")
+    @m.it("Does nothing and returns False")
+    def test_ensure_matching_checksum_metadata(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+        ensure_matching_checksum_metadata(obj)
+
+        assert has_matching_checksum_metadata(obj)
+        assert not ensure_matching_checksum_metadata(obj)
+
+    @m.context("When a data object has complete checksums")
+    @m.context("When a data object has matching checksums")
+    @m.context("When there are existing existing, correct checksum metadata")
+    @m.context("When there are extra, unexpected checksum metadata")
+    @m.it("Raises an exception")
+    def test_ensure_matching_checksum_extra(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+        ensure_matching_checksum_metadata(obj)
+        obj.add_metadata(AVU(DataFile.MD5, "unexpected_checksum"))
+
+        msg_regex = re.compile(r"found \d+ checksums", re.IGNORECASE)
+        with pytest.raises(ChecksumError, match=msg_regex):
+            ensure_matching_checksum_metadata(obj)
+
+    @m.context("When a data object has incomplete checksums")
+    @m.it("Raises an exception")
+    def test_ensure_matching_checksum_metadata_incomplete(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+        checksum = obj.checksum()
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
+            Replica("dummy_resource", "dummy_location", 1, checksum=None),
+        ]
+        with patch.object(obj, "replicas", return_value=replicas):
+            with pytest.raises(
+                ChecksumError, match="not all of its valid replicas have a checksum"
+            ):
+                ensure_matching_checksum_metadata(obj)
+
+    @m.context("When a data object has complete checksums")
+    @m.context("When a data object does not have matching checksums")
+    @m.it("Raises an exception")
+    def test_ensure_matching_checksum_metadata_mismatch(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+        checksum = obj.checksum()
+        replicas = [
+            Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
+            Replica("dummy_resource", "dummy_location", 1, checksum="invalid_checksum"),
+        ]
+        with patch.object(obj, "replicas", return_value=replicas):
+            with pytest.raises(
+                ChecksumError, match="checksums do not match each other"
+            ):
+                ensure_matching_checksum_metadata(obj)
 
 
 @m.describe("Type metadata")
