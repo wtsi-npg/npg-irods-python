@@ -171,9 +171,9 @@ def repair_checksums(
             failed. Defaults to False.
 
     Returns:
-        A tuple of the number of paths checked, the number of paths with repaired and
-        the number of errors (paths with incorrect checksums that could not be fixed
-        and/or paths that failed to be fixed because of an exception).
+        A tuple of the number of paths checked, the number of paths with a checksum
+        repaired and the number of errors (paths with incorrect checksums that could
+        not be fixed and/or paths that failed to be fixed because of an exception).
     """
     with client_pool(num_clients) as bp:
 
@@ -185,6 +185,7 @@ def repair_checksums(
             try:
                 obj = DataObject(p, pool=bp)
                 if has_matching_checksum_metadata(obj):
+                    success = True
                     log.info("Checksum metadata matches", item=i, path=obj)
                 else:
                     log.info(
@@ -196,10 +197,9 @@ def repair_checksums(
                         has_checksum_meta=has_checksum_metadata(obj),
                     )
                     if ensure_matching_checksum_metadata(obj):
-                        repair = True
+                        success = repair = True
                         if print_repair:
                             _print(p, writer)
-                success = True
 
             except RodsError as re:
                 log.error(re.message, item=i, code=re.code)
@@ -217,10 +217,10 @@ def repair_checksums(
             return success, repair
 
         with ThreadPool(num_threads) as tp:
-            succeeded, repaired = zip(*tp.starmap(fn, enumerate(reader)))
-            num_succeeded = succeeded.count(True)
+            results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
+            num_succeeded = results.count(True)
 
-        return len(succeeded), repaired.count(True), len(succeeded) - num_succeeded
+        return len(results), repaired.count(True), len(results) - num_succeeded
 
 
 def check_common_metadata(

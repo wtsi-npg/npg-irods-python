@@ -24,13 +24,15 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import check_checksums, check_common_metadata
+from npg_irods.utilities import check_checksums
 from npg_irods.version import version
 
 description = """
 Reads iRODS data object paths from a file or STDIN, one per line and performs
 consistency checks on their iRODS checksums and checksum metadata.
-"""
+
+If any of the paths fail their checksum check, the exit code will be non-zero and an 
+error message summarising the results will be sent to STDERR. """
 
 parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter

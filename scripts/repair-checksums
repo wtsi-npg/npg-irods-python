@@ -30,6 +30,10 @@ from npg_irods.version import version
 description = """
 Reads iRODS data object paths from a file or STDIN, one per line and repairs
 their checksums and checksum metadata, if necessary.
+
+If any of the paths initially fail their checksum check and could not be repaired,   
+the exit code will be non-zero and an error message summarising the results will be 
+sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(
