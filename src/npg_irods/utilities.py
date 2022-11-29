@@ -17,11 +17,14 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+import subprocess
 import threading
 from multiprocessing.pool import ThreadPool
+from pathlib import PurePath
 
+import partisan
 from partisan.exception import RodsError
-from partisan.irods import DataObject, client_pool
+from partisan.irods import Collection, DataObject, RodsItem, client_pool, make_rods_item
 from structlog import get_logger
 
 from npg_irods.exception import ChecksumError
@@ -356,3 +359,162 @@ def repair_common_metadata(
             succeeded = tp.starmap(fn, enumerate(reader))
 
         return all(succeeded)
+
+
+def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int, int):
+    """Copy a collection or data object from one location to another, optionally
+    including metadata and permissions.
+
+    Args:
+        src: A DataObject, Collection, PurePath or str path to copy from.
+        dest: A DataObject, Collection, PurePath or str path to copy to.
+        acl: If True, also copy any permissions.
+        avu: If True, also copy any metadata.
+        exist_ok: If True, check for existing collections and data objects at the
+            destination. If they exist and are identical to what would be the result of
+            copying, do not raise an error.
+        recurse: If True, recurse into collections when copying.
+
+    Returns:
+        A tuple of the number of items (collections and data objects) processed, the
+        number of items copied.
+
+        If exist_ok is True, this number copied does not include counts of collections
+        and data objects which were not copied because they already existed at the
+        destination.
+    Raises:
+        ChecksumError if checksums are inconsistent.
+    """
+    num_processed, num_copied = 0, 0
+
+    def _cp_avu_acl(s, d):
+        if avu:
+            n = d.add_metadata(*s.metadata())
+            log.info(f"Added {n} AVUs", path=d)
+        if acl:
+            n = d.add_permissions(*s.permissions())
+            log.info(f"Added {n} permissions", path=d)
+
+    def _maybe_copy_obj(s: DataObject, d: DataObject) -> int:
+        if exist_ok and d.exists():
+            if s.checksum() != d.checksum():
+                raise ChecksumError(
+                    "A data object with a different checksum exists at the destination",
+                    path=d,
+                    observed=d.checksum(),
+                    expected=s.checksum(),
+                )
+            if not has_matching_checksums(s):
+                raise ChecksumError(
+                    "The source data object does not have matching checksums",
+                    path=s,
+                    observed=[r.checksum for r in s.replicas()],
+                )
+            if not has_matching_checksums(d):
+                raise ChecksumError(
+                    "The destination data object does not have matching checksums",
+                    path=d,
+                    observed=[r.checksum for r in d.replicas()],
+                )
+            log.info(
+                "Skipping copy of data object, destination object exists",
+                src=s,
+                dest=d,
+                checksum=d.checksum(),
+            )
+
+            return 0
+
+        log.info("Copying data object", src=s, dest=d)
+        _icp(str(s), str(d), verify_checksum=True)
+        return 1
+
+    def _maybe_copy_coll(s: Collection, d: Collection) -> int:
+        if exist_ok and d.exists():
+            log.info(
+                "Skipping copy of collection, destination collection exists",
+                src=s,
+                dest=d,
+            )
+            return 0
+
+        log.info("Copying collection", src=s, dest=d)
+
+        coll.create(exist_ok=exist_ok)
+        return 1
+
+    if not isinstance(src, RodsItem):
+        src = make_rods_item(src)
+    if not isinstance(dest, RodsItem):
+        dest = make_rods_item(dest)
+
+    match (src.rods_type, dest.rods_type):
+        case (partisan.irods.Collection, partisan.irods.DataObject):
+            raise ValueError(
+                f"Cannot copy a collection {src} into a data object {dest}"
+            )
+
+        case (partisan.irods.Collection, partisan.irods.Collection) | (
+            partisan.irods.Collection,
+            None,
+        ):
+            coll = Collection(PurePath(dest.path, src.path.name))
+            num_processed += 1
+            num_copied += _maybe_copy_coll(src, coll)
+            _cp_avu_acl(src, coll)
+
+            if recurse:
+                for item in src.contents():
+                    np, nc = copy(
+                        item,
+                        Collection(coll.path),
+                        avu=avu,
+                        acl=acl,
+                        exist_ok=exist_ok,
+                        recurse=True,
+                    )
+                    num_processed += np
+                    num_copied += nc
+
+        case (partisan.irods.DataObject, partisan.irods.DataObject) | (
+            partisan.irods.DataObject,
+            None,
+        ):
+            num_processed += 1
+            num_copied += _maybe_copy_obj(src, dest)
+            _cp_avu_acl(src, dest)
+
+        case (partisan.irods.DataObject, partisan.irods.Collection):
+            obj = DataObject(PurePath(dest.path, src.name))
+            num_processed += 1
+            num_copied += _maybe_copy_obj(src, obj)
+            _cp_avu_acl(src, obj)
+
+        case _:
+            raise ValueError(
+                f"Invalid iRODS path type combination src: {src}: "
+                f"src type: {src.rods_type}, "
+                f"dest: {dest}, dest type: {dest.rods_type}"
+            )
+
+    return num_processed, num_copied
+
+
+def _icp(src, dest, force=False, verify_checksum=True):
+    cmd = ["icp"]
+
+    if force:
+        cmd.append("-f")
+    if verify_checksum:
+        cmd.append("-K")
+
+    cmd.append(src)
+    cmd.append(dest)
+    log.debug("Running command", cmd=cmd)
+    log.info("Copying data object", src=src, dest=dest, force=force)
+
+    completed = subprocess.run(cmd, capture_output=True)
+    if completed.returncode == 0:
+        return
+
+    raise RodsError(completed.stderr.decode("utf-8").strip(), 0)
