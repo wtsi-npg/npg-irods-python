@@ -17,18 +17,109 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 import re
+from io import StringIO
 from pathlib import PurePath
 
+import partisan.irods
 import pytest
 from partisan.exception import RodsError
 from partisan.irods import AC, AVU, Collection, DataObject, Permission
 from pytest import mark as m
 
-from npg_irods.utilities import copy
+from npg_irods.metadata.common import ensure_common_metadata
+from npg_irods.utilities import check_checksums, copy, repair_checksums
 
 
 @m.describe("Utilities")
 class TestUtilities:
+    @m.context("When data object checksums are checked")
+    @m.context("When all of the data objects have checksum metadata")
+    @m.it("Counts repairs correctly")
+    def test_checked_checksums_passes(self, annotated_tree):
+        obj_paths = []
+        for p in Collection(annotated_tree).contents(recurse=True):
+            if p.rods_type == partisan.irods.DataObject:
+                ensure_common_metadata(p)
+                obj_paths.append(str(p))
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_passed, num_errors = check_checksums(
+                    reader, writer, print_pass=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_passed == len(obj_paths)
+                assert num_errors == 0
+
+                passed_paths = writer.getvalue().split()
+                assert passed_paths == obj_paths
+
+    @m.context("When data object checksums are checked")
+    @m.context("When none of the data objects have checksum metadata")
+    @m.it("Counts failures correctly")
+    def test_check_checksums_failures(self, annotated_tree):
+        obj_paths = [
+            str(p)
+            for p in Collection(annotated_tree).contents(recurse=True)
+            if p.rods_type == partisan.irods.DataObject
+        ]
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_passed, num_errors = check_checksums(
+                    reader, writer, print_fail=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_passed == 0
+                assert num_errors == len(obj_paths)
+
+                failed_paths = writer.getvalue().split()
+                assert failed_paths == obj_paths
+
+    @m.context("When data object checksums are repaired")
+    @m.context("When all of the data objects have checksum metadata")
+    @m.it("Counts repairs correctly")
+    def test_checked_checksums_all(self, annotated_tree):
+        obj_paths = []
+        for p in Collection(annotated_tree).contents(recurse=True):
+            if p.rods_type == partisan.irods.DataObject:
+                ensure_common_metadata(p)
+                obj_paths.append(str(p))
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_repaired, num_errors = repair_checksums(
+                    reader, writer, print_repair=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_repaired == 0
+                assert num_errors == 0
+
+                repaired_paths = writer.getvalue().split()
+                assert repaired_paths == []
+
+    @m.context("When data object checksums are repaired")
+    @m.context("When none of the data objects have checksum metadata")
+    @m.it("Counts repairs correctly")
+    def test_repair_checksums_none(self, annotated_tree):
+        obj_paths = [
+            str(p)
+            for p in Collection(annotated_tree).contents(recurse=True)
+            if p.rods_type == partisan.irods.DataObject
+        ]
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_repaired, num_errors = repair_checksums(
+                    reader, writer, print_repair=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_repaired == len(obj_paths)
+                assert num_errors == 0
+
+                repaired_paths = writer.getvalue().split()
+                assert repaired_paths == obj_paths
+
     @m.context("When a collection is copied")
     @m.context("When a there is no collection with that name at the destination")
     @m.it("Creates a copy within the destination collection")
