@@ -4,4 +4,4 @@ rich==12.6.0
 setuptools==65.5.1
 setuptools_scm==7.0.5
 sqlalchemy==1.4.44
-structlog==22.1.0
+structlog==22.3.0
