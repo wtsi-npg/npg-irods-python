@@ -30,6 +30,10 @@ from npg_irods.version import version
 description = """
 Reads iRODS data object paths from a file or STDIN, one per line and repairs
 their checksums and checksum metadata, if necessary.
+
+If any of the paths initially fail their checksum check and could not be repaired,   
+the exit code will be non-zero and an error message summarising the results will be 
+sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(
@@ -62,6 +66,19 @@ parser.add_argument(
     "--print-fail",
     help="Print to output those paths that require repair, where the repair failed. "
     "Defaults to False.",
+    action="store_true",
+)
+
+
+parser.add_argument(
+    "--json",
+    help="Use JSON log rendering.",
+    action="store_true",
+)
+
+parser.add_argument(
+    "--colour",
+    help="Use coloured log rendering to the console",
     action="store_true",
 )
 
@@ -104,7 +121,23 @@ logging.basicConfig(
     encoding="utf-8",
 )
 
-structlog.configure(logger_factory=structlog.stdlib.LoggerFactory())
+
+log_processors = [
+    structlog.stdlib.add_logger_name,
+    structlog.stdlib.add_log_level,
+    structlog.processors.TimeStamper(fmt="iso", utc=True),
+]
+if args.json:
+    log_processors.append(structlog.processors.JSONRenderer())
+else:
+    log_processors.append(structlog.dev.ConsoleRenderer(colors=args.colour))
+
+structlog.configure(
+    processors=log_processors,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)
+
 log = structlog.get_logger("main")
 
 
@@ -113,7 +146,7 @@ def main():
         print(version())
         exit(0)
 
-    success = repair_checksums(
+    num_processed, num_repaired, num_errors = repair_checksums(
         args.input,
         args.output,
         num_threads=args.threads,
@@ -122,8 +155,29 @@ def main():
         print_fail=args.print_fail,
     )
 
-    if not success:
+    if num_errors:
+        log.error(
+            "Some repairs did not succeed",
+            num_processed=num_processed,
+            num_repaired=num_repaired,
+            num_errors=num_errors,
+        )
         exit(1)
+
+    if num_repaired:
+        log.info(
+            "All paths repaired",
+            num_processed=num_processed,
+            num_repaired=num_repaired,
+            num_errors=num_errors,
+        )
+    else:
+        log.info(
+            "No paths required repair",
+            num_processed=num_processed,
+            num_repaired=num_repaired,
+            num_errors=num_errors,
+        )
 
 
 if __name__ == "__main__":
