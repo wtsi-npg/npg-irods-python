@@ -34,7 +34,7 @@ from npg_irods.utilities import check_checksums, copy, repair_checksums
 class TestUtilities:
     @m.context("When data object checksums are checked")
     @m.context("When all of the data objects have checksum metadata")
-    @m.it("Counts repairs correctly")
+    @m.it("Counts correct checksums correctly")
     def test_checked_checksums_passes(self, annotated_tree):
         obj_paths = []
         for p in Collection(annotated_tree).contents(recurse=True):
