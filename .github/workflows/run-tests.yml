@@ -106,7 +106,7 @@ jobs:
 
         baton-do --version
 
-    - name: "Setup Python {{ env.PYTHON_VERSION }}"
+    - name: "Setup Python"
       run: |
         conda activate "$CONDA_TEST_ENVIRONMENT"
         conda install -c defaults python="$PYTHON_VERSION"
