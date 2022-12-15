@@ -40,5 +40,6 @@ setup(
         "scripts/check-common-metadata",
         "scripts/repair-common-metadata",
         "scripts/copy-confirm",
+        "scripts/safe-remove-script",
     ],
 )
