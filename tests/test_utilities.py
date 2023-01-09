@@ -296,13 +296,55 @@ class TestUtilities:
             ]
             observed = []
             for line in writer.getvalue().splitlines():
-                cmd, path = line.split()
+                cmd, path = line.split(maxsplit=1)
                 observed.append((cmd, PurePath(path).name))
             assert observed == expected
 
+    @m.context("When a generated safe remove script is run")
+    @m.it("Removes the expected collections and data objects")
     def test_write_safe_remove_script(self, tmp_path, annotated_tree):
         script = Path(tmp_path, "safe_rm.sh")
         write_safe_remove_script(script, annotated_tree)
         subprocess.run([script.as_posix()], check=True)
 
         assert not Collection(annotated_tree).exists()
+
+    @m.context("When passed a hierarchy of collections and data objects")
+    @m.context("When paths contain spaces and/or quotes")
+    @m.it("Writes the expected commands")
+    def test_write_safe_remove_commands_special(self, special_paths):
+        with StringIO() as writer:
+            write_safe_remove_commands(special_paths, writer)
+
+            expected = [
+                ("irm", "x.txt"),
+                ("irm", "y y.txt"),
+                ("irm", 'z".txt'),
+                ("irm", "x.txt"),
+                ("irm", "y y.txt"),
+                ("irm", 'z".txt'),
+                ("irm", "x.txt"),
+                ("irm", "y y.txt"),
+                ("irm", 'z".txt'),
+                ("irmdir", 'b"b'),
+                ("irmdir", "a a"),
+                ("irmdir", "special"),
+            ]
+            observed = []
+            for line in writer.getvalue().splitlines():
+                cmd, path = line.split(maxsplit=1)
+                # Remove the outer single quotes added by shlex.quote
+                path = path.lstrip("'")
+                path = path.rstrip("'")
+                observed.append((cmd, PurePath(path).name))
+            assert observed == expected
+
+    @m.context("When a generated safe remove script is run")
+    @m.context("When paths contain spaces and/or quotes")
+    @m.it("Removes the expected collections and data objects")
+    def test_write_safe_remove_script_special(self, tmp_path, special_paths):
+        script = Path(tmp_path, "safe_rm.sh")
+        write_safe_remove_script(script, special_paths)
+        subprocess.run([script.as_posix()], check=True)
+
+        assert not Collection(special_paths).exists()

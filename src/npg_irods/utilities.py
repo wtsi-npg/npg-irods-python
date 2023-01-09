@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 import io
 import os
+import shlex
 import subprocess
 import threading
 from multiprocessing.pool import ThreadPool
@@ -517,8 +518,9 @@ def write_safe_remove_commands(target, writer: io.TextIOBase):
     """
 
     def _log_print(cmd, path):
-        log.info(f"{cmd} {path}")
-        print(cmd, path, file=writer)
+        quoted_path = shlex.quote(str(path))
+        log.info(f"{cmd} {quoted_path}")
+        print(cmd, quoted_path, file=writer)
 
     if not isinstance(target, RodsItem):
         target = make_rods_item(target)
