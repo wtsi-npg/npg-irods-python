@@ -16,9 +16,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
+
 import re
+import subprocess
 from io import StringIO
-from pathlib import PurePath
+from pathlib import Path, PurePath
 
 import partisan.irods
 import pytest
@@ -27,7 +29,13 @@ from partisan.irods import AC, AVU, Collection, DataObject, Permission
 from pytest import mark as m
 
 from npg_irods.metadata.common import ensure_common_metadata
-from npg_irods.utilities import check_checksums, copy, repair_checksums
+from npg_irods.utilities import (
+    check_checksums,
+    copy,
+    repair_checksums,
+    write_safe_remove_commands,
+    write_safe_remove_script,
+)
 
 
 @m.describe("Utilities")
@@ -252,3 +260,91 @@ class TestUtilities:
                 AC("ss_study_01", Permission.READ, zone="testZone")
                 in item.permissions()
             )
+
+    @m.context("When passed a hierarchy of collections and data objects")
+    @m.it("Writes the expected commands")
+    def test_write_safe_remove_commands(self, annotated_tree):
+        with StringIO() as writer:
+            write_safe_remove_commands(annotated_tree, writer)
+
+            expected = [
+                ("irm", "w.txt"),
+                ("irm", "x.txt"),
+                ("irm", "y.txt"),
+                ("irm", "h.txt"),
+                ("irm", "i.txt"),
+                ("irm", "j.txt"),
+                ("irm", "w.txt"),
+                ("irm", "x.txt"),
+                ("irm", "z.txt"),
+                ("irm", "x.txt"),
+                ("irm", "y.txt"),
+                ("irm", "z.txt"),
+                ("irmdir", "u"),
+                ("irmdir", "t"),
+                ("irmdir", "s"),
+                ("irmdir", "c"),  # c contains t, u & s
+                ("irmdir", "r"),
+                ("irmdir", "q"),
+                ("irmdir", "p"),
+                ("irmdir", "b"),  # b contains p, q & r
+                ("irmdir", "o"),
+                ("irmdir", "n"),
+                ("irmdir", "m"),
+                ("irmdir", "a"),  # a contains m, n & o
+                ("irmdir", "tree"),  # The root
+            ]
+            observed = []
+            for line in writer.getvalue().splitlines():
+                cmd, path = line.split(maxsplit=1)
+                observed.append((cmd, PurePath(path).name))
+            assert observed == expected
+
+    @m.context("When a generated safe remove script is run")
+    @m.it("Removes the expected collections and data objects")
+    def test_write_safe_remove_script(self, tmp_path, annotated_tree):
+        script = Path(tmp_path, "safe_rm.sh")
+        write_safe_remove_script(script, annotated_tree)
+        subprocess.run([script.as_posix()], check=True)
+
+        assert not Collection(annotated_tree).exists()
+
+    @m.context("When passed a hierarchy of collections and data objects")
+    @m.context("When paths contain spaces and/or quotes")
+    @m.it("Writes the expected commands")
+    def test_write_safe_remove_commands_special(self, special_paths):
+        with StringIO() as writer:
+            write_safe_remove_commands(special_paths, writer)
+
+            expected = [
+                ("irm", "x.txt"),
+                ("irm", "y y.txt"),
+                ("irm", 'z".txt'),
+                ("irm", "x.txt"),
+                ("irm", "y y.txt"),
+                ("irm", 'z".txt'),
+                ("irm", "x.txt"),
+                ("irm", "y y.txt"),
+                ("irm", 'z".txt'),
+                ("irmdir", 'b"b'),
+                ("irmdir", "a a"),
+                ("irmdir", "special"),
+            ]
+            observed = []
+            for line in writer.getvalue().splitlines():
+                cmd, path = line.split(maxsplit=1)
+                # Remove the outer single quotes added by shlex.quote
+                path = path.lstrip("'")
+                path = path.rstrip("'")
+                observed.append((cmd, PurePath(path).name))
+            assert observed == expected
+
+    @m.context("When a generated safe remove script is run")
+    @m.context("When paths contain spaces and/or quotes")
+    @m.it("Removes the expected collections and data objects")
+    def test_write_safe_remove_script_special(self, tmp_path, special_paths):
+        script = Path(tmp_path, "safe_rm.sh")
+        write_safe_remove_script(script, special_paths)
+        subprocess.run([script.as_posix()], check=True)
+
+        assert not Collection(special_paths).exists()

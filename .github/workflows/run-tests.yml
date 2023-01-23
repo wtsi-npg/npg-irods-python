@@ -127,5 +127,5 @@ jobs:
       run: |
         conda activate "$CONDA_TEST_ENVIRONMENT"
 
-        export PYTHONPATH=$PWD/src:$PWD:tests:$PYTHONPATH
+        pip install .
         pytest --it
