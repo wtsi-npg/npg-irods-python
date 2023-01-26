@@ -36,6 +36,7 @@ setup(
     scripts=[
         "scripts/backfill_illumina_locations.py",
         "scripts/check-checksums",
+        "scripts/check-replicas",
         "scripts/repair-checksums",
         "scripts/check-common-metadata",
         "scripts/repair-common-metadata",

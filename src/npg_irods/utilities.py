@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
+
 import io
 import os
 import shlex
@@ -37,9 +38,11 @@ from npg_irods.metadata.common import (
     has_checksum_metadata,
     has_common_metadata,
     has_complete_checksums,
+    has_complete_replicas,
     has_creation_metadata,
     has_matching_checksum_metadata,
     has_matching_checksums,
+    has_trimmable_replicas,
     has_type_metadata,
     requires_creation_metadata,
     requires_type_metadata,
@@ -224,6 +227,83 @@ def repair_checksums(
             num_succeeded = results.count(True)
 
         return len(results), repaired.count(True), len(results) - num_succeeded
+
+
+def check_replicas(
+    reader, writer, num_threads=1, num_clients=1, print_pass=True, print_fail=False
+) -> (int, int, int):
+    """Read iRODS data objects paths from a file and check that each one has correct
+      replicas, printing the results to a writer.
+
+      The conditions for replicas of a data object to be correct are:
+
+      - The data object has the number of replicas expected for its location in the
+        iRODS resource tree. This is typically 2 replicas, but some trees may be
+        unreplicated, so there will be 1 "replica" in those cases.
+      - All replicas must be in the "valid" state.
+      - The conditions for correct checksums must apply for all replicas (see
+        `check_checksums`).
+
+    Args:
+          reader: A file supplying iRODS data object paths to check, one per line.
+          writer: A file where checked paths will be written, one per line.
+          num_threads: The number of Python threads to use. Defaults to 1.
+          num_clients: The number of baton clients to use, Defaults to 1.
+          print_pass: Print the paths of objects passing the check. Defaults to True.
+          print_fail: Print the paths of objects failing the check. Defaults to False.
+
+      Returns:
+          A tuple of the number of paths checked, the number of paths found to be correct
+          and the number of errors (paths with incorrect checksums and/or paths that
+          failed to be checked because of an exception).
+    """
+    with client_pool(num_clients) as bp:
+
+        def fn(i: int, path: str) -> bool:
+            success = False
+
+            p = path.strip()
+            try:
+                obj = DataObject(p, pool=bp)
+                if has_trimmable_replicas(obj):
+                    log.info("Replicas trimmable", item=i, path=obj)
+                    if print_pass:
+                        _print(p, writer)
+                else:
+                    nv = len([r for r in obj.replicas() if r.valid])
+                    ni = len([r for r in obj.replicas() if not r.valid])
+                    log.warn(
+                        "Replicas incomplete",
+                        item=i,
+                        path=obj,
+                        num_valid=nv,
+                        num_invalid=ni,
+                        has_compl_replicas=has_complete_replicas(obj),
+                        has_compl_checksums=has_complete_checksums(obj),
+                        has_match_checksums=has_matching_checksums(obj),
+                    )
+
+                    if print_fail:
+                        _print(p, writer)
+
+                success = True
+
+            except RodsError as re:
+                log.error(re.message, item=i, code=re.code)
+                if print_fail:
+                    _print(p, writer)
+            except Exception as e:
+                log.error(e, item=i)
+                if print_fail:
+                    _print(p, writer)
+
+            return success
+
+        with ThreadPool(num_threads) as tp:
+            results = tp.starmap(fn, enumerate(reader))
+            num_succeeded = results.count(True)
+
+        return len(results), num_succeeded, len(results) - num_succeeded
 
 
 def check_common_metadata(
