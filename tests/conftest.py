@@ -113,7 +113,6 @@ def mysql_url(config: configparser.ConfigParser):
 
 @pytest.fixture(scope="function")
 def mlwh_session(config: configparser.ConfigParser) -> Session:
-
     uri = mysql_url(config)
     engine = create_engine(uri, echo=False, future=True)
 
@@ -571,7 +570,6 @@ def initialize_mlwh_ont(session: Session):
 
 
 def initialize_mlwh_illumina(sess: Session):
-
     changed_study = Study(
         id_lims="LIMS_05",
         id_study_lims="study_04",

@@ -114,7 +114,6 @@ class TestIlluminaMLWarehouseQueries(object):
     @m.context("When given a datetime")
     @m.it("Finds rows updated since that datetime")
     def test_recently_changed(self, mlwh_session):
-
         late_expected = [
             {
                 TrackedStudy.ACCESSION_NUMBER: "ST0000000001",
