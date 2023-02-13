@@ -338,11 +338,10 @@ def repair_replicas(
     - Valid replicas: if the data object has more valid replicas than the number
       required, the excess replicas are trimmed.
 
-
     Args:
         reader: A file supplying iRODS data object paths to repair, one per line.
         writer: A file where repaired paths will be written, one per line.
-        num_replicas:
+        num_replicas: The number of replicas expected. Defaults to 2.
         num_threads: The number of Python threads to use. Defaults to 1.
         num_clients: The number of baton clients to use, Defaults to 1.
         print_repair: Print the paths of objects that required repair and were

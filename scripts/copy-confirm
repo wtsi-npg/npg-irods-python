@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,63 +46,53 @@ abort further copying until the problem is resolved.
 parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
-
 parser.add_argument(
     "source",
-    help="Collection or data object path to copy from. Must be an absolute path",
+    help="Collection or data object path to copy from. Must be an absolute path.",
 )
-
 parser.add_argument(
     "destination",
-    help="Collection or data object path to copy to. Must be an absolute path",
+    help="Collection or data object path to copy to. Must be an absolute path.",
 )
-
-parser.add_argument(
-    "--colour",
-    help="Use coloured log rendering to the console",
-    action="store_true",
-)
-
 parser.add_argument(
     "--copy-metadata",
-    help="Copy the AVUs (metadata) of each data object and collection",
+    help="Copy the AVUs (metadata) of each data object and collection.",
     action="store_true",
 )
-
 parser.add_argument(
     "--copy-permissions",
     help="Copy the ACL (access control list, permissions) of each data object "
-    "and collection",
+    "and collection.",
     action="store_true",
 )
-
-parser.add_argument(
-    "--json",
-    help="Use JSON log rendering.",
-    action="store_true",
-)
-
 parser.add_argument(
     "--recurse",
     help="Recurse into collections when copying.",
     action="store_true",
 )
-
 parser.add_argument(
     "--skip-existing",
-    help="Skip existing data objects and collections when copying",
+    help="Skip existing data objects and collections when copying.",
     action="store_true",
 )
-
+parser.add_argument(
+    "--colour",
+    help="Use coloured log rendering to the console.",
+    action="store_true",
+)
+parser.add_argument(
+    "--json",
+    help="Use JSON log rendering.",
+    action="store_true",
+)
 parser.add_argument(
     "--version", help="Print the version and exit.", action="store_true"
 )
-
 parser.add_argument(
-    "-d", "--debug", help="Enable DEBUG level logging to STDERR", action="store_true"
+    "-d", "--debug", help="Enable DEBUG level logging to STDERR.", action="store_true"
 )
 parser.add_argument(
-    "-v", "--verbose", help="Enable INFO level logging to STDERR", action="store_true"
+    "-v", "--verbose", help="Enable INFO level logging to STDERR.", action="store_true"
 )
 
 args = parser.parse_args()

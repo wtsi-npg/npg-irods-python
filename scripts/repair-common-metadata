@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,68 +41,69 @@ their metadata, if necessary.
 parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
-
 parser.add_argument(
     "-i",
     "--input",
-    help="Input filename",
+    help="Input filename.",
     type=argparse.FileType("r"),
     default=sys.stdin,
 )
-
 parser.add_argument(
     "-o",
     "--output",
-    help="Output filename",
+    help="Output filename.",
     type=argparse.FileType("w"),
     default=sys.stdout,
 )
-
 parser.add_argument(
     "--print-repair",
     help="Print to output those paths that were repaired. Defaults to True.",
     action="store_true",
 )
-
 parser.add_argument(
     "--print-fail",
     help="Print to output those paths that require repair, where the repair failed. "
     "Defaults to False.",
     action="store_true",
 )
-
+parser.add_argument(
+    "--colour",
+    help="Use coloured log rendering to the console.",
+    action="store_true",
+)
+parser.add_argument(
+    "--json",
+    help="Use JSON log rendering.",
+    action="store_true",
+)
 parser.add_argument(
     "-c",
     "--clients",
-    help="Number of baton clients to use. Defaults to 4",
+    help="Number of baton clients to use. Defaults to 4.",
     type=int,
     default=4,
 )
-
-
 parser.add_argument(
     "--creator",
     help="The data creator name to use in any metadata generated. "
     "Defaults to a placeholder value.",
     type=str,
 )
-
-
 parser.add_argument(
     "-t",
     "--threads",
-    help="Number of threads to use. Defaults to 4",
+    help="Number of threads to use. Defaults to 4.",
     type=int,
     default=4,
 )
-
-parser.add_argument("--version", help="Print the version and exit", action="store_true")
-
 parser.add_argument(
-    "-d", "--debug", help="Enable DEBUG level logging to STDERR", action="store_true"
+    "--version", help="Print the version and exit.", action="store_true"
 )
 parser.add_argument(
-    "-v", "--verbose", help="Enable INFO level logging to STDERR", action="store_true"
+    "-d", "--debug", help="Enable DEBUG level logging to STDERR.", action="store_true"
+)
+parser.add_argument(
+    "-v", "--verbose", help="Enable INFO level logging to STDERR.", action="store_true"
 )
 
 args = parser.parse_args()
@@ -118,7 +119,22 @@ logging.basicConfig(
     encoding="utf-8",
 )
 
-structlog.configure(logger_factory=structlog.stdlib.LoggerFactory())
+log_processors = [
+    structlog.stdlib.add_logger_name,
+    structlog.stdlib.add_log_level,
+    structlog.processors.TimeStamper(fmt="iso", utc=True),
+]
+if args.json:
+    log_processors.append(structlog.processors.JSONRenderer())
+else:
+    log_processors.append(structlog.dev.ConsoleRenderer(colors=args.colour))
+
+structlog.configure(
+    processors=log_processors,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)
+
 log = structlog.get_logger("main")
 
 
