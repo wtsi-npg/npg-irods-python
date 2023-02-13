@@ -289,13 +289,22 @@ def has_complete_replicas(obj: DataObject, num_replicas=2) -> bool:
 def trimmable_replicas(
     obj: DataObject, num_replicas=2
 ) -> (List[DataObject], List[DataObject]):
+    """Return tuple of lists of valid and invalid replicas that are trimmable.
+
+    Trimmable replicas are any valid replicas in excess of the expected number
+    and any invalid replicas (invalid replicas are always trimmable).
+
+    Args:
+        obj: The data object to check.
+        num_replicas: The expected number of valid replicas. Defaults to 2.
+
+    Returns:
+        A tuple of lists of replicas, those valid first.
+    """
     if num_replicas < 1:
         raise ValueError(
             f"The num_replicas argument may not be less than 1: {num_replicas}"
         )
-
-    if not has_complete_replicas(obj, num_replicas=num_replicas):
-        return [], []
 
     valid = []
     invalid = []
@@ -305,12 +314,24 @@ def trimmable_replicas(
         else:
             invalid.append(r)
 
-    return invalid, valid[num_replicas:]
+    return valid[num_replicas:], invalid
 
 
 def has_trimmable_replicas(obj: DataObject, num_replicas=2) -> bool:
-    invalid, valid = trimmable_replicas(obj, num_replicas=num_replicas)
-    return invalid or valid
+    """Return True if the data object has replicas that may be trimmed.
+
+    Trimmable replicas are any valid replicas in excess of the expected number
+    and any invalid replicas (invalid replicas are always trimmable).
+
+    Args:
+        obj: The data object to check.
+        num_replicas: The number of valid replicas that should be present.
+
+    Returns:
+        True if there are any replicas to trim.
+    """
+    valid, invalid = trimmable_replicas(obj, num_replicas=num_replicas)
+    return valid or invalid
 
 
 def requires_creation_metadata(obj: DataObject) -> bool:

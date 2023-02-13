@@ -21,13 +21,13 @@ from partisan.irods import AC, AVU, Collection, Permission
 from pytest import mark as m
 
 from npg_irods import ont
-from conftest import LATEST, icommands_have_admin
+from conftest import LATEST, tests_have_admin
 from npg_irods.metadata.lims import SeqConcept, TrackedSample, TrackedStudy
 from npg_irods.ont import MetadataUpdate, annotate_results_collection
 
 
 class TestONT(object):
-    @icommands_have_admin
+    @tests_have_admin
     @m.context("When an ONT experiment collection is annotated")
     @m.context("When the experiment is single-sample")
     @m.it("Adds sample and study metadata to the run-folder collection")
@@ -53,7 +53,7 @@ class TestONT(object):
         for item in coll.contents():
             assert ac in item.acl(), f"{ac} is in {item} ACL"
 
-    @icommands_have_admin
+    @tests_have_admin
     @m.context("When the experiment is multiplexed")
     @m.it("Adds {tag_index_from_id => <n>} metadata to barcode<0n> sub-collections")
     def test_add_new_plex_metadata(self, ont_synthetic, mlwh_session):
@@ -72,7 +72,7 @@ class TestONT(object):
             avu = AVU(SeqConcept.TAG_INDEX, ont.tag_index_from_id(tag_identifier))
             assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
 
-    @icommands_have_admin
+    @tests_have_admin
     @m.it("Adds sample and study metadata to barcode<0n> sub-collections")
     def test_add_new_plex_sample_metadata(self, ont_synthetic, mlwh_session):
         expt = "multiplexed_experiment_001"
@@ -103,7 +103,7 @@ class TestONT(object):
 
 
 class TestMetadataUpdate(object):
-    @icommands_have_admin
+    @tests_have_admin
     @m.context("When an ONT metadata update is requested")
     @m.context("When no experiment name is specified")
     @m.context("When no time window is specified")

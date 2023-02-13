@@ -24,74 +24,76 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import check_checksums, check_replicas
+from npg_irods.utilities import check_replicas
 from npg_irods.version import version
 
 description = """
+Reads iRODS data object paths from a file or STDIN, one per line and performs
+consistency checks on their iRODS replicas.
+
+If any of the paths fail their replica check, the exit code will be non-zero and an 
+error message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
-
 parser.add_argument(
     "-i",
     "--input",
-    help="Input filename",
+    help="Input filename.",
     type=argparse.FileType("r"),
     default=sys.stdin,
 )
-
 parser.add_argument(
     "-o",
     "--output",
-    help="Output filename",
+    help="Output filename.",
     type=argparse.FileType("w"),
     default=sys.stdout,
 )
-
+parser.add_argument(
+    "-n",
+    "--num-replicas",
+    help="The number of valid replicas expected. Defaults to 2.",
+    type=int,
+    default=2,
+)
 parser.add_argument(
     "--print-pass",
     help="Print to output those paths that pass the check. Defaults to True.",
     action="store_true",
 )
-
 parser.add_argument(
     "--print-fail",
     help="Print to output those paths that fail the check. Defaults to False.",
     action="store_true",
 )
-
+parser.add_argument(
+    "--colour",
+    help="Use coloured log rendering to the console.",
+    action="store_true",
+)
 parser.add_argument(
     "--json",
     help="Use JSON log rendering.",
     action="store_true",
 )
-
-parser.add_argument(
-    "--colour",
-    help="Use coloured log rendering to the console",
-    action="store_true",
-)
-
 parser.add_argument(
     "-c",
     "--clients",
-    help="Number of baton clients to use. Defaults to 4",
+    help="Number of baton clients to use. Defaults to 4.",
     type=int,
     default=4,
 )
-
 parser.add_argument(
     "-t",
     "--threads",
-    help="Number of threads to use. Defaults to 4",
+    help="Number of threads to use. Defaults to 4.",
     type=int,
     default=4,
 )
-
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
-
 parser.add_argument(
     "-d", "--debug", help="Enable DEBUG level logging to STDERR", action="store_true"
 )
@@ -139,6 +141,7 @@ def main():
     num_processed, num_passed, num_errors = check_replicas(
         args.input,
         args.output,
+        num_replicas=args.num_replicas,
         print_pass=args.print_pass,
         print_fail=args.print_fail,
         num_clients=args.clients,

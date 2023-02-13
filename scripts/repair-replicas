@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,14 +24,15 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import repair_checksums
+from npg_irods.utilities import repair_replicas
 from npg_irods.version import version
 
 description = """
-Reads iRODS data object paths from a file or STDIN, one per line and repairs
-their checksums and checksum metadata, if necessary.
+Reads iRODS data object paths from a file or STDIN, one per line and repairs their
+replicas, if necessary. This means trimming any invalid replicas and/or excess valid
+replicas.
 
-If any of the paths initially fail their checksum check and could not be repaired,   
+If any of the paths initially fail their replica check and could not be repaired,   
 the exit code will be non-zero and an error message summarising the results will be 
 sent to STDERR.
 """
@@ -52,6 +53,13 @@ parser.add_argument(
     help="Output filename.",
     type=argparse.FileType("w"),
     default=sys.stdout,
+)
+parser.add_argument(
+    "-n",
+    "--num-replicas",
+    help="The number of valid replicas expected. Defaults to 2.",
+    type=int,
+    default=2,
 )
 parser.add_argument(
     "--print-repair",
@@ -111,7 +119,6 @@ logging.basicConfig(
     encoding="utf-8",
 )
 
-
 log_processors = [
     structlog.stdlib.add_logger_name,
     structlog.stdlib.add_log_level,
@@ -136,38 +143,31 @@ def main():
         print(version())
         exit(0)
 
-    num_processed, num_repaired, num_errors = repair_checksums(
+    num_processed, num_passed, num_errors = repair_replicas(
         args.input,
         args.output,
-        num_threads=args.threads,
-        num_clients=args.clients,
+        num_replicas=args.num_replicas,
         print_repair=args.print_repair,
         print_fail=args.print_fail,
+        num_clients=args.clients,
+        num_threads=args.threads,
     )
 
     if num_errors:
         log.error(
-            "Some repairs did not succeed",
+            "Some checks did not pass",
             num_processed=num_processed,
-            num_repaired=num_repaired,
+            num_passed=num_passed,
             num_errors=num_errors,
         )
         exit(1)
 
-    if num_repaired:
-        log.info(
-            "All paths repaired",
-            num_processed=num_processed,
-            num_repaired=num_repaired,
-            num_errors=num_errors,
-        )
-    else:
-        log.info(
-            "No paths required repair",
-            num_processed=num_processed,
-            num_repaired=num_repaired,
-            num_errors=num_errors,
-        )
+    log.info(
+        "All checks passed",
+        num_processed=num_processed,
+        num_passed=num_passed,
+        num_errors=num_errors,
+    )
 
 
 if __name__ == "__main__":

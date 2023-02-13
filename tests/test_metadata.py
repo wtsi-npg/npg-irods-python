@@ -25,7 +25,7 @@ import pytest
 from partisan.irods import AVU, DataObject, Replica
 from pytest import mark as m
 
-from conftest import icommands_have_admin
+from conftest import tests_have_admin
 from npg_irods.exception import ChecksumError
 from npg_irods.metadata.common import (
     CompressSuffix,
@@ -345,7 +345,7 @@ class TestCreationMetadata:
 
 @m.describe("Common metadata")
 class TestCommonMetadata:
-    @icommands_have_admin
+    @tests_have_admin
     @m.context("When common metadata are present")
     @m.context("A has_ function is called")
     @m.it("Returns True")
