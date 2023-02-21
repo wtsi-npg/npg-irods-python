@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ setup(
     author="Keith James",
     author_email="kdj@sanger.ac.uk",
     description=".",
-    use_scm_version=True,
+    use_scm_version={"version_scheme": "no-guess-dev"},
     python_requires=">=3.10",
     packages=find_packages("src"),
     package_dir={"": "src"},
