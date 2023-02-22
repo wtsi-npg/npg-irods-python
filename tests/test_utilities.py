@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,27 +28,41 @@ from partisan.exception import RodsError
 from partisan.irods import AC, AVU, Collection, DataObject, Permission
 from pytest import mark as m
 
-from npg_irods.metadata.common import ensure_common_metadata
+from conftest import set_replicate_invalid
+from npg_irods.metadata.common import ensure_common_metadata, has_trimmable_replicas
 from npg_irods.utilities import (
     check_checksums,
+    check_replicas,
     copy,
     repair_checksums,
+    repair_replicas,
     write_safe_remove_commands,
     write_safe_remove_script,
 )
 
 
-@m.describe("Utilities")
-class TestUtilities:
+def collect_objs(coll: Collection):
+    return [
+        item
+        for item in coll.contents(recurse=True)
+        if item.rods_type == partisan.irods.DataObject
+    ]
+
+
+def collect_obj_paths(coll: Collection):
+    return [str(item) for item in collect_objs(coll)]
+
+
+@m.describe("Checksum utilities")
+class TestChecksumUtilities:
     @m.context("When data object checksums are checked")
     @m.context("When all of the data objects have checksum metadata")
-    @m.it("Counts correct checksums correctly")
+    @m.it("Counts successes correctly")
     def test_checked_checksums_passes(self, annotated_tree):
-        obj_paths = []
-        for p in Collection(annotated_tree).contents(recurse=True):
-            if p.rods_type == partisan.irods.DataObject:
-                ensure_common_metadata(p)
-                obj_paths.append(str(p))
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+
+        for p in obj_paths:
+            ensure_common_metadata(DataObject(p))
 
         with StringIO("\n".join(obj_paths)) as reader:
             with StringIO() as writer:
@@ -66,11 +80,7 @@ class TestUtilities:
     @m.context("When none of the data objects have checksum metadata")
     @m.it("Counts failures correctly")
     def test_check_checksums_failures(self, annotated_tree):
-        obj_paths = [
-            str(p)
-            for p in Collection(annotated_tree).contents(recurse=True)
-            if p.rods_type == partisan.irods.DataObject
-        ]
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
 
         with StringIO("\n".join(obj_paths)) as reader:
             with StringIO() as writer:
@@ -87,12 +97,10 @@ class TestUtilities:
     @m.context("When data object checksums are repaired")
     @m.context("When all of the data objects have checksum metadata")
     @m.it("Counts repairs correctly")
-    def test_checked_checksums_all(self, annotated_tree):
-        obj_paths = []
-        for p in Collection(annotated_tree).contents(recurse=True):
-            if p.rods_type == partisan.irods.DataObject:
-                ensure_common_metadata(p)
-                obj_paths.append(str(p))
+    def test_repair_checksums_all(self, annotated_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+        for p in obj_paths:
+            ensure_common_metadata(DataObject(p))
 
         with StringIO("\n".join(obj_paths)) as reader:
             with StringIO() as writer:
@@ -110,11 +118,7 @@ class TestUtilities:
     @m.context("When none of the data objects have checksum metadata")
     @m.it("Counts repairs correctly")
     def test_repair_checksums_none(self, annotated_tree):
-        obj_paths = [
-            str(p)
-            for p in Collection(annotated_tree).contents(recurse=True)
-            if p.rods_type == partisan.irods.DataObject
-        ]
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
 
         with StringIO("\n".join(obj_paths)) as reader:
             with StringIO() as writer:
@@ -128,6 +132,130 @@ class TestUtilities:
                 repaired_paths = writer.getvalue().split()
                 assert repaired_paths == obj_paths
 
+
+@m.describe("Replica utilities")
+class TestReplicaUtilities:
+    @m.context("Detecting trimmable valid replicas")
+    @m.context("When a data object no trimmable valid replicas")
+    @m.it("Returns false")
+    def test_has_trimmable_replicas_valid(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+        assert not has_trimmable_replicas(obj, num_replicas=2)
+
+    @m.context("Detecting trimmable valid replicas")
+    @m.context("When a data object has trimmable valid replicas")
+    @m.it("Returns true")
+    def test_has_trimmable_replicas_valid_none(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+        assert has_trimmable_replicas(obj, num_replicas=1)
+
+    @m.context("Detecting trimmable invalid replicas")
+    @m.context("When a data object has trimmable invalid replicas")
+    @m.it("Returns true")
+    def test_has_trimmable_replicas_invalid(self, invalid_replica_data_object):
+        obj = DataObject(invalid_replica_data_object)
+        assert has_trimmable_replicas(obj, num_replicas=2)
+
+    @m.context("When data object replicas are checked")
+    @m.context("When all of the data objects have conforming replicas")
+    @m.it("Counts successes correctly")
+    def test_checked_replicas_none(self, annotated_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+        expected_num_replicas = 2
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_passed, num_errors = check_replicas(
+                    reader, writer, num_replicas=expected_num_replicas, print_pass=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_passed == len(obj_paths)
+                assert num_errors == 0
+
+                passed_paths = writer.getvalue().split()
+                assert passed_paths == obj_paths
+
+    @m.context("When data object replicas are checked")
+    @m.context("When none of the data objects have conforming replicas")
+    @m.it("Counts failures correctly")
+    def test_check_replicas_all(self, annotated_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+        expected_num_replicas = 999  # Cause failure by expecting an impossible number
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_passed, num_errors = check_replicas(
+                    reader, writer, num_replicas=expected_num_replicas, print_fail=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_passed == 0
+                assert num_errors == len(obj_paths)
+
+                failed_paths = writer.getvalue().split()
+                assert failed_paths == obj_paths
+
+    @m.context("When data object replicas are repaired")
+    @m.context("When all of the data objects have conforming replicas")
+    @m.it("Counts repairs correctly")
+    def test_repair_replicas_none(self, annotated_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+        desired_num_replicas = 2
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_repaired, num_errors = repair_replicas(
+                    reader, writer, num_replicas=desired_num_replicas, print_repair=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_repaired == 0
+                assert num_errors == 0
+
+                repaired_paths = writer.getvalue().split()
+                assert repaired_paths == []
+
+    @m.context("When data object replicas are repaired")
+    @m.context("When all of the data objects need invalid replicas repaired")
+    @m.it("Counts repairs correctly")
+    def test_repair_invalid_replicas_all(self, annotated_tree, sql_test_utilities):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+        for p in obj_paths:
+            set_replicate_invalid(DataObject(p), replicate_num=1)
+
+        desired_num_replicas = 2  # The test fixture has 2 replicas
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_repaired, num_errors = repair_replicas(
+                    reader, writer, num_replicas=desired_num_replicas, print_repair=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_repaired == len(obj_paths)
+                assert num_errors == 0
+
+                repaired_paths = writer.getvalue().split()
+                assert repaired_paths == obj_paths
+
+    @m.context("When data object replicas are repaired")
+    @m.context("When all of the data objects need valid replicas repaired")
+    @m.it("Counts repairs correctly")
+    def test_repair_valid_replicas_all(self, annotated_tree, sql_test_utilities):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+
+        desired_num_replicas = 1  # The test fixture has 2 replicas
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_repaired, num_errors = repair_replicas(
+                    reader, writer, num_replicas=desired_num_replicas, print_repair=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_repaired == len(obj_paths)
+                assert num_errors == 0
+
+                repaired_paths = writer.getvalue().split()
+                assert repaired_paths == obj_paths
+
+
+@m.describe("Copy utilities")
+class TestCopyUtilities:
     @m.context("When a collection is copied")
     @m.context("When a there is no collection with that name at the destination")
     @m.it("Creates a copy within the destination collection")
@@ -261,6 +389,9 @@ class TestUtilities:
                 in item.permissions()
             )
 
+
+@m.describe("Safe remove utilities")
+class TestSafeRemoveUtilities:
     @m.context("When passed a hierarchy of collections and data objects")
     @m.it("Writes the expected commands")
     def test_write_safe_remove_commands(self, annotated_tree):

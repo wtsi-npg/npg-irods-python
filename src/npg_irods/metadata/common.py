@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 from datetime import datetime
 from enum import unique
 from pathlib import PurePath
+from typing import List
 
 from partisan.irods import AVU, DataObject, RodsItem
 from partisan.metadata import AsValueEnum, DublinCore
@@ -260,6 +261,77 @@ def ensure_matching_checksum_metadata(obj: DataObject) -> bool:
         )
 
     return False
+
+
+def has_complete_replicas(obj: DataObject, num_replicas=2) -> bool:
+    """Return True if the data object has all required replicas.
+
+    This is defined as having at least the expected number of valid replicas, with
+    matching checksums on those that are valid.
+
+    Args:
+        obj: The data object to check.
+        num_replicas: The expected number of valid replicas. Defaults to 2.
+
+    Returns:
+        True if there are complete replicas, or False otherwise.
+    """
+    if num_replicas < 1:
+        raise ValueError(
+            f"The num_replicas argument may not be less than 1: {num_replicas}"
+        )
+
+    num_valid = len([r for r in obj.replicas() if r.valid])
+
+    return num_valid >= num_replicas and has_matching_checksums(obj)
+
+
+def trimmable_replicas(
+    obj: DataObject, num_replicas=2
+) -> (List[DataObject], List[DataObject]):
+    """Return tuple of lists of valid and invalid replicas that are trimmable.
+
+    Trimmable replicas are any valid replicas in excess of the expected number
+    and any invalid replicas (invalid replicas are always trimmable).
+
+    Args:
+        obj: The data object to check.
+        num_replicas: The expected number of valid replicas. Defaults to 2.
+
+    Returns:
+        A tuple of lists of replicas, those valid first.
+    """
+    if num_replicas < 1:
+        raise ValueError(
+            f"The num_replicas argument may not be less than 1: {num_replicas}"
+        )
+
+    valid = []
+    invalid = []
+    for r in obj.replicas():
+        if r.valid:
+            valid.append(r)
+        else:
+            invalid.append(r)
+
+    return valid[num_replicas:], invalid
+
+
+def has_trimmable_replicas(obj: DataObject, num_replicas=2) -> bool:
+    """Return True if the data object has replicas that may be trimmed.
+
+    Trimmable replicas are any valid replicas in excess of the expected number
+    and any invalid replicas (invalid replicas are always trimmable).
+
+    Args:
+        obj: The data object to check.
+        num_replicas: The number of valid replicas that should be present.
+
+    Returns:
+        True if there are any replicas to trim.
+    """
+    valid, invalid = trimmable_replicas(obj, num_replicas=num_replicas)
+    return valid or invalid
 
 
 def requires_creation_metadata(obj: DataObject) -> bool:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
+
 import io
 import os
 import shlex
@@ -37,12 +38,15 @@ from npg_irods.metadata.common import (
     has_checksum_metadata,
     has_common_metadata,
     has_complete_checksums,
+    has_complete_replicas,
     has_creation_metadata,
     has_matching_checksum_metadata,
     has_matching_checksums,
+    has_trimmable_replicas,
     has_type_metadata,
     requires_creation_metadata,
     requires_type_metadata,
+    trimmable_replicas,
 )
 from npg_irods.version import version
 
@@ -210,6 +214,197 @@ def repair_checksums(
                     _print(p, writer)
             except ChecksumError as ce:
                 log.error(ce, item=i, expected=ce.expected, observed=ce.observed)
+                if print_fail:
+                    _print(p, writer)
+            except Exception as e:
+                log.error(e, item=i)
+                if print_fail:
+                    _print(p, writer)
+
+            return success, repair
+
+        with ThreadPool(num_threads) as tp:
+            results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
+            num_succeeded = results.count(True)
+
+        return len(results), repaired.count(True), len(results) - num_succeeded
+
+
+def check_replicas(
+    reader,
+    writer,
+    num_replicas=2,
+    num_threads=1,
+    num_clients=1,
+    print_pass=True,
+    print_fail=False,
+) -> (int, int, int):
+    """Read iRODS data objects paths from a file and check that each one has correct
+      replicas, printing the results to a writer.
+
+      The conditions for replicas of a data object to be correct are:
+
+      - The data object has the number of replicas expected for its location in the
+        iRODS resource tree. This is typically 2 replicas, but some trees may be
+        unreplicated, so there will be 1 "replica" in those cases.
+      - All replicas must be in the "valid" state.
+      - The conditions for correct checksums must apply for all replicas (see
+        `check_checksums`).
+
+    Args:
+          reader: A file supplying iRODS data object paths to check, one per line.
+          writer: A file where checked paths will be written, one per line.
+          num_replicas: The number of replicas expected. Defaults to 2.
+          num_threads: The number of Python threads to use. Defaults to 1.
+          num_clients: The number of baton clients to use, Defaults to 1.
+          print_pass: Print the paths of objects passing the check. Defaults to True.
+          print_fail: Print the paths of objects failing the check. Defaults to False.
+
+      Returns:
+          A tuple of the number of paths checked, the number of paths found to be correct
+          and the number of errors (paths with incorrect checksums and/or paths that
+          failed to be checked because of an exception).
+    """
+    with client_pool(num_clients) as bp:
+
+        def fn(i: int, path: str) -> bool:
+            success = False
+
+            p = path.strip()
+            try:
+                obj = DataObject(p, pool=bp)
+                comp = has_complete_replicas(obj, num_replicas=num_replicas)
+                trim = has_trimmable_replicas(obj, num_replicas=num_replicas)
+
+                if comp and not trim:
+                    success = True
+                    log.info("Replicas are complete", item=i, path=obj)
+                    if print_pass:
+                        _print(p, writer)
+                else:
+                    nv = len([r for r in obj.replicas() if r.valid])
+                    ni = len([r for r in obj.replicas() if not r.valid])
+
+                    log.warn(
+                        "Replicas are incomplete",
+                        item=i,
+                        path=obj,
+                        num_valid=nv,
+                        num_invalid=ni,
+                        has_compl_replicas=comp,
+                        has_trim_replicates=trim,
+                        has_compl_checksums=has_complete_checksums(obj),
+                        has_match_checksums=has_matching_checksums(obj),
+                    )
+
+                    if print_fail:
+                        _print(p, writer)
+
+            except RodsError as re:
+                log.error(re.message, item=i, code=re.code)
+                if print_fail:
+                    _print(p, writer)
+            except Exception as e:
+                log.error(e, item=i)
+                if print_fail:
+                    _print(p, writer)
+
+            return success
+
+        with ThreadPool(num_threads) as tp:
+            results = tp.starmap(fn, enumerate(reader))
+            num_succeeded = results.count(True)
+
+        return len(results), num_succeeded, len(results) - num_succeeded
+
+
+def repair_replicas(
+    reader,
+    writer,
+    num_replicas=2,
+    num_threads=1,
+    num_clients=1,
+    print_repair=True,
+    print_fail=False,
+) -> (int, int, int):
+    """Read iRODS data object paths from a file and ensure that each one has correct
+    replicas by making any necessary repairs, printing the results to a writer.
+
+    The possible repairs are:
+
+    - Invalid replicas: if the data object has invalid replicas, these are trimmed.
+      This is the most common type of repair.
+
+    - Valid replicas: if the data object has more valid replicas than the number
+      required, the excess replicas are trimmed.
+
+    Args:
+        reader: A file supplying iRODS data object paths to repair, one per line.
+        writer: A file where repaired paths will be written, one per line.
+        num_replicas: The number of replicas expected. Defaults to 2.
+        num_threads: The number of Python threads to use. Defaults to 1.
+        num_clients: The number of baton clients to use, Defaults to 1.
+        print_repair: Print the paths of objects that required repair and were
+            repaired successfully. Defaults to True.
+        print_fail: Print the paths of objects that required repair and the repair
+            failed. Defaults to False.
+
+    Returns:
+        A tuple of the number of paths checked, the number of paths with a replica
+        repaired and the number of errors (paths with incorrect replicas that could
+        not be fixed and/or paths that failed to be fixed because of an exception).
+    """
+    with client_pool(num_clients) as bp:
+
+        def fn(i: int, path: str) -> (bool, bool):
+            success = False
+            repair = False
+
+            p = path.strip()
+            try:
+                obj = DataObject(p, pool=bp)
+                comp = has_complete_replicas(obj, num_replicas=num_replicas)
+                trim = has_trimmable_replicas(obj, num_replicas=num_replicas)
+
+                if trim:
+                    valid, invalid = trimmable_replicas(obj, num_replicas=num_replicas)
+                    if valid:
+                        nv, ni = obj.trim_replicas(valid=True, invalid=False)
+                        log.info(
+                            "Trimmed valid replicas",
+                            item=i,
+                            path=obj,
+                            has_compl_replicas=comp,
+                            num_trimmed=nv,
+                        )
+                    if invalid:
+                        nv, ni = obj.trim_replicas(valid=False, invalid=True)
+                        log.info(
+                            "Trimmed invalid replicas",
+                            item=i,
+                            path=obj,
+                            has_compl_replicas=comp,
+                            num_trimmed=ni,
+                        )
+
+                    repair = success = True
+                    if print_repair:
+                        _print(p, writer)
+                else:
+                    success = True
+                    log.info(
+                        "No replicas to trim",
+                        item=i,
+                        path=obj,
+                        has_compl_checksums=has_complete_checksums(obj),
+                        has_match_checksums=has_matching_checksums(obj),
+                        has_checksum_meta=has_checksum_metadata(obj),
+                        has_compl_replicas=comp,
+                        has_trim_replicas=trim,
+                    )
+
+            except RodsError as re:
+                log.error(re.message, item=i, code=re.code)
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
