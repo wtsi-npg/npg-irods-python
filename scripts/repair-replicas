@@ -143,7 +143,7 @@ def main():
         print(version())
         exit(0)
 
-    num_processed, num_passed, num_errors = repair_replicas(
+    num_processed, num_repaired, num_errors = repair_replicas(
         args.input,
         args.output,
         num_replicas=args.num_replicas,
@@ -157,7 +157,7 @@ def main():
         log.error(
             "Some checks did not pass",
             num_processed=num_processed,
-            num_passed=num_passed,
+            num_repaired=num_repaired,
             num_errors=num_errors,
         )
         exit(1)
@@ -165,7 +165,7 @@ def main():
     log.info(
         "All checks passed",
         num_processed=num_processed,
-        num_passed=num_passed,
+        num_repaired=num_repaired,
         num_errors=num_errors,
     )
 
