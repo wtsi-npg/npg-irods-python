@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2020, 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2020, 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,7 +42,6 @@ from ml_warehouse.schema import (
     Study,
 )
 
-from partisan import icommands
 from partisan.icommands import (
     add_specific_sql,
     have_admin,
