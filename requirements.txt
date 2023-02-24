@@ -1,4 +1,4 @@
-ml-warehouse@git+https://github.com/mgcam/ml-warehouse-python@update_orm_from_live_db
+ml-warehouse@git+https://github.com/mgcam/ml-warehouse-python@not_nullable_pd_ids
 partisan@https://github.com/wtsi-npg/partisan/releases/download/2.1.0/partisan-2.1.0.tar.gz
 rich==13.3.1
 setuptools==67.4.0
