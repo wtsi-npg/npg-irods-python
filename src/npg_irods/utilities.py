@@ -27,7 +27,14 @@ from pathlib import PurePath
 
 import partisan
 from partisan.exception import RodsError
-from partisan.irods import Collection, DataObject, RodsItem, client_pool, make_rods_item
+from partisan.irods import (
+    Collection,
+    DataObject,
+    RodsItem,
+    client_pool,
+    make_rods_item,
+    rods_path_type,
+)
 from structlog import get_logger
 
 from npg_irods.exception import ChecksumError
@@ -655,11 +662,31 @@ def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int
         coll.create(exist_ok=exist_ok)
         return 1
 
+    # If we were not passed RodsItems, but bare paths, work out what their iRODS types
+    # should be
     if not isinstance(src, RodsItem):
+        #  The source path must exist, or it's an error
         src = make_rods_item(src)
     if not isinstance(dest, RodsItem):
-        dest = make_rods_item(dest)
+        if rods_path_type(dest):
+            # The dest path exists, so make the appropriate object
+            dest = make_rods_item(dest)
+        elif src.rods_type == partisan.irods.Collection:
+            # The dest path doesn't exist and the src is a collection, so the dest must
+            # also be a collection
+            dest = Collection(dest)
+        elif src.rods_type == partisan.irods.DataObject:
+            # The dest path doesn't exist and the src path is a data object, so the dest
+            # can be either. In this case, we default to a data object.
+            dest = DataObject(dest)
+        else:
+            raise ValueError(
+                f"Invalid iRODS path type combination src: {src}: "
+                f"src type: {src.rods_type}, "
+                f"dest: {dest}, dest type: {dest.rods_type}"
+            )
 
+    # Now that we have the iRODS types of the src and dest
     match (src.rods_type, dest.rods_type):
         case (partisan.irods.Collection, partisan.irods.DataObject):
             raise ValueError(
