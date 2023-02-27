@@ -239,7 +239,7 @@ class TestChecksums:
 
     @m.context("When a data object has complete checksums")
     @m.context("When a data object has matching checksums")
-    @m.context("When there are existing existing, correct checksum metadata")
+    @m.context("When there are existing, correct checksum metadata")
     @m.it("Does nothing and returns False")
     def test_ensure_matching_checksum_metadata(self, simple_data_object):
         obj = DataObject(simple_data_object)
@@ -250,7 +250,7 @@ class TestChecksums:
 
     @m.context("When a data object has complete checksums")
     @m.context("When a data object has matching checksums")
-    @m.context("When there are existing existing, correct checksum metadata")
+    @m.context("When there are existing, correct checksum metadata")
     @m.context("When there are extra, unexpected checksum metadata")
     @m.it("Raises an exception")
     def test_ensure_matching_checksum_extra(self, simple_data_object):
