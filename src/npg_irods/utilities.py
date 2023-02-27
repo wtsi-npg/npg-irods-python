@@ -142,9 +142,8 @@ def check_checksums(
 
         with ThreadPool(num_threads) as tp:
             results = tp.starmap(fn, enumerate(reader))
-            num_succeeded = results.count(True)
 
-        return len(results), num_succeeded, len(results) - num_succeeded
+        return len(results), results.count(True), results.count(False)
 
 
 def repair_checksums(
@@ -232,9 +231,8 @@ def repair_checksums(
 
         with ThreadPool(num_threads) as tp:
             results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
-            num_succeeded = results.count(True)
 
-        return len(results), repaired.count(True), len(results) - num_succeeded
+        return len(results), repaired.count(True), results.count(False)
 
 
 def check_replicas(
@@ -320,9 +318,8 @@ def check_replicas(
 
         with ThreadPool(num_threads) as tp:
             results = tp.starmap(fn, enumerate(reader))
-            num_succeeded = results.count(True)
 
-        return len(results), num_succeeded, len(results) - num_succeeded
+        return len(results), results.count(True), results.count(False)
 
 
 def repair_replicas(
@@ -423,9 +420,8 @@ def repair_replicas(
 
         with ThreadPool(num_threads) as tp:
             results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
-            num_succeeded = results.count(True)
 
-        return len(results), repaired.count(True), len(results) - num_succeeded
+        return len(results), repaired.count(True), results.count(False)
 
 
 def check_common_metadata(
@@ -492,9 +488,8 @@ def check_common_metadata(
 
         with ThreadPool(num_threads) as tp:
             results = tp.starmap(fn, enumerate(reader))
-            num_succeeded = results.count(True)
 
-        return len(results), num_succeeded, len(results) - num_succeeded
+        return len(results), results.count(True), results.count(False)
 
 
 def repair_common_metadata(
@@ -575,9 +570,8 @@ def repair_common_metadata(
 
         with ThreadPool(num_threads) as tp:
             results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
-            num_succeeded = results.count(True)
 
-        return len(results), repaired.count(True), len(results) - num_succeeded
+        return len(results), repaired.count(True), results.count(False)
 
 
 def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int, int):
