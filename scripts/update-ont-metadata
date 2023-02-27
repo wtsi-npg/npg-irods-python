@@ -1,0 +1,159 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# @author Marco M Mosca <mm51@sanger.ac.uk>
+
+import argparse
+import configparser
+import logging
+import logging.config
+from datetime import datetime, timedelta
+import sys
+import structlog
+from npg_irods.version import version
+from npg_irods.ont import MetadataUpdate
+import sqlalchemy
+from sqlalchemy.orm import Session
+
+description = """
+This script updates the ONT metadata of a file set. The idea is to update
+the metadata of files that were generated within a user-specified
+date window.
+"""
+
+
+def my_date_parser(date: str) -> datetime:
+    """Custom argparse type for user date"""
+    try:
+        return datetime.strptime(date, "%d/%m/%y")
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Wrong date format: {date}")
+
+
+parser = argparse.ArgumentParser(
+    description=description, formatter_class=argparse.RawDescriptionHelpFormatter
+)
+
+parser.add_argument(
+    "--begin_date",
+    "--begin-date",
+    help="Range initial date from when you want to look for runs. Default to 14 days back.",
+    type=my_date_parser,
+)
+parser.add_argument(
+    "--dbconfig",
+    help="Configuration file for database connection.",
+    type=argparse.FileType("r"),
+    required=True,
+)
+parser.add_argument(
+    "--logconf", help="A logging configuration file.", type=argparse.FileType("r")
+)
+parser.add_argument(
+    "--json",
+    help="Use JSON log rendering.",
+    action="store_true",
+)
+parser.add_argument(
+    "--colour",
+    help="Use coloured log rendering to the console.",
+    action="store_true",
+)
+parser.add_argument("--version", help="Print the version and exit", action="store_true")
+parser.add_argument(
+    "-d", "--debug", help="Enable DEBUG level logging to STDERR.", action="store_true"
+)
+parser.add_argument(
+    "-v", "--verbose", help="Enable INFO level logging to STDERR.", action="store_true"
+)
+
+args = parser.parse_args()
+
+if args.logconf and (args.verbose or args.debug):
+    print(
+        "Custom logging levels are not available "
+        "when a configuration file (--logconf) is provided."
+    )
+    exit(1)
+
+if args.logconf:
+    logging.config.fileConfig(args.logconf.name)
+else:
+    level = logging.ERROR
+    if args.debug:
+        level = logging.DEBUG
+    elif args.verbose:
+        level = logging.INFO
+
+    logging.basicConfig(level=level, encoding="utf-8", stream=sys.stdout)
+
+log_processors = [
+    structlog.stdlib.add_logger_name,
+    structlog.stdlib.add_log_level,
+    structlog.processors.TimeStamper(fmt="iso", utc=True),
+]
+if args.json:
+    log_processors.append(structlog.processors.JSONRenderer())
+else:
+    log_processors.append(structlog.dev.ConsoleRenderer(colors=args.colour))
+
+structlog.configure(
+    processors=log_processors,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)
+
+log = structlog.get_logger("main")
+
+
+def main():
+    if args.version:
+        print(version())
+        exit(0)
+
+    section = "MySQL"
+    dbconfig = configparser.ConfigParser()
+    dbconfig.read(args.dbconfig.name)
+    mysql_section = dbconfig[section]
+    db_user = mysql_section.get("user")
+    db_pwd = mysql_section.get("password")
+    db_host = mysql_section.get("ip_address")
+    db_port = mysql_section.get("port")
+    db_name = mysql_section.get("schema")
+
+    connection_uri = f"mysql+pymysql://{db_user}:{db_pwd}@{db_host}:{db_port}/{db_name}"
+
+    engine = sqlalchemy.create_engine(connection_uri)
+    with Session(engine) as session:
+        mu = MetadataUpdate()
+        updated = []
+        if args.begin_date:
+            updated = mu.update_secondary_metadata(session, since=args.begin_date)
+        else:
+            updated = mu.update_secondary_metadata(
+                session, since=datetime.now() - timedelta(days=14)
+            )
+        if updated:
+            for path in updated:
+                log.info(f"Updated collection: {path}")
+        else:
+            log.warning("No collection has been updated")
+
+
+if __name__ == "__main__":
+    main()

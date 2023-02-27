@@ -19,6 +19,7 @@
 
 from partisan.irods import AC, AVU, Collection, Permission
 from pytest import mark as m
+import subprocess
 
 from npg_irods import ont
 from conftest import LATEST, tests_have_admin
@@ -182,3 +183,33 @@ class TestMetadataUpdate(object):
             )
         ]
         assert updated == expected_colls, "Found slot 1 from simple experiment 1"
+
+    @m.context("When metadata within a time window should be updated")
+    @m.it("Updates the collections through update-ont-metadata script")
+    def test_update_ont_metadata_script(self, ont_synthetic, mlwh_session):
+        update_metadata_cmd = [
+            "update-ont-metadata",
+            "--dbconfig",
+            "tests/testdb.ini",
+            "--begin_date",
+            LATEST.strftime("%d/%m/%y"),
+            "--verbose",
+        ]
+        proc = subprocess.run(update_metadata_cmd, check=True, capture_output=True)
+        output = proc.stdout.decode().strip()
+        # Only slots 1, 3 and 5 of multiplexed experiments 1 and 3 were updated in
+        # the MLWH since time LATEST
+        expected_colls = [
+            Collection(ont_synthetic / path)
+            for path in [
+                "multiplexed_experiment_001/20190904_1514_GA10000_flowcell101_cf751ba1",
+                "multiplexed_experiment_001/20190904_1514_GA30000_flowcell103_cf751ba1",
+                "multiplexed_experiment_001/20190904_1514_GA50000_flowcell105_cf751ba1",
+                "multiplexed_experiment_003/20190904_1514_GA10000_flowcell101_cf751ba1",
+                "multiplexed_experiment_003/20190904_1514_GA30000_flowcell103_cf751ba1",
+                "multiplexed_experiment_003/20190904_1514_GA50000_flowcell105_cf751ba1",
+            ]
+        ]
+        print(output)
+        for coll in expected_colls:
+            assert str(coll) in output
