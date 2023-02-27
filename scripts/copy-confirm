@@ -22,6 +22,7 @@ import argparse
 import logging
 
 import structlog
+from partisan.exception import RodsError
 
 from npg_irods.exception import ChecksumError
 from npg_irods.utilities import copy
@@ -132,7 +133,6 @@ def main():
         print(version())
         exit(0)
 
-    num_processed, num_copied = 0, 0
     try:
         num_processed, num_copied = copy(
             args.source,
@@ -142,14 +142,22 @@ def main():
             recurse=args.recurse,
             exist_ok=args.skip_existing,
         )
+
+        log.info(
+            f"Copied {args.source} to {args.destination}",
+            num_processed=num_processed,
+            num_copied=num_copied,
+        )
+
     except ChecksumError as ce:
         log.error(ce.message, path=ce.path, expected=ce.expected, observed=ce.observed)
         exit(1)
-
-    log.info(
-        f"Copied {args.source} to {args.destination}; "
-        f"processed {num_processed}, copied {num_copied}"
-    )
+    except RodsError as re:
+        log.error(re.message, code=re.code)
+        exit(1)
+    except Exception as e:
+        log.error(e)
+        exit(1)
 
 
 if __name__ == "__main__":

@@ -134,7 +134,7 @@ def main():
         print(version())
         exit(0)
 
-    success = check_common_metadata(
+    num_processed, num_passed, num_errors = check_common_metadata(
         args.input,
         args.output,
         print_pass=args.print_pass,
@@ -142,8 +142,22 @@ def main():
         num_clients=args.clients,
         num_threads=args.threads,
     )
-    if not success:
+
+    if num_errors:
+        log.error(
+            "Some checks did not pass",
+            num_processed=num_processed,
+            num_passed=num_passed,
+            num_errors=num_errors,
+        )
         exit(1)
+
+    log.info(
+        "All checks passed",
+        num_processed=num_processed,
+        num_passed=num_passed,
+        num_errors=num_errors,
+    )
 
 
 if __name__ == "__main__":

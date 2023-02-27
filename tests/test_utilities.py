@@ -290,13 +290,24 @@ class TestCopyUtilities:
     @m.context("When there is no data object with that name at the destination")
     @m.it("Creates a copy within the destination collection")
     def test_copy_data_object(self, simple_collection, simple_data_object):
-        x = Collection(PurePath(simple_collection, "x"))
-        x.create()
-
+        c = Collection(simple_collection)
         d = DataObject(simple_data_object)
-        num_processed, num_copied = copy(d, x)
+        num_processed, num_copied = copy(d, c)
 
-        assert DataObject(PurePath(x.path, simple_data_object.name)).exists()
+        assert DataObject(PurePath(c.path, simple_data_object.name)).exists()
+        assert num_processed == 1
+        assert num_copied == 1
+
+    @m.context("When a data object is copied")
+    @m.context("When there is no data object with that name at the destination")
+    @m.it("Creates a copy at the destination")
+    def test_copy_data_object_no_dest(self, simple_collection, simple_data_object):
+        c = Collection(simple_collection)
+        d = DataObject(simple_data_object)
+        dest = PurePath(c.path, "test.txt")
+        num_processed, num_copied = copy(d, dest)
+
+        assert DataObject(dest).exists()
         assert num_processed == 1
         assert num_copied == 1
 

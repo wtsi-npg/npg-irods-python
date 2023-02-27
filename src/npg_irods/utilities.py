@@ -27,7 +27,14 @@ from pathlib import PurePath
 
 import partisan
 from partisan.exception import RodsError
-from partisan.irods import Collection, DataObject, RodsItem, client_pool, make_rods_item
+from partisan.irods import (
+    Collection,
+    DataObject,
+    RodsItem,
+    client_pool,
+    make_rods_item,
+    rods_path_type,
+)
 from structlog import get_logger
 
 from npg_irods.exception import ChecksumError
@@ -135,9 +142,8 @@ def check_checksums(
 
         with ThreadPool(num_threads) as tp:
             results = tp.starmap(fn, enumerate(reader))
-            num_succeeded = results.count(True)
 
-        return len(results), num_succeeded, len(results) - num_succeeded
+        return len(results), results.count(True), results.count(False)
 
 
 def repair_checksums(
@@ -225,9 +231,8 @@ def repair_checksums(
 
         with ThreadPool(num_threads) as tp:
             results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
-            num_succeeded = results.count(True)
 
-        return len(results), repaired.count(True), len(results) - num_succeeded
+        return len(results), repaired.count(True), results.count(False)
 
 
 def check_replicas(
@@ -313,9 +318,8 @@ def check_replicas(
 
         with ThreadPool(num_threads) as tp:
             results = tp.starmap(fn, enumerate(reader))
-            num_succeeded = results.count(True)
 
-        return len(results), num_succeeded, len(results) - num_succeeded
+        return len(results), results.count(True), results.count(False)
 
 
 def repair_replicas(
@@ -416,14 +420,13 @@ def repair_replicas(
 
         with ThreadPool(num_threads) as tp:
             results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
-            num_succeeded = results.count(True)
 
-        return len(results), repaired.count(True), len(results) - num_succeeded
+        return len(results), repaired.count(True), results.count(False)
 
 
 def check_common_metadata(
     reader, writer, num_threads=1, num_clients=1, print_pass=True, print_fail=False
-) -> bool:
+) -> (int, int, int):
     """Read iRODS data object paths from a file and check that each one has correct
     common metadata, printing the results to a writer.
 
@@ -439,11 +442,13 @@ def check_common_metadata(
         print_fail: Print the paths of objects failing the check. Defaults to False.
 
     Returns:
-        True if all checks are done.
+        A tuple of the number of paths checked, the number of paths found to be correct
+        and the number of errors (paths with incomplete metadata and/or paths that
+        failed to be checked because of an exception).
     """
     with client_pool(num_clients) as bp:
 
-        def fn(i: int, path: str):
+        def fn(i: int, path: str) -> bool:
             success = False
 
             p = path.strip()
@@ -451,6 +456,7 @@ def check_common_metadata(
                 obj = DataObject(p, pool=bp)
                 if has_common_metadata(obj):
                     log.info("Common metadata complete", item=i, path=obj)
+                    success = True
                     if print_pass:
                         _print(p, writer)
                 else:
@@ -469,8 +475,6 @@ def check_common_metadata(
                     if print_fail:
                         _print(p, writer)
 
-                success = True
-
             except RodsError as re:
                 log.error(re.message, item=i, code=re.code)
                 if print_fail:
@@ -483,9 +487,9 @@ def check_common_metadata(
             return success
 
         with ThreadPool(num_threads) as tp:
-            succeeded = tp.starmap(fn, enumerate(reader))
+            results = tp.starmap(fn, enumerate(reader))
 
-        return all(succeeded)
+        return len(results), results.count(True), results.count(False)
 
 
 def repair_common_metadata(
@@ -496,7 +500,7 @@ def repair_common_metadata(
     num_clients=1,
     print_repair=True,
     print_fail=False,
-) -> bool:
+) -> (int, int, int):
     """Read iRODS data object paths from a file and ensure that each one has correct
     common metadata by making any necessary repairs, printing the results to a writer.
 
@@ -521,17 +525,22 @@ def repair_common_metadata(
             failed. Defaults to False.
 
     Returns:
-        True if all repairs were done.
+        A tuple of the number of paths checked, the number of paths whose metadata
+        was repaired and the number of errors (paths with incorrect metadata that
+        could not be fixed and/or failed to be fixed because of an exception).
     """
     with client_pool(num_clients) as bp:
 
-        def fn(i: int, path: str) -> bool:
+        def fn(i: int, path: str) -> (bool, bool):
             success = False
+            repair = False
 
             p = path.strip()
             try:
                 obj = DataObject(p, pool=bp)
-                if not has_common_metadata(obj):
+                if has_common_metadata(obj):
+                    log.info("Common metadata complete", item=i, path=obj)
+                else:
                     log.info(
                         "Common metadata incomplete; repairing",
                         item=i,
@@ -544,10 +553,10 @@ def repair_common_metadata(
                         has_type=has_type_metadata(obj),
                     )
 
-                    if ensure_common_metadata(obj, creator=creator):
+                    if repair := ensure_common_metadata(obj, creator=creator):
                         if print_repair:
                             _print(p, writer)
-                    success = True
+                success = True
             except RodsError as re:
                 log.error(re.message, item=i, code=re.code)
                 if print_fail:
@@ -557,12 +566,12 @@ def repair_common_metadata(
                 if print_fail:
                     _print(p, writer)
 
-            return success
+            return success, repair
 
         with ThreadPool(num_threads) as tp:
-            succeeded = tp.starmap(fn, enumerate(reader))
+            results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
 
-        return all(succeeded)
+        return len(results), repaired.count(True), results.count(False)
 
 
 def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int, int):
@@ -647,11 +656,31 @@ def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int
         coll.create(exist_ok=exist_ok)
         return 1
 
+    # If we were not passed RodsItems, but bare paths, work out what their iRODS types
+    # should be
     if not isinstance(src, RodsItem):
+        #  The source path must exist, or it's an error
         src = make_rods_item(src)
     if not isinstance(dest, RodsItem):
-        dest = make_rods_item(dest)
+        if rods_path_type(dest):
+            # The dest path exists, so make the appropriate object
+            dest = make_rods_item(dest)
+        elif src.rods_type == partisan.irods.Collection:
+            # The dest path doesn't exist and the src is a collection, so the dest must
+            # also be a collection
+            dest = Collection(dest)
+        elif src.rods_type == partisan.irods.DataObject:
+            # The dest path doesn't exist and the src path is a data object, so the dest
+            # can be either. In this case, we default to a data object.
+            dest = DataObject(dest)
+        else:
+            raise ValueError(
+                f"Invalid iRODS path type combination src: {src}: "
+                f"src type: {src.rods_type}, "
+                f"dest: {dest}, dest type: {dest.rods_type}"
+            )
 
+    # Now that we have the iRODS types of the src and dest
     match (src.rods_type, dest.rods_type):
         case (partisan.irods.Collection, partisan.irods.DataObject):
             raise ValueError(
