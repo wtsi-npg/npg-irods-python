@@ -211,4 +211,4 @@ class TestMetadataUpdate(object):
             ]
         ]
         for coll in expected_colls:
-            assert str(coll) in output
+            assert f"Updated collection: {str(coll)}" in output
