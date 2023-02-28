@@ -210,6 +210,5 @@ class TestMetadataUpdate(object):
                 "multiplexed_experiment_003/20190904_1514_GA50000_flowcell105_cf751ba1",
             ]
         ]
-        print(output)
         for coll in expected_colls:
             assert str(coll) in output
