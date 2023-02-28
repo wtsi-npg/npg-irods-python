@@ -31,7 +31,6 @@ from datetime import datetime
 from pathlib import PurePath
 
 import pytest
-
 import structlog
 from ml_warehouse.schema import (
     Base,
@@ -196,6 +195,11 @@ def mysql_url(config: configparser.ConfigParser):
     )
 
 
+def ont_tag_identifier(tag_index: int) -> str:
+    """Return an ONT tag identifier in tag set EXP-NBD104, given a tag index."""
+    return f"NB{tag_index :02d}"
+
+
 def initialize_mlwh_ont(session: Session):
     """Create test data for all synthetic simple and multiplexed experiments.
 
@@ -302,7 +306,10 @@ def initialize_mlwh_ont(session: Session):
                     when = LATEST
 
             for barcode_idx, barcode in enumerate(barcodes):
-                tag_id = f"ONT_EXP-012-{ barcode_idx + 1 :02d}"
+                # The tag_id format and tag_set_name  are taken from the Guppy barcode
+                # arrangement file barcode_arrs_nb12.toml distributed with Guppy and
+                # MinKNOW.
+                tag_id = ont_tag_identifier(barcode_idx + 1)
 
                 flowcells.append(
                     OseqFlowcell(
@@ -313,8 +320,8 @@ def initialize_mlwh_ont(session: Session):
                         experiment_name=expt_name,
                         id_lims=f"Example LIMS ID m{msample_idx}",
                         id_flowcell_lims=id_flowcell,
-                        tag_set_id_lims="ONT_12",
-                        tag_set_name="ONT library barcodes x12",
+                        tag_set_id_lims="Example LIMS tag set ID",
+                        tag_set_name="EXP-NBD104",
                         tag_sequence=barcode,
                         tag_identifier=tag_id,
                         pipeline_id_lims=pipeline_id_lims,

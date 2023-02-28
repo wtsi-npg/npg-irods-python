@@ -21,7 +21,7 @@ from partisan.irods import AC, AVU, Collection, Permission
 from pytest import mark as m
 
 from npg_irods import ont
-from conftest import LATEST, tests_have_admin
+from conftest import LATEST, ont_tag_identifier, tests_have_admin
 from npg_irods.metadata.lims import SeqConcept, TrackedSample, TrackedStudy
 from npg_irods.ont import MetadataUpdate, annotate_results_collection
 
@@ -67,7 +67,7 @@ class TestONT(object):
         )
 
         for tag_index in range(1, 12):
-            tag_identifier = f"ONT-Tag-Identifier-{tag_index}"
+            tag_identifier = ont_tag_identifier(tag_index)
             bc_coll = Collection(path / ont.barcode_name_from_id(tag_identifier))
             avu = AVU(SeqConcept.TAG_INDEX, ont.tag_index_from_id(tag_identifier))
             assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
@@ -85,9 +85,8 @@ class TestONT(object):
         )
 
         for tag_index in range(1, 12):
-            bc_coll = Collection(
-                path / ont.barcode_name_from_id(f"ONT-Tag-Identifier-{tag_index}")
-            )
+            tag_id = ont_tag_identifier(tag_index)
+            bc_coll = Collection(path / ont.barcode_name_from_id(tag_id))
 
             for avu in [
                 AVU(TrackedSample.NAME, f"sample {tag_index}"),

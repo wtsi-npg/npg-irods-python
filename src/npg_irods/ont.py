@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,8 +41,10 @@ from ml_warehouse.schema import OseqFlowcell
 
 log = get_logger(__package__)
 
+# We are using the tag identifiers defined by ONT in their barcode arrangement files,
+# which you can find distributed with MinKNOW and Guppy.
 TAG_IDENTIFIER_GROUP = "tag_id"
-TAG_IDENTIFIER_REGEX = re.compile(r"-(?P<tag_id>\d+)$")
+TAG_IDENTIFIER_REGEX = re.compile(r"(?P<tag_id>\d+)$")
 
 
 class MetadataUpdate(object):
@@ -51,15 +53,27 @@ class MetadataUpdate(object):
         self.instrument_slot = instrument_slot
 
     def update_secondary_metadata(
-        self, mlwh_session: Session, since=datetime.fromtimestamp(0)
-    ):
+        self, mlwh_session: Session, since: datetime = None
+    ) -> List[Collection]:
+        """Update iRODS secondary metadata on ONT run collections whose corresponding
+        ML warehouse records have been updated more recently than the specified time.
+
+        Args:
+            mlwh_session: An open SQL session.
+            since: A datetime.
+
+        Returns:
+            A list of collections whose metadata were updated.
+        """
+        if since is None:
+            since = datetime.fromtimestamp(0)  # Everything since the Epoch
         updated = []
 
         for expt_name, slot in find_recent_expt_slot(mlwh_session, since=since):
             if self.experiment_name is not None:
                 if self.experiment_name != expt_name:
                     log.info(
-                        f"Skipping on experiment name",
+                        "Skipping on experiment name",
                         experiment_name=expt_name,
                         slot=slot,
                     )
@@ -67,13 +81,13 @@ class MetadataUpdate(object):
                 if self.instrument_slot is not None:
                     if self.instrument_slot != slot:
                         log.info(
-                            f"Skipping on slot",
+                            "Skipping on slot",
                             experiment_name=expt_name,
                             slot=slot,
                         )
                         continue
 
-            log.info(f"Searching for", experiment_name=expt_name, slot=slot)
+            log.info("Searching for", experiment_name=expt_name, slot=slot)
             colls = query_metadata(
                 AVU(
                     Instrument.EXPERIMENT_NAME,
@@ -84,7 +98,7 @@ class MetadataUpdate(object):
                 collection=True,
                 data_object=False,
             )
-            log.info(f"Found collections", collections=colls)
+            log.info("Found collections", collections=colls)
             for coll in colls:
                 if annotate_results_collection(coll, expt_name, slot, mlwh_session):
                     updated.append(coll)
@@ -250,7 +264,6 @@ def find_recent_expt_slot(session: Session, since: datetime) -> List[Tuple]:
     Returns:
         List of matching (experiment name, slot position) tuples
     """
-
     return (
         session.query(OseqFlowcell.experiment_name, OseqFlowcell.instrument_slot)
         .filter(OseqFlowcell.last_updated >= since)
