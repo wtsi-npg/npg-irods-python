@@ -20,8 +20,8 @@
 
 import argparse
 import configparser
-import logging
 import logging.config
+import dateutil.parser
 from datetime import datetime, timedelta
 import sys
 import structlog
@@ -40,9 +40,11 @@ date window.
 def my_date_parser(date: str) -> datetime:
     """Custom argparse type for user date"""
     try:
-        return datetime.strptime(date, "%d/%m/%y")
+        return dateutil.parser.isoparse(date)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"Wrong date format: {date}")
+        raise argparse.ArgumentTypeError(
+            f"Wrong format {date}. It must be in ISO format 8601."
+        )
 
 
 parser = argparse.ArgumentParser(
@@ -54,15 +56,27 @@ parser.add_argument(
     "--begin-date",
     help="Range initial date from when you want to look for runs. Default to 14 days back.",
     type=my_date_parser,
+    default=datetime.now() - timedelta(days=14),
 )
 parser.add_argument(
-    "--dbconfig",
+    "--database_config",
+    "--database-config",
     help="Configuration file for database connection.",
     type=argparse.FileType("r"),
     required=True,
 )
-parser.add_argument(
-    "--logconf", help="A logging configuration file.", type=argparse.FileType("r")
+group1 = parser.add_mutually_exclusive_group()
+group1.add_argument(
+    "--log_config",
+    "--log-config",
+    help="A logging configuration file.",
+    type=argparse.FileType("r"),
+)
+group1.add_argument(
+    "-d", "--debug", help="Enable DEBUG level logging to STDERR.", action="store_true"
+)
+group1.add_argument(
+    "-v", "--verbose", help="Enable INFO level logging to STDERR.", action="store_true"
 )
 parser.add_argument(
     "--json",
@@ -75,24 +89,11 @@ parser.add_argument(
     action="store_true",
 )
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
-parser.add_argument(
-    "-d", "--debug", help="Enable DEBUG level logging to STDERR.", action="store_true"
-)
-parser.add_argument(
-    "-v", "--verbose", help="Enable INFO level logging to STDERR.", action="store_true"
-)
 
 args = parser.parse_args()
 
-if args.logconf and (args.verbose or args.debug):
-    print(
-        "Custom logging levels are not available "
-        "when a configuration file (--logconf) is provided."
-    )
-    exit(1)
-
-if args.logconf:
-    logging.config.fileConfig(args.logconf.name)
+if args.log_config:
+    logging.config.fileConfig(args.log_config.name)
 else:
     level = logging.ERROR
     if args.debug:
@@ -128,7 +129,7 @@ def main():
 
     section = "MySQL"
     dbconfig = configparser.ConfigParser()
-    dbconfig.read(args.dbconfig.name)
+    dbconfig.read(args.database_config.name)
     mysql_section = dbconfig[section]
     db_user = mysql_section.get("user")
     db_pwd = mysql_section.get("password")
@@ -141,18 +142,11 @@ def main():
     engine = sqlalchemy.create_engine(connection_uri)
     with Session(engine) as session:
         mu = MetadataUpdate()
-        updated = []
-        if args.begin_date:
-            updated = mu.update_secondary_metadata(session, since=args.begin_date)
-        else:
-            updated = mu.update_secondary_metadata(
-                session, since=datetime.now() - timedelta(days=14)
-            )
-        if updated:
-            for path in updated:
-                log.info(f"Updated collection: {path}")
-        else:
-            log.warning("No collection has been updated")
+        updated = mu.update_secondary_metadata(session, since=args.begin_date)
+        for path in updated:
+            log.info("Updated collection", path=path)
+        if not updated:
+            log.info("No collection has been updated")
 
 
 if __name__ == "__main__":
