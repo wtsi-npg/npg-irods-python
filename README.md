@@ -40,3 +40,47 @@ pip install -r requirements.txt
 pip install -r test-requirements.txt
 pytest --it
 ```
+
+## Logging to syslog 
+When a script has the option `--logconf`, the user can specify a configuration file
+with `handlers` that can log messages to different resources.
+There is following an example of a configuration file `logging_syslog.conf` that logs to both:
+- STDOUT
+- syslog file, through `/dev/log` (default for Linux)
+
+`logging_syslog.conf`
+```
+[loggers]
+keys=root
+
+[handlers]
+keys=consoleHandler,syslogHandler
+
+[formatters]
+keys=consoleFormatter,syslogFormatter
+
+[logger_root]
+level=DEBUG
+handlers=consoleHandler,syslogHandler
+
+[handler_syslogHandler]
+class=logging.handlers.SysLogHandler
+level=ERROR
+formatter=syslogFormatter
+args=("/dev/log",)
+
+[handler_consoleHandler]
+class=StreamHandler
+level=INFO
+formatter=consoleFormatter
+args=(sys.stdout,)
+
+[formatter_consoleFormatter]
+format=%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s
+
+[formatter_syslogFormatter]
+format=%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s
+```
+
+In the `consoleHandler`, the `level` option refers to the starting priority to consider. It means that if the priority is INFO it will log all messages to STDOUT starting from INFO including WARNING, ERROR and FATAL.
+Whereas the `sysLogHandler` will log ERROR and FATAL to the `syslog` file. A formatter can be specified for each handler with different variable.

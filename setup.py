@@ -43,5 +43,6 @@ setup(
         "scripts/repair-common-metadata",
         "scripts/repair-replicas",
         "scripts/safe-remove-script",
+        "scripts/update-ont-metadata",
     ],
 )
