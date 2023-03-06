@@ -113,24 +113,28 @@ class TestMetadataUpdate(object):
         num_slots = 5
 
         update = MetadataUpdate()
-        updated = update.update_secondary_metadata(mlwh_session=mlwh_session)
-        expected_count = (num_simple_expts * num_slots) + (
+        num_found, num_updated, num_errors = update.update_secondary_metadata(
+            mlwh_session=mlwh_session
+        )
+        num_expected = (num_simple_expts * num_slots) + (
             num_multiplexed_expts * num_slots
         )
 
-        assert len(updated) == expected_count, f"Found {expected_count} collections"
+        assert num_found == num_expected, f"Found {num_expected} collections"
+        assert num_updated == num_expected
+        assert num_errors == 0
 
     @m.context("When no experiment name is specified")
     @m.context("When a time window is specified")
     @m.it("Finds only collections updated in that time window")
     def test_find_recent_updates(self, ont_synthetic, mlwh_session):
         update = MetadataUpdate()
-        updated = update.update_secondary_metadata(
+        num_found, num_updated, num_errors = update.update_secondary_metadata(
             mlwh_session=mlwh_session, since=LATEST
         )
 
         # Only slots 1, 3 and 5 of multiplexed experiments 1 and 3 were updated in
-        # the MLWH since time LATEST
+        # the MLWH since time LATEST i.e.
         expected_colls = [
             Collection(ont_synthetic / path)
             for path in [
@@ -142,16 +146,22 @@ class TestMetadataUpdate(object):
                 "multiplexed_experiment_003/20190904_1514_GA50000_flowcell105_cf751ba1",
             ]
         ]
+        num_expected = len(expected_colls)
 
-        assert (
-            updated == expected_colls
-        ), "Found slots 1, 3 and 5 of multiplexed experiments 1 and 3"
+        assert num_found == num_expected, (
+            f"Found {num_expected} collections "
+            "(slots 1, 3 and 5 of multiplexed experiments 1 and 3)"
+        )
+        assert num_updated == num_expected
+        assert num_errors == 0
 
     @m.context("When an experiment name is specified")
     @m.it("Finds only collections with that experiment name")
     def test_find_updates_for_experiment(self, ont_synthetic, mlwh_session):
         update = MetadataUpdate(experiment_name="simple_experiment_001")
-        updated = update.update_secondary_metadata(mlwh_session=mlwh_session)
+        num_found, num_updated, num_errors = update.update_secondary_metadata(
+            mlwh_session=mlwh_session
+        )
 
         expected_colls = [
             Collection(ont_synthetic / path)
@@ -163,7 +173,13 @@ class TestMetadataUpdate(object):
                 "simple_experiment_001/20190904_1514_G500000_flowcell015_69126024",
             ]
         ]
-        assert updated == expected_colls, "Found all slots from simple experiment 1"
+        num_expected = len(expected_colls)
+
+        assert (
+            num_found == num_expected
+        ), f"Found {num_expected} collections (all slots from simple experiment 1)"
+        assert num_updated == num_expected
+        assert num_errors == 0
 
     @m.context("When an experiment name is specified")
     @m.context("When a slot position is specified")
@@ -172,7 +188,9 @@ class TestMetadataUpdate(object):
         update = MetadataUpdate(
             experiment_name="simple_experiment_001", instrument_slot=1
         )
-        updated = update.update_secondary_metadata(mlwh_session=mlwh_session)
+        num_found, num_updated, num_errors = update.update_secondary_metadata(
+            mlwh_session=mlwh_session
+        )
 
         expected_colls = [
             Collection(
@@ -180,4 +198,10 @@ class TestMetadataUpdate(object):
                 / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
             )
         ]
-        assert updated == expected_colls, "Found slot 1 from simple experiment 1"
+        num_expected = len(expected_colls)
+
+        assert (
+            num_found == num_expected
+        ), f"Found {num_expected} collections (slot 1 from simple experiment 1)"
+        assert num_updated == num_expected
+        assert num_errors == 0

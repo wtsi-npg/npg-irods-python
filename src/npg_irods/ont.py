@@ -23,6 +23,7 @@ from os import PathLike
 from pathlib import PurePath
 from typing import List, Tuple, Union
 
+from partisan.exception import RodsError
 from partisan.irods import AVU, Collection, query_metadata
 from sqlalchemy import asc, distinct
 from sqlalchemy.orm import Session
@@ -54,7 +55,7 @@ class MetadataUpdate(object):
 
     def update_secondary_metadata(
         self, mlwh_session: Session, since: datetime = None
-    ) -> List[Collection]:
+    ) -> (int, int, int):
         """Update iRODS secondary metadata on ONT run collections whose corresponding
         ML warehouse records have been updated more recently than the specified time.
 
@@ -63,47 +64,90 @@ class MetadataUpdate(object):
             since: A datetime.
 
         Returns:
-            A list of collections whose metadata were updated.
+            A tuple of the number of paths found, the number of paths whose metadata
+        was updated and the number of errors encountered.
         """
         if since is None:
             since = datetime.fromtimestamp(0)  # Everything since the Epoch
-        updated = []
 
-        for expt_name, slot in find_recent_expt_slot(mlwh_session, since=since):
-            if self.experiment_name is not None:
-                if self.experiment_name != expt_name:
-                    log.info(
-                        "Skipping on experiment name",
-                        experiment_name=expt_name,
-                        slot=slot,
-                    )
-                    continue
-                if self.instrument_slot is not None:
-                    if self.instrument_slot != slot:
+        num_found = num_updated = num_errors = 0
+        expt_slots = []
+
+        try:
+            expt_slots = find_recent_expt_slot(mlwh_session, since=since)
+        except Exception as e:
+            num_errors += 1
+            log.error(e)
+
+        for expt_name, slot in expt_slots:
+            expt_avu = AVU(
+                Instrument.EXPERIMENT_NAME, expt_name, namespace=Instrument.namespace
+            )
+            slot_avu = AVU(
+                Instrument.INSTRUMENT_SLOT, slot, namespace=Instrument.namespace
+            )
+
+            try:
+                if self.experiment_name is not None:
+                    if self.experiment_name != expt_name:
                         log.info(
-                            "Skipping on slot",
+                            "Skipping on experiment name",
                             experiment_name=expt_name,
                             slot=slot,
                         )
                         continue
+                    if self.instrument_slot is not None:
+                        if self.instrument_slot != slot:
+                            log.info(
+                                "Skipping on slot",
+                                experiment_name=expt_name,
+                                slot=slot,
+                            )
+                            continue
 
-            log.info("Searching for", experiment_name=expt_name, slot=slot)
-            colls = query_metadata(
-                AVU(
-                    Instrument.EXPERIMENT_NAME,
-                    expt_name,
-                    namespace=Instrument.namespace,
-                ),
-                AVU(Instrument.INSTRUMENT_SLOT, slot, namespace=Instrument.namespace),
-                collection=True,
-                data_object=False,
-            )
-            log.info("Found collections", collections=colls)
-            for coll in colls:
-                if annotate_results_collection(coll, expt_name, slot, mlwh_session):
-                    updated.append(coll)
+                log.info("Searching iRODS", experiment_name=expt_name, slot=slot)
+                colls = query_metadata(
+                    expt_avu, slot_avu, collection=True, data_object=False
+                )
 
-        return updated
+                num_colls = len(colls)
+                num_found += num_colls
+                if num_colls:
+                    log.info(
+                        "Found collections",
+                        experiment_name=expt_name,
+                        slot=slot,
+                        num_coll=num_colls,
+                    )
+                else:
+                    log.warn(
+                        "Found no collections", experiment_name=expt_name, slot=slot
+                    )
+
+                for coll in colls:
+                    try:
+                        if annotate_results_collection(
+                            coll, expt_name, slot, mlwh_session
+                        ):
+                            log.info(
+                                "Updated metadata",
+                                experiment_name=expt_name,
+                                slot=slot,
+                                path=coll,
+                            )
+                            num_updated += 1
+                    except RodsError as re1:
+                        log.error(re1.message, code=re1.code)
+                        num_errors += 1
+
+            except RodsError as re2:
+                log.error(re2.message, code=re2.code)
+                num_errors += 1
+            except Exception as e:
+                log.error(e)
+                num_errors += 1
+
+        return num_found, num_updated, num_errors
 
 
 def tag_index_from_id(tag_identifier: str) -> int:
