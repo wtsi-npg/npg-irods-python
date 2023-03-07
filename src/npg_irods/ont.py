@@ -59,6 +59,10 @@ class MetadataUpdate(object):
         """Update iRODS secondary metadata on ONT run collections whose corresponding
         ML warehouse records have been updated more recently than the specified time.
 
+        Collections to update are identified by having ont:experiment_name and
+        ont:instrument_slot metadata already attached to them. This is done for example,
+        by the process which moves sequence data from the instrument into iRODS.
+
         Args:
             mlwh_session: An open SQL session.
             since: A datetime.
@@ -187,6 +191,24 @@ def annotate_results_collection(
     instrument_slot: int,
     mlwh_session: Session,
 ) -> bool:
+    """Add or update metadata on an existing iRODS collection containing ONT data.
+
+    The metadata added are fetched from the ML warehouse and include information on the
+    sample and the associated study, including data access permissions. This function
+    also sets the appropriate permissions in iRODS.
+
+    This function is idempotent. No harm will come from running it an an already
+    up-to-date collection.
+
+    Args:
+        path: A collection path to annotate.
+        experiment_name: The ONT experiment name.
+        instrument_slot: The ONT instrument slot number.
+        mlwh_session:
+
+    Returns:
+        True on success.
+    """
     log.debug(
         "Searching the warehouse for plex information",
         experiment=experiment_name,
