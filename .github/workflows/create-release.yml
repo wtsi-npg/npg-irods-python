@@ -7,15 +7,19 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l -e -o pipefail {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: "Fetch Tags"
+        # Workaround for https://github.com/actions/checkout/issues/290
         run: git fetch --tags --force
 
       - name: "Set up Python"
@@ -34,8 +38,11 @@ jobs:
 
       - name: "Get release variables"
         run: |
-          echo RELEASE_VERSION=$(git describe --always --tags --dirty) >> $GITHUB_ENV
-          echo MASTER_SHA=$(git rev-parse origin/master) >> $GITHUB_ENV
+          echo 'RELEASE_VERSION='$(git describe --always --tags --dirty) >> $GITHUB_ENV
+          echo 'MASTER_SHA='$(git rev-parse origin/master) >> $GITHUB_ENV
+          
+          echo 'GIT_URL='$(git remote get-url origin) >> $GITHUB_ENV
+          echo 'GIT_COMMIT='$(git log --pretty=format:'%H' -n 1) >> $GITHUB_ENV
 
       - name: "Create Release"
         uses: ncipollo/release-action@v1.10.0
@@ -46,3 +53,33 @@ jobs:
           removeArtifacts: true
           artifactErrorsFailBuild: true
           generateReleaseNotes: true
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v2
+        with:
+          install: true
+
+      - name: "Login to Docker registry"
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Build Docker image"
+        run: |
+          docker build \
+            --file Dockerfile \
+            --platform linux/amd64 \
+            --progress plain \
+            --load \
+            --label "uk.ac.sanger.repository=$GIT_URL" \
+            --label "uk.ac.sanger.commit=$GIT_COMMIT" \
+            --tag "ghcr.io/$REPOSITORY_OWNER/$IMAGE_NAME:$RELEASE_VERSION" \
+            --tag "ghcr.io/$REPOSITORY_OWNER/$IMAGE_NAME:latest" \
+            .
+      - name: "Push Docker image"
+        run: |
+            docker images
+            docker push "ghcr.io/$REPOSITORY_OWNER/$IMAGE_NAME:$RELEASE_VERSION"
+            docker push "ghcr.io/$REPOSITORY_OWNER/$IMAGE_NAME:latest"
