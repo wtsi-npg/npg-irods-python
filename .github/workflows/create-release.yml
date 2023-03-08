@@ -67,6 +67,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Build Docker image"
+        env:
+          IMAGE_NAME: npg-irods-python
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           docker build \
             --file Dockerfile \
