@@ -88,6 +88,7 @@ class DataFile(AsValueEnum):
 
     MD5 = "md5"
     TYPE = "type"
+    TARGET = "target"
 
 
 @unique
@@ -671,3 +672,15 @@ def _ensure_avus_present(item: RodsItem, *avus: AVU) -> bool:
     item.add_metadata(*missing)
 
     return True if missing else False
+
+
+def has_target_metadata(obj: DataObject) -> bool:
+    """Return true if the object has 'target' metadata.
+
+    Args:
+        obj: The data object to check.
+
+    Returns:
+        True if the object has 'target' metadata.
+    """
+    return any(avu.attribute == DataFile.TARGET.value for avu in obj.metadata())
