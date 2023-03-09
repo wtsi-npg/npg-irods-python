@@ -1,7 +1,7 @@
 ml-warehouse@https://github.com/wtsi-npg/ml-warehouse-python/releases/download/1.3.0/ml-warehouse-1.3.0.tar.gz
 partisan@https://github.com/wtsi-npg/partisan/releases/download/2.1.0/partisan-2.1.0.tar.gz
 rich==13.3.1
-setuptools==67.5.1
+setuptools==67.6.0
 setuptools-git-versioning==1.13.2
 sqlalchemy==1.4.44
 structlog==22.3.0
