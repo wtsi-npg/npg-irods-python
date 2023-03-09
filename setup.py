@@ -26,11 +26,11 @@ setup(
     author="Keith James",
     author_email="kdj@sanger.ac.uk",
     description=".",
-    use_scm_version={"version_scheme": "no-guess-dev"},
     python_requires=">=3.10",
     packages=find_packages("src"),
     package_dir={"": "src"},
-    setup_requires=["setuptools_scm"],
+    setup_requires=["setuptools-git-versioning"],
+    setuptools_git_versioning={"enabled": True},
     install_requires=["ml-warehouse", "partisan", "rich", "sqlalchemy", "structlog"],
     tests_require=["black", "pytest", "pytest-it"],
     scripts=[
