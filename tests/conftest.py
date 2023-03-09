@@ -64,7 +64,8 @@ from npg_irods.db.mlwh import (
     Study,
 )
 from npg_irods.metadata.common import DataFile
-from npg_irods.metadata.lims import TrackedSample
+
+from npg_irods.metadata.lims import SeqConcept, TrackedSample
 from npg_irods.metadata.ont import Instrument
 
 logging.basicConfig(level=logging.ERROR)
@@ -832,3 +833,32 @@ def illumina_products(tmp_path):
         yield rods_path / "mlwh_locations"
     finally:
         irm(rods_path, force=True, recurse=True)
+
+
+@pytest.fixture(scope="function")
+def pacbio_requires_id(tmp_path):
+    """A fixture providing a data object which requires a product id"""
+    root_path = PurePath("/testZone/home/irods/test")
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    obj_path = rods_path / "pb.bam"
+    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
+
+    try:
+        yield obj_path
+    finally:
+        irm(rods_path, force=True, recurse=True)
+
+
+@pytest.fixture(scope="function")
+def pacbio_has_id(pacbio_requires_id):
+    """A fixture providing a data object that has a product id in metadata"""
+
+    obj = DataObject(pacbio_requires_id)
+
+    obj.add_metadata(AVU(SeqConcept.ID_PRODUCT, "abcde12345"))
+
+    try:
+        yield pacbio_requires_id
+    finally:
+        irm(pacbio_requires_id, force=True, recurse=True)
