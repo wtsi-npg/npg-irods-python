@@ -649,7 +649,7 @@ def avu_if_value(attribute, value):
 def _ensure_avus_present(item: RodsItem, *avus: AVU) -> bool:
     """Ensure that an item in iRODS has the specified metadata.
 
-    NB: this function is fore case where we only have a single AVU for each
+    NB: this function is for cases where we only have a single AVU for each
     attribute. Do not use it for cases where there are multiple AVUs sharing the same
     attribute.
 

@@ -65,6 +65,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy_utils import create_database, database_exists, drop_database
 
 from npg_irods.metadata.common import DataFile
+from npg_irods.metadata.lims import TrackedSample
 from npg_irods.metadata.ont import Instrument
 
 test_ini = os.path.join(os.path.dirname(__file__), "testdb.ini")
@@ -81,7 +82,7 @@ tests_have_admin = pytest.mark.skipif(
     not have_admin(), reason="tests do not have iRODS admin access"
 )
 
-TEST_GROUPS = ["ss_study_01", "ss_study_02", "ss_study_03"]
+TEST_GROUPS = ["ss_1000", "ss_2000", "ss_3000"]
 
 TEST_SQL_STALE_REPLICATE = "setObjectReplStale"
 TEST_SQL_INVALID_CHECKSUM = "setObjectChecksumInvalid"
@@ -213,19 +214,19 @@ def initialize_mlwh_ont(session: Session):
 
     study_x = Study(
         id_lims="LIMS_01",
-        id_study_lims="study_01",
+        id_study_lims="1000",
         name="Study X",
         **default_timestamps,
     )
     study_y = Study(
         id_lims="LIMS_01",
-        id_study_lims="study_02",
+        id_study_lims="2000",
         name="Study Y",
         **default_timestamps,
     )
     study_z = Study(
         id_lims="LIMS_01",
-        id_study_lims="study_03",
+        id_study_lims="3000",
         name="Study Z",
         **default_timestamps,
     )
@@ -339,7 +340,7 @@ def initialize_mlwh_ont(session: Session):
 def initialize_mlwh_illumina(sess: Session):
     changed_study = Study(
         id_lims="LIMS_05",
-        id_study_lims="study_04",
+        id_study_lims="4000",
         name="Recently Changed",
         study_title="Recently changed study",
         accession_number="ST0000000001",
@@ -348,7 +349,7 @@ def initialize_mlwh_illumina(sess: Session):
     )
     unchanged_study = Study(
         id_lims="LIMS_05",
-        id_study_lims="study_05",
+        id_study_lims="5000",
         name="Unchanged",
         study_title="Unchanged study",
         accession_number="ST0000000002",
@@ -585,7 +586,7 @@ def simple_collection(tmp_path):
     try:
         yield coll_path
     finally:
-        irm(root_path, force=True, recurse=True)
+        irm(coll_path, force=True, recurse=True)
 
 
 @pytest.fixture(scope="function")
@@ -601,7 +602,7 @@ def simple_data_object(tmp_path):
     try:
         yield obj_path
     finally:
-        irm(root_path, force=True, recurse=True)
+        irm(rods_path, force=True, recurse=True)
 
 
 @pytest.fixture(scope="function")
@@ -627,7 +628,41 @@ def annotated_data_object(tmp_path):
     try:
         yield obj_path
     finally:
-        irm(root_path, force=True, recurse=True)
+        irm(rods_path, force=True, recurse=True)
+
+
+@pytest.fixture(scope="function")
+def consent_withdrawn_gapi_data_object(tmp_path):
+    root_path = PurePath("/testZone/home/irods/test/consent_withdrawn_gapi_data_object")
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    obj_path = rods_path / "lorem.txt"
+    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
+
+    obj = DataObject(obj_path)
+    obj.add_metadata(AVU(TrackedSample.CONSENT, "0"))
+
+    try:
+        yield obj_path
+    finally:
+        irm(rods_path, force=True, recurse=True)
+
+
+@pytest.fixture(scope="function")
+def consent_withdrawn_npg_data_object(tmp_path):
+    root_path = PurePath("/testZone/home/irods/test/consent_withdrawn_npg_data_object")
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    obj_path = rods_path / "lorem.txt"
+    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
+
+    obj = DataObject(obj_path)
+    obj.add_metadata(AVU(TrackedSample.CONSENT_WITHDRAWN, "1"))
+
+    try:
+        yield obj_path
+    finally:
+        irm(rods_path, force=True, recurse=True)
 
 
 @pytest.fixture(scope="function")
@@ -643,7 +678,7 @@ def invalid_replica_data_object(tmp_path, sql_test_utilities):
     try:
         yield obj_path
     finally:
-        irm(root_path, force=True, recurse=True)
+        irm(rods_path, force=True, recurse=True)
 
 
 @pytest.fixture(scope="function")
@@ -658,7 +693,7 @@ def annotated_tree(tmp_path):
     tree_root = rods_path / "tree"
 
     add_test_groups()
-    ac = AC("ss_study_01", Permission.READ, zone="testZone")
+    ac = AC("ss_1000", Permission.READ, zone="testZone")
 
     coll = Collection(tree_root)
 
@@ -678,7 +713,10 @@ def annotated_tree(tmp_path):
     try:
         yield tree_root
     finally:
-        irm(root_path, force=True, recurse=True)
+        Collection(rods_path).add_permissions(
+            AC(user="irods", perm=Permission.OWN), recurse=True
+        )
+        irm(rods_path, force=True, recurse=True)
         remove_test_groups()
 
 
@@ -695,7 +733,7 @@ def special_paths(tmp_path):
     try:
         yield expt_root
     finally:
-        irm(root_path, force=True, recurse=True)
+        irm(rods_path, force=True, recurse=True)
 
 
 @pytest.fixture(scope="function")
@@ -713,7 +751,7 @@ def ont_gridion(tmp_path):
     try:
         yield expt_root
     finally:
-        irm(root_path, force=True, recurse=True)
+        irm(rods_path, force=True, recurse=True)
         remove_test_groups()
 
 
@@ -769,7 +807,10 @@ def ont_synthetic(tmp_path):
     try:
         yield expt_root
     finally:
-        irm(root_path, force=True, recurse=True)
+        Collection(rods_path).add_permissions(
+            AC(user="irods", perm=Permission.OWN), recurse=True
+        )
+        irm(rods_path, force=True, recurse=True)
         remove_test_groups()
 
 
@@ -842,4 +883,4 @@ def illumina_products(tmp_path):
     try:
         yield rods_path / "mlwh_locations"
     finally:
-        irm(root_path, force=True, recurse=True)
+        irm(rods_path, force=True, recurse=True)

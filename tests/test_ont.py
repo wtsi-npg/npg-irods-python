@@ -43,12 +43,12 @@ class TestONT(object):
         coll = Collection(path)
         for avu in [
             AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedStudy.ID, "study_02"),
+            AVU(TrackedStudy.ID, "2000"),
             AVU(TrackedStudy.NAME, "Study Y"),
         ]:
             assert avu in coll.metadata(), f"{avu} is in {coll} metadata"
 
-        ac = AC("ss_study_02", Permission.READ, zone="testZone")
+        ac = AC("ss_2000", Permission.READ, zone="testZone")
         assert ac in coll.acl()
         for item in coll.contents():
             assert ac in item.acl(), f"{ac} is in {item} ACL"
@@ -90,12 +90,12 @@ class TestONT(object):
 
             for avu in [
                 AVU(TrackedSample.NAME, f"sample {tag_index}"),
-                AVU(TrackedStudy.ID, "study_03"),
+                AVU(TrackedStudy.ID, "3000"),
                 AVU(TrackedStudy.NAME, "Study Z"),
             ]:
                 assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
 
-            ac = AC("ss_study_03", Permission.READ, zone="testZone")
+            ac = AC("ss_3000", Permission.READ, zone="testZone")
             assert ac in bc_coll.acl(), f"{ac} is in {bc_coll} ACL"
             for item in bc_coll.contents():
                 assert ac in item.acl(), f"{ac} is in {item} ACL"

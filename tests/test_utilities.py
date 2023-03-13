@@ -30,12 +30,14 @@ from pytest import mark as m
 
 from conftest import set_replicate_invalid
 from npg_irods.metadata.common import ensure_common_metadata, has_trimmable_replicas
+from npg_irods.metadata.lims import ensure_consent_withdrawn
 from npg_irods.utilities import (
     check_checksums,
     check_replicas,
     copy,
     repair_checksums,
     repair_replicas,
+    withdraw_consent,
     write_safe_remove_commands,
     write_safe_remove_script,
 )
@@ -254,6 +256,49 @@ class TestReplicaUtilities:
                 assert repaired_paths == obj_paths
 
 
+@m.describe("Consent utilities")
+class TestConsentUtilities:
+    @m.context("When data objects have their consent withdrawn")
+    @m.context("When all of the data objects need to have their consent withdrawn")
+    @m.it("Counts repairs correctly")
+    def test_withdraw_consent_all(self, annotated_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_withdrawn, num_errors = withdraw_consent(
+                    reader, writer, print_withdrawn=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_withdrawn == len(obj_paths)
+                assert num_errors == 0
+
+                withdrawn_paths = writer.getvalue().split()
+                assert withdrawn_paths == obj_paths
+
+    @m.context("When data objects have their consent withdrawn")
+    @m.context("When none of the data objects need to have their consent withdrawn")
+    @m.it("Counts repairs correctly")
+    def test_withdraw_consent_none(self, annotated_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+
+        # Make sure the object is already marked as consent withdrawn
+        for p in obj_paths:
+            ensure_consent_withdrawn(DataObject(p))
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_withdrawn, num_errors = withdraw_consent(
+                    reader, writer, print_withdrawn=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_withdrawn == 0
+                assert num_errors == 0
+
+                withdrawn_paths = writer.getvalue().split()
+                assert withdrawn_paths == []
+
+
 @m.describe("Copy utilities")
 class TestCopyUtilities:
     @m.context("When a collection is copied")
@@ -395,10 +440,7 @@ class TestCopyUtilities:
         copy(src, dest, acl=True, recurse=True)
 
         for item in dest.contents(acl=True, recurse=True):
-            assert (
-                AC("ss_study_01", Permission.READ, zone="testZone")
-                in item.permissions()
-            )
+            assert AC("ss_1000", Permission.READ, zone="testZone") in item.permissions()
 
 
 @m.describe("Safe remove utilities")
