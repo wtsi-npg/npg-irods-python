@@ -622,12 +622,13 @@ def check_consent_withdrawn(
                     _print(p, writer)
             else:
                 log.warn(
-                    "Consent in not withdrawn",
+                    "Consent is not withdrawn",
                     item=i,
                     path=obj,
                     has_withdrawn_meta=has_consent_withdrawn_metadata(obj),
                     has_withdrawn_perm=has_consent_withdrawn_permissions(obj),
                 )
+                num_errors += 1
                 if print_fail:
                     _print(p, writer)
         except RodsError as re:

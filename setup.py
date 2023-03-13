@@ -45,5 +45,6 @@ setup(
         "scripts/repair-replicas",
         "scripts/safe-remove-script",
         "scripts/update-ont-metadata",
+        "scripts/withdraw-consent",
     ],
 )

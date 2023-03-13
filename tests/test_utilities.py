@@ -33,6 +33,7 @@ from npg_irods.metadata.common import ensure_common_metadata, has_trimmable_repl
 from npg_irods.metadata.lims import ensure_consent_withdrawn
 from npg_irods.utilities import (
     check_checksums,
+    check_consent_withdrawn,
     check_replicas,
     copy,
     repair_checksums,
@@ -258,6 +259,45 @@ class TestReplicaUtilities:
 
 @m.describe("Consent utilities")
 class TestConsentUtilities:
+    @m.context("When data object consent withdrawn state is checked")
+    @m.context("When all of the data objects have consent withdrawn")
+    @m.it("Counts successes correctly")
+    def test_checked_consent_withdrawn_passes(self, annotated_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+
+        for p in obj_paths:
+            ensure_consent_withdrawn(DataObject(p))
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_passed, num_errors = check_consent_withdrawn(
+                    reader, writer, print_pass=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_passed == len(obj_paths)
+                assert num_errors == 0
+
+                passed_paths = writer.getvalue().split()
+                assert passed_paths == obj_paths
+
+    @m.context("When data object consent withdrawn state is checked")
+    @m.context("When none of the data objects have consent withdrawn")
+    @m.it("Counts failures correctly")
+    def test_checked_consent_withdrawn_failures(self, annotated_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            with StringIO() as writer:
+                num_processed, num_passed, num_errors = check_consent_withdrawn(
+                    reader, writer, print_fail=True
+                )
+                assert num_processed == len(obj_paths)
+                assert num_passed == 0
+                assert num_errors == len(obj_paths)
+
+                failed_paths = writer.getvalue().split()
+                assert failed_paths == obj_paths
+
     @m.context("When data objects have their consent withdrawn")
     @m.context("When all of the data objects need to have their consent withdrawn")
     @m.it("Counts repairs correctly")
