@@ -300,7 +300,7 @@ def check_replicas(
                         num_valid=nv,
                         num_invalid=ni,
                         has_compl_replicas=comp,
-                        has_trim_replicates=trim,
+                        has_trim_replicas=trim,
                         has_compl_checksums=has_complete_checksums(obj),
                         has_match_checksums=has_matching_checksums(obj),
                     )
