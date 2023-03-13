@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import io
+import logging
 import os
 import shlex
 import subprocess
@@ -26,7 +27,9 @@ from multiprocessing.pool import ThreadPool
 from pathlib import PurePath
 
 import partisan
+import structlog
 from partisan.exception import RodsError
+from partisan.icommands import icp
 from partisan.irods import (
     Collection,
     DataObject,
@@ -639,7 +642,7 @@ def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int
             return 0
 
         log.info("Copying data object", src=s, dest=d)
-        _icp(str(s), str(d), verify_checksum=True)
+        icp(str(s), str(d), verify_checksum=True)
         return 1
 
     def _maybe_copy_coll(s: Collection, d: Collection) -> int:
@@ -791,21 +794,41 @@ def write_safe_remove_script(path, root, stop_on_error=True, verbose=False):
         os.chmod(path, 0o755)
 
 
-def _icp(src, dest, force=False, verify_checksum=True):
-    cmd = ["icp"]
+def configure_logging(debug=False, verbose=False, colour=False, json=False):
+    """Configure structlog logging.
 
-    if force:
-        cmd.append("-f")
-    if verify_checksum:
-        cmd.append("-K")
+    Sets the log level, enables ANSI colour or JSON structured logging and sets the
+    logging timestamp format to UTC.
 
-    cmd.append(src)
-    cmd.append(dest)
-    log.debug("Running command", cmd=cmd)
-    log.info("Copying data object", src=src, dest=dest, force=force)
+    Args:
+        debug: Set to True for DEBUG logging, Defaults to False.
+        verbose: Set to True for INFO logging. Defaults to False and overrides debug.
+        colour: Set to True for colour logging. Defaults to False.
+        json: Set to True for JSON structured logs. Defaults to False and overrides
+          colour.
 
-    completed = subprocess.run(cmd, capture_output=True)
-    if completed.returncode == 0:
-        return
+    Returns:
+        Void
+    """
+    level = logging.ERROR
+    if debug:
+        level = logging.DEBUG
+    elif verbose:
+        level = logging.INFO
 
-    raise RodsError(completed.stderr.decode("utf-8").strip(), 0)
+    logging.basicConfig(level=level, encoding="utf-8")
+
+    log_processors = [
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+    ]
+    if json:
+        log_processors.append(structlog.processors.JSONRenderer())
+    else:
+        log_processors.append(structlog.dev.ConsoleRenderer(colors=colour))
+    structlog.configure(
+        processors=log_processors,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
+    )

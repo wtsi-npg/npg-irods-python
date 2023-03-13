@@ -25,7 +25,7 @@ import structlog
 from partisan.exception import RodsError
 
 from npg_irods.exception import ChecksumError
-from npg_irods.utilities import copy
+from npg_irods.utilities import configure_logging, copy
 from npg_irods.version import version
 
 description = """
@@ -97,34 +97,7 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-
-level = logging.ERROR
-if args.debug:
-    level = logging.DEBUG
-elif args.verbose:
-    level = logging.INFO
-
-logging.basicConfig(
-    level=level,
-    encoding="utf-8",
-)
-
-log_processors = [
-    structlog.stdlib.add_logger_name,
-    structlog.stdlib.add_log_level,
-    structlog.processors.TimeStamper(fmt="iso", utc=True),
-]
-if args.json:
-    log_processors.append(structlog.processors.JSONRenderer())
-else:
-    log_processors.append(structlog.dev.ConsoleRenderer(colors=args.colour))
-
-structlog.configure(
-    processors=log_processors,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    cache_logger_on_first_use=True,
-)
-
+configure_logging(args.debug, args.verbose, args.colour, args.json)
 log = structlog.get_logger("main")
 
 

@@ -25,6 +25,8 @@ import dateutil.parser
 from datetime import datetime, timedelta
 import sys
 import structlog
+
+from npg_irods.utilities import configure_logging
 from npg_irods.version import version
 from npg_irods.ont import MetadataUpdate
 import sqlalchemy
@@ -100,34 +102,7 @@ parser.add_argument(
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
 
 args = parser.parse_args()
-
-if args.log_config:
-    logging.config.fileConfig(args.log_config.name)
-else:
-    level = logging.ERROR
-    if args.debug:
-        level = logging.DEBUG
-    elif args.verbose:
-        level = logging.INFO
-
-    logging.basicConfig(level=level, encoding="utf-8", stream=sys.stdout)
-
-log_processors = [
-    structlog.stdlib.add_logger_name,
-    structlog.stdlib.add_log_level,
-    structlog.processors.TimeStamper(fmt="iso", utc=True),
-]
-if args.json:
-    log_processors.append(structlog.processors.JSONRenderer())
-else:
-    log_processors.append(structlog.dev.ConsoleRenderer(colors=args.colour))
-
-structlog.configure(
-    processors=log_processors,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    cache_logger_on_first_use=True,
-)
-
+configure_logging(args.debug, args.verbose, args.colour, args.json)
 log = structlog.get_logger("main")
 
 
