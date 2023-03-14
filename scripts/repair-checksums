@@ -119,27 +119,20 @@ def main():
 
     if num_errors:
         log.error(
-            "Some repairs did not succeed",
+            "Some repairs failed",
             num_processed=num_processed,
             num_repaired=num_repaired,
             num_errors=num_errors,
         )
         exit(1)
 
-    if num_repaired:
-        log.info(
-            "All paths repaired",
-            num_processed=num_processed,
-            num_repaired=num_repaired,
-            num_errors=num_errors,
-        )
-    else:
-        log.info(
-            "No paths required repair",
-            num_processed=num_processed,
-            num_repaired=num_repaired,
-            num_errors=num_errors,
-        )
+    msg = "All repairs were successful" if num_repaired else "No paths required repair"
+    log.info(
+        msg,
+        num_processed=num_processed,
+        num_repaired=num_repaired,
+        num_errors=num_errors,
+    )
 
 
 if __name__ == "__main__":

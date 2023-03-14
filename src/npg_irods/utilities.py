@@ -585,7 +585,7 @@ def repair_common_metadata(
 def check_consent_withdrawn(
     reader, writer, print_pass=True, print_fail=False
 ) -> (int, int, int):
-    """Read iRODS data objects paths from a file and heck that each one has a state
+    """Read iRODS data objects paths from a file and check that each one has a state
     consistent with consent having been withdrawn, printing the results to a writer.
 
     The conditions consistent with consent withdrawn are:
@@ -608,7 +608,6 @@ def check_consent_withdrawn(
         and the number of errors (paths with a state inconsistent with consent withdrawn
         or paths that failed to be checked because of an exception).
     """
-
     num_processed, num_passed, num_errors = 0, 0, 0
 
     for i, path in enumerate(reader):
@@ -650,6 +649,21 @@ def check_consent_withdrawn(
 def withdraw_consent(
     reader, writer, print_withdrawn=True, print_fail=False
 ) -> (int, int, int):
+    """Read iRODS data objects paths from a file and update each to a state consistent
+    with consent having been withdrawn, printing the results to a writer.
+
+    Args:
+        reader: A file supplying iRODS data object paths to update, one per line.
+        writer: A file where updated paths will be written, one per line.
+        print_withdrawn: Print the paths of objects that were updated. Defaults to True.
+        print_fail: Print the paths of objects that failed to be updated. Defaults to
+        False.
+
+    Returns:
+        A tuple of the number of paths checked, the number of paths updated in line
+        with consent withdrawal and the number of errors (paths that could not be
+        updated and/or failed to be updated because of an exception).
+    """
     num_processed, num_withdrawn, num_errors = 0, 0, 0
 
     for i, path in enumerate(reader):

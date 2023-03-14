@@ -128,15 +128,16 @@ def main():
 
     if num_errors:
         log.error(
-            "Some checks did not pass",
+            "Some repairs failed",
             num_processed=num_processed,
             num_repaired=num_repaired,
             num_errors=num_errors,
         )
         exit(1)
 
+    msg = "All repairs were successful" if num_repaired else "No paths required repair"
     log.info(
-        "All checks passed",
+        msg,
         num_processed=num_processed,
         num_repaired=num_repaired,
         num_errors=num_errors,

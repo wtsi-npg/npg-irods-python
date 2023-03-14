@@ -152,10 +152,27 @@ def has_consent_withdrawn_metadata(obj: DataObject) -> bool:
 
 
 def ensure_consent_withdrawn_metadata(obj: DataObject) -> bool:
-    _ensure_avus_present(obj, AVU(TrackedSample.CONSENT_WITHDRAWN, 1))
+    """Ensure that consent withdrawn metadata are on the data object.
+
+    Args:
+        obj: The data object to check.
+
+    Returns:
+        True if metadata were added.
+    """
+    return _ensure_avus_present(obj, AVU(TrackedSample.CONSENT_WITHDRAWN, 1))
 
 
 def has_consent_withdrawn_permissions(obj: DataObject) -> bool:
+    """Return True if the object has permissions expected for data with consent
+    withdrawn.
+
+    Args:
+        obj: The data object to check.
+
+    Returns:
+        True if the permissions were as expected.
+    """
     # Alternatively, we could keep a list of rodsadmin users who should have continued
     # access e.g. in order to redact the data, and check that no other users are in the
     # ACL. Using a list of rodsadmins would mean we don't need to use regex.
@@ -167,12 +184,30 @@ def has_consent_withdrawn_permissions(obj: DataObject) -> bool:
 
 
 def has_consent_withdrawn(obj: DataObject) -> bool:
+    """Return True if the data object has metadata and permissions for data with consent
+    withdrawn.
+
+    Args:
+        obj: The data object to check.
+
+    Returns:
+        True if the metadata and permissions were as expected.
+    """
     return has_consent_withdrawn_metadata(obj) and has_consent_withdrawn_permissions(
         obj
     )
 
 
 def ensure_consent_withdrawn(obj: DataObject) -> bool:
+    """Ensure that a data object has its metadata and permissions in the correct state
+    for having consent withdrawn.
+
+    Args:
+        obj: The data object to check.
+
+    Returns:
+        True if the metadata and/or permissions were updated.
+    """
     if has_consent_withdrawn(obj):
         return False
 
