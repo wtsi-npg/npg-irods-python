@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@ from npg_irods.metadata.common import (
     parse_object_type,
     requires_type_metadata,
 )
+from npg_irods.metadata.lims import has_consent_withdrawn_metadata
 
 
 @m.describe("Checksums")
@@ -292,6 +293,28 @@ class TestChecksums:
                 ChecksumError, match="checksums do not match each other"
             ):
                 ensure_matching_checksum_metadata(obj)
+
+
+@m.describe("Consent metadata")
+class TestConsentMetadata:
+    @m.context("When consent withdrawn metadata are present")
+    @m.context("A has_ function is called")
+    @m.it("Returns True")
+    def test_has_consent_withdrawn_metadata_present(
+        self, consent_withdrawn_gapi_data_object, consent_withdrawn_npg_data_object
+    ):
+        assert has_consent_withdrawn_metadata(
+            DataObject(consent_withdrawn_gapi_data_object)
+        )
+        assert has_consent_withdrawn_metadata(
+            DataObject(consent_withdrawn_npg_data_object)
+        )
+
+    @m.context("When consent withdrawn metadata are absent")
+    @m.context("A has_ function is called")
+    @m.it("Returns False")
+    def test_has_consent_withdrawn_metadata_absent(self, simple_data_object):
+        assert not has_consent_withdrawn_metadata(DataObject(simple_data_object))
 
 
 @m.describe("Type metadata")

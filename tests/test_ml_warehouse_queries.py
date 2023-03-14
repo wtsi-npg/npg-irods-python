@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2020, 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2020, 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,15 +17,14 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-from datetime import timedelta, datetime
+from datetime import timedelta
 
 from pytest import mark as m
 
 from conftest import BEGIN, EARLY, LATE, LATEST
-from npg_irods.ont import find_recent_expt, find_recent_expt_slot
 from npg_irods.metadata import illumina
-from npg_irods.metadata.lims import TrackedStudy, TrackedSample
-from partisan.irods import AVU
+from npg_irods.metadata.lims import TrackedSample, TrackedStudy
+from npg_irods.ont import find_recent_expt, find_recent_expt_slot
 
 
 @m.describe("Finding updated ONT experiments by datetime")
@@ -109,7 +108,7 @@ class TestONTMLWarehouseQueries(object):
         assert find_recent_expt_slot(mlwh_session, after_latest) == []
 
 
-@m.describe("Finding illumina recently changed information in illumina tables")
+@m.describe("Finding Illumina recently changed information in Illumina tables")
 class TestIlluminaMLWarehouseQueries(object):
     @m.context("When given a datetime")
     @m.it("Finds rows updated since that datetime")
@@ -119,7 +118,7 @@ class TestIlluminaMLWarehouseQueries(object):
                 TrackedStudy.ACCESSION_NUMBER: "ST0000000001",
                 TrackedStudy.NAME: "Recently Changed",
                 TrackedStudy.TITLE: "Recently changed study",
-                TrackedStudy.ID: "study_04",
+                TrackedStudy.ID: "4000",
                 TrackedSample.ACCESSION_NUMBER: "SA000002",
                 TrackedSample.ID: "SAMPLE_02",
                 TrackedSample.NAME: "Unchanged",
@@ -137,7 +136,7 @@ class TestIlluminaMLWarehouseQueries(object):
                 TrackedStudy.ACCESSION_NUMBER: "ST0000000002",
                 TrackedStudy.NAME: "Unchanged",
                 TrackedStudy.TITLE: "Unchanged study",
-                TrackedStudy.ID: "study_05",
+                TrackedStudy.ID: "5000",
                 TrackedSample.ACCESSION_NUMBER: "SA000001",
                 TrackedSample.ID: "SAMPLE_01",
                 TrackedSample.NAME: "Recently changed",
@@ -155,7 +154,7 @@ class TestIlluminaMLWarehouseQueries(object):
                 TrackedStudy.ACCESSION_NUMBER: "ST0000000002",
                 TrackedStudy.NAME: "Unchanged",
                 TrackedStudy.TITLE: "Unchanged study",
-                TrackedStudy.ID: "study_05",
+                TrackedStudy.ID: "5000",
                 TrackedSample.ACCESSION_NUMBER: "SA000002",
                 TrackedSample.ID: "SAMPLE_02",
                 TrackedSample.NAME: "Unchanged",
@@ -173,7 +172,7 @@ class TestIlluminaMLWarehouseQueries(object):
                 TrackedStudy.ACCESSION_NUMBER: "ST0000000002",
                 TrackedStudy.NAME: "Unchanged",
                 TrackedStudy.TITLE: "Unchanged study",
-                TrackedStudy.ID: "study_05",
+                TrackedStudy.ID: "5000",
                 TrackedSample.ACCESSION_NUMBER: "SA000002",
                 TrackedSample.ID: "SAMPLE_02",
                 TrackedSample.NAME: "Unchanged",
@@ -193,7 +192,7 @@ class TestIlluminaMLWarehouseQueries(object):
                 TrackedStudy.ACCESSION_NUMBER: "ST0000000002",
                 TrackedStudy.NAME: "Unchanged",
                 TrackedStudy.TITLE: "Unchanged study",
-                TrackedStudy.ID: "study_05",
+                TrackedStudy.ID: "5000",
                 TrackedSample.ACCESSION_NUMBER: "SA000002",
                 TrackedSample.ID: "SAMPLE_02",
                 TrackedSample.NAME: "Unchanged",

@@ -21,7 +21,6 @@ import io
 import logging
 import os
 import shlex
-import subprocess
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import PurePath
@@ -57,6 +56,12 @@ from npg_irods.metadata.common import (
     requires_creation_metadata,
     requires_type_metadata,
     trimmable_replicas,
+)
+from npg_irods.metadata.lims import (
+    ensure_consent_withdrawn,
+    has_consent_withdrawn,
+    has_consent_withdrawn_metadata,
+    has_consent_withdrawn_permissions,
 )
 from npg_irods.version import version
 
@@ -575,6 +580,127 @@ def repair_common_metadata(
             results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
 
         return len(results), repaired.count(True), results.count(False)
+
+
+def check_consent_withdrawn(
+    reader, writer, print_pass=True, print_fail=False
+) -> (int, int, int):
+    """Read iRODS data objects paths from a file and check that each one has a state
+    consistent with consent having been withdrawn, printing the results to a writer.
+
+    The conditions consistent with consent withdrawn are:
+
+    - The data object has the correct metadata. Either:
+        - sample_consent = 0 (data managed by the GAPI codebase)
+        - sample_consent_withdrawn = 1 (data managed by the NPG codebase)
+
+    - Read permission for any SequenceScape study iRODS groups (named ss_<Study ID>)
+      absent.
+
+    Args:
+        reader: A file supplying iRODS data object paths to check, one per line.
+        writer: A file where checked paths will be written, one per line.
+        print_pass: Print the paths of objects passing the check. Defaults to True.
+        print_fail: Print the paths of objects failing the check. Defaults to False.
+
+    Returns:
+        A tuple of the number of paths checked, the number of paths found to be correct
+        and the number of errors (paths with a state inconsistent with consent withdrawn
+        or paths that failed to be checked because of an exception).
+    """
+    num_processed, num_passed, num_errors = 0, 0, 0
+
+    for i, path in enumerate(reader):
+        p = path.strip()
+        obj = DataObject(p)
+        try:
+            if has_consent_withdrawn(obj):
+                log.info("Consent is withdrawn", item=i, path=obj)
+                num_passed += 1
+                if print_pass:
+                    _print(p, writer)
+            else:
+                log.warn(
+                    "Consent is not withdrawn",
+                    item=i,
+                    path=obj,
+                    has_withdrawn_meta=has_consent_withdrawn_metadata(obj),
+                    has_withdrawn_perm=has_consent_withdrawn_permissions(obj),
+                )
+                num_errors += 1
+                if print_fail:
+                    _print(p, writer)
+        except RodsError as re:
+            log.error(re.message, item=i, code=re.code)
+            num_errors += 1
+            if print_fail:
+                _print(p, writer)
+        except Exception as e:
+            log.error(e, item=i)
+            num_errors += 1
+            if print_fail:
+                _print(p, writer)
+
+        num_processed += 1
+
+    return num_processed, num_passed, num_errors
+
+
+def withdraw_consent(
+    reader, writer, print_withdrawn=True, print_fail=False
+) -> (int, int, int):
+    """Read iRODS data objects paths from a file and update each to a state consistent
+    with consent having been withdrawn, printing the results to a writer.
+
+    Args:
+        reader: A file supplying iRODS data object paths to update, one per line.
+        writer: A file where updated paths will be written, one per line.
+        print_withdrawn: Print the paths of objects that were updated. Defaults to True.
+        print_fail: Print the paths of objects that failed to be updated. Defaults to
+        False.
+
+    Returns:
+        A tuple of the number of paths checked, the number of paths updated in line
+        with consent withdrawal and the number of errors (paths that could not be
+        updated and/or failed to be updated because of an exception).
+    """
+    num_processed, num_withdrawn, num_errors = 0, 0, 0
+
+    for i, path in enumerate(reader):
+        p = path.strip()
+        obj = DataObject(p)
+
+        try:
+            if has_consent_withdrawn(obj):
+                log.info("Consent withdrawn", item=i, path=obj)
+            else:
+                log.info(
+                    "Withdrawing consent",
+                    item=i,
+                    path=obj,
+                    has_withdrawn_meta=has_consent_withdrawn_metadata(obj),
+                    has_withdrawn_perm=has_consent_withdrawn_permissions(obj),
+                )
+
+                if ensure_consent_withdrawn(obj):
+                    num_withdrawn += 1
+                    if print_withdrawn:
+                        _print(p, writer)
+
+        except RodsError as re:
+            log.error(re.message, item=i, code=re.code)
+            num_errors += 1
+            if print_fail:
+                _print(p, writer)
+        except Exception as e:
+            log.error(e, item=i)
+            num_errors += 1
+            if print_fail:
+                _print(p, writer)
+
+        num_processed += 1
+
+    return num_processed, num_withdrawn, num_errors
 
 
 def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int, int):

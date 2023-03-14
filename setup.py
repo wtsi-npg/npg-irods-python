@@ -37,6 +37,7 @@ setup(
         "scripts/backfill_illumina_locations.py",
         "scripts/check-checksums",
         "scripts/check-common-metadata",
+        "scripts/check-consent-withdrawn",
         "scripts/check-replicas",
         "scripts/copy-confirm",
         "scripts/repair-checksums",
@@ -44,5 +45,6 @@ setup(
         "scripts/repair-replicas",
         "scripts/safe-remove-script",
         "scripts/update-ont-metadata",
+        "scripts/withdraw-consent",
     ],
 )
