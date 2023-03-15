@@ -40,6 +40,7 @@ setup(
         "scripts/check-consent-withdrawn",
         "scripts/check-replicas",
         "scripts/copy-confirm",
+        "scripts/locate-data-objects",
         "scripts/repair-checksums",
         "scripts/repair-common-metadata",
         "scripts/repair-replicas",

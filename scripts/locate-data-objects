@@ -1,0 +1,120 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright © 2023 Genome Research Ltd. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# @author Keith James <kdj@sanger.ac.uk>
+
+import argparse
+import configparser
+
+import structlog
+from partisan.irods import AVU, query_metadata
+
+from npg_irods.db import DBConfig, DBHandle
+from npg_irods.db.mlwh import find_consent_withdrawn_samples
+from npg_irods.metadata.lims import TrackedSample
+from npg_irods.utilities import configure_logging
+from npg_irods.version import version
+
+description = """
+A utility for locating sets of data objects in iRODS.
+
+Currently this supports one mode of operation, which is to find data objects related to
+samples whose consent for data use has been withdrawn.
+
+The paths of the data objects located are printed to STDOUT.
+"""
+
+parser = argparse.ArgumentParser(
+    description=description, formatter_class=argparse.RawDescriptionHelpFormatter
+)
+
+parser.add_argument(
+    "--database-config",
+    "--database_config",
+    help="Configuration file for database connection.",
+    type=argparse.FileType("r"),
+    required=True,
+)
+parser.add_argument(
+    "-d", "--debug", help="Enable DEBUG level logging to STDERR.", action="store_true"
+)
+parser.add_argument(
+    "-v", "--verbose", help="Enable INFO level logging to STDERR.", action="store_true"
+)
+parser.add_argument(
+    "--json",
+    help="Use JSON log rendering.",
+    action="store_true",
+)
+parser.add_argument(
+    "--colour",
+    help="Use coloured log rendering to the console.",
+    action="store_true",
+)
+parser.add_argument("--version", help="Print the version and exit", action="store_true")
+
+args = parser.parse_args()
+configure_logging(args.debug, args.verbose, args.colour, args.json)
+log = structlog.get_logger("main")
+
+
+def main():
+    if args.version:
+        print(version())
+        exit(0)
+
+    section = "MySQL"
+    dbconfig = configparser.ConfigParser()
+    dbconfig.read(args.database_config.name)
+    mysql_section = dbconfig[section]
+    db_user = mysql_section.get("user")
+    db_pass = mysql_section.get("password")
+    db_host = mysql_section.get("host")
+    db_port = mysql_section.get("port")
+    db_schema = mysql_section.get("schema")
+
+    mlwh = DBHandle(
+        DBConfig(
+            host=db_host, port=db_port, schema=db_schema, user=db_user, password=db_pass
+        )
+    )
+
+    num_processed, num_errors = 0, 0
+    for s in find_consent_withdrawn_samples(mlwh):
+        log.info("Finding data objects for", sample=s)
+        num_processed += 1
+
+        if s.id_sample_lims is None:
+            log.error("Missing id_sample_lims", sample=s)
+            num_errors += 1
+            continue
+
+        for obj in query_metadata(
+            AVU(TrackedSample.ID, s.id_sample_lims),
+            data_object=True,
+            collection=False,
+        ):
+            print(obj)
+
+    log.info(f"Processed {num_processed} with {num_errors} errors")
+    if num_errors:
+        exit(1)
+
+
+if __name__ == "__main__":
+    main()
