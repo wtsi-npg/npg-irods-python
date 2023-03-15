@@ -30,7 +30,7 @@ from npg_irods.metadata.pacbio import (
     Instrument,
     backfill_id_products,
 )
-from npg_irods.mlwh_locations.pacbio import write_mlwh_json
+from npg_irods.mlwh_locations.writer import LocationWriter, PACBIO
 from partisan.irods import DataObject, AVU
 
 
@@ -40,7 +40,8 @@ class TestWriteMlwhJson:
     @m.it("Returns False and does not write")
     def test_write_mlwh_json_no_location(self, tmp_path):
         path = str(tmp_path / "empty.json")
-        assert not write_mlwh_json({}, path)
+        writer = LocationWriter(PACBIO, path=path)
+        assert not writer.write()
         assert not os.path.exists(path)
 
     @m.context("When provided with a correct set of locations")
@@ -51,14 +52,17 @@ class TestWriteMlwhJson:
     def test_write_mlwh_json_distinct(self, tmp_path):
         expected_path = "tests/data/pacbio/no_duplicates.json"
         actual_path = str(tmp_path / "no_duplicates.json")
-        assert write_mlwh_json(
-            {
-                "/testZone/home/irods/pacbio/run/A01/test.bam": "abcdef123456",
-                "/testZone/home/irods/pacbio/run/A01/test2.bam": "ghijkl78901",
-                "/testZone/home/irods/pacbio/run/B01/test2.bam": "mnopq234567",
-            },
-            actual_path,
+        writer = LocationWriter(PACBIO, path=actual_path)
+        writer.add_product(
+            DataObject("/testZone/home/irods/pacbio/run/A01/test.bam"), "abcdef123456"
         )
+        writer.add_product(
+            DataObject("/testZone/home/irods/pacbio/run/A01/test2.bam"), "ghijkl78901"
+        )
+        writer.add_product(
+            DataObject("/testZone/home/irods/pacbio/run/B01/test2.bam"), "mnopq234567"
+        )
+        assert writer.write()
         with open(actual_path) as actual, open(expected_path) as expected:
             assert json.load(actual) == json.load(expected)
 
@@ -70,14 +74,17 @@ class TestWriteMlwhJson:
     def test_write_mlwh_json_secondary(self, tmp_path):
         expected_path = "tests/data/pacbio/duplicates.json"
         actual_path = str(tmp_path / "duplicates.json")
-        assert write_mlwh_json(
-            {
-                "/testZone/home/irods/pacbio/run/A01/test.bam": "abcdef123456",
-                "/testZone/home/irods/pacbio/run/B01/test2.bam": "ghijkl78901",
-                "/testZone/home/irods/pacbio/run/B01/extra.bam": "ghijkl78901",
-            },
-            actual_path,
+        writer = LocationWriter(PACBIO, path=actual_path)
+        writer.add_product(
+            DataObject("/testZone/home/irods/pacbio/run/A01/test.bam"), "abcdef123456"
         )
+        writer.add_product(
+            DataObject("/testZone/home/irods/pacbio/run/B01/test2.bam"), "ghijkl78901"
+        )
+        writer.add_product(
+            DataObject("/testZone/home/irods/pacbio/run/B01/extra.bam"), "ghijkl78901"
+        )
+        assert writer.write()
         with open(actual_path) as actual, open(expected_path) as expected:
             assert json.load(actual) == json.load(expected)
 
@@ -180,6 +187,7 @@ class TestIDProductMetadata:
     @m.it("Returns True, adds correct metadata and outputs correct json file")
     def test_backfill_id_products_absent(self, pacbio_requires_id, tmp_path):
         obj = DataObject(pacbio_requires_id)
+        obj.add_metadata(AVU(DataFile.TARGET, "1"))
         obj.add_metadata(AVU(Instrument.RUN_NAME, "RUN-01"))
         obj.add_metadata(AVU(Instrument.WELL_LABEL, "A01"))
 
@@ -199,5 +207,6 @@ class TestIDProductMetadata:
         assert present
 
         with open(actual_path) as actual, open(expected_path) as expected:
-            assert expected_path == "tests/data/pacbio/backfill.json"
-            assert json.load(actual) == json.load(expected)
+            expected_json = json.load(expected)
+            expected_json["products"][0]["irods_root_collection"] += str(tmp_path) + "/"
+            assert json.load(actual) == expected_json

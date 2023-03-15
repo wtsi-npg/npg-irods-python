@@ -28,7 +28,7 @@ from structlog import get_logger
 
 from npg_irods.metadata.common import parse_object_type, has_target_metadata
 from npg_irods.metadata.lims import has_id_product_metadata, SeqConcept
-from npg_irods.mlwh_locations.pacbio import write_mlwh_json
+from npg_irods.mlwh_locations.writer import LocationWriter, PACBIO
 from partisan.irods import (
     AVU,
     Collection,
@@ -41,7 +41,6 @@ from partisan.metadata import AsValueEnum
 
 log = get_logger(__name__)
 lock = Lock()
-products = {}
 
 
 @unique
@@ -82,7 +81,7 @@ def requires_id_product_metadata(obj: DataObject) -> bool:
     return False
 
 
-def ensure_id_product(obj: DataObject, overwrite: bool = False) -> bool:
+def ensure_id_product(obj: DataObject, overwrite: bool = False) -> str | None:
     """Ensure that a data object has id_product metadata if it should need it.
     Else do nothing.
 
@@ -91,19 +90,18 @@ def ensure_id_product(obj: DataObject, overwrite: bool = False) -> bool:
         overwrite: A flag to overwrite metadata that is already present.
                    Defaults to False.
 
-    Returns: bool
+    Returns: The id product added as metadata or None if no change is required.
+             str.
 
     """
 
-    global products
-
     if not overwrite and has_id_product_metadata(obj):
         log.debug(f"{obj} already has id_product metadata")
-        return True
+        return None
 
     if not requires_id_product_metadata(obj):
         log.debug(f"{obj} does not require id_product metadata")
-        return False
+        return None
 
     log.debug(f"Making id_product metadata for {obj}")
     metadata = {}
@@ -141,12 +139,7 @@ def ensure_id_product(obj: DataObject, overwrite: bool = False) -> bool:
     log.debug(f"Adding id_product = {id_product} to {obj}")
     obj.add_metadata(AVU(SeqConcept.ID_PRODUCT.value, id_product))
 
-    if has_target_metadata(obj):
-        lock.acquire()
-        products[obj.path] = id_product
-        lock.release()
-
-    return True
+    return id_product
 
 
 def backfill_id_products(
@@ -172,6 +165,20 @@ def backfill_id_products(
 
     """
     rv = False
+    writer = LocationWriter(PACBIO, path=out_path)
+
+    def fn(obj: DataObject):
+        id_product = ensure_id_product(obj, overwrite)
+
+        if has_target_metadata(obj):
+            lock.acquire()
+            writer.add_product(obj, id_product)
+            lock.release()
+        if id_product:
+            return True
+        else:
+            return False
+
     with client_pool(num_clients) as bp, ThreadPool(num_threads) as tp:
         results = []
         for path in paths:
@@ -182,7 +189,7 @@ def backfill_id_products(
 
             results.extend(
                 [
-                    tp.apply_async(ensure_id_product, (obj, overwrite))
+                    tp.apply_async(fn, (obj,))
                     for obj in objs
                     if isinstance(obj, DataObject)
                 ]
@@ -195,5 +202,5 @@ def backfill_id_products(
             except RodsError as e:
                 log.error(e.message, code=e.code)
 
-    write_mlwh_json(products, out_path)
+    writer.write()
     return rv
