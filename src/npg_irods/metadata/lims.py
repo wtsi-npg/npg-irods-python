@@ -246,4 +246,4 @@ def has_id_product_metadata(obj: DataObject):
     Returns:
         True if the object has id product metadata, False otherwise.
     """
-    return any(avu.attribute == SeqConcept.ID_PRODUCT for avu in obj.metadata())
+    return any(avu.attribute == SeqConcept.ID_PRODUCT.value for avu in obj.metadata())
