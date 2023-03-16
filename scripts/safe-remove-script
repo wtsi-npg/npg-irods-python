@@ -19,7 +19,6 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import argparse
-import logging
 
 import structlog
 
