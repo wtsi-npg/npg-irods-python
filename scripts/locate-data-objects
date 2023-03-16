@@ -27,7 +27,7 @@ from partisan.irods import AVU, query_metadata
 from npg_irods.db import DBConfig, DBHandle
 from npg_irods.db.mlwh import find_consent_withdrawn_samples
 from npg_irods.metadata.lims import TrackedSample
-from npg_irods.utilities import configure_logging
+from npg_irods.cli import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
@@ -42,7 +42,7 @@ The paths of the data objects located are printed to STDOUT.
 parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
-
+add_logging_arguments(parser)
 parser.add_argument(
     "--database-config",
     "--database_config",
@@ -51,20 +51,10 @@ parser.add_argument(
     required=True,
 )
 parser.add_argument(
-    "-d", "--debug", help="Enable DEBUG level logging to STDERR.", action="store_true"
-)
-parser.add_argument(
-    "-v", "--verbose", help="Enable INFO level logging to STDERR.", action="store_true"
-)
-parser.add_argument(
-    "--json",
-    help="Use JSON log rendering.",
-    action="store_true",
-)
-parser.add_argument(
-    "--colour",
-    help="Use coloured log rendering to the console.",
-    action="store_true",
+    "--zone",
+    help="Specify a federated iRODS zone in which to find data objects to check. "
+    "This is not required if the target collections are in the local zone.",
+    type=str,
 )
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
 
@@ -108,6 +98,7 @@ def main():
             AVU(TrackedSample.ID, s.id_sample_lims),
             data_object=True,
             collection=False,
+            zone=args.zone,
         ):
             print(obj)
 

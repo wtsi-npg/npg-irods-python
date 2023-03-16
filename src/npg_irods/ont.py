@@ -49,9 +49,26 @@ TAG_IDENTIFIER_REGEX = re.compile(r"(?P<tag_id>\d+)$")
 
 
 class MetadataUpdate(object):
-    def __init__(self, experiment_name: str = None, instrument_slot: int = None):
+    """Performs updated on metadata of data objects and collections for ONT data in
+    iRODS."""
+
+    def __init__(
+        self, experiment_name: str = None, instrument_slot: int = None, zone: str = None
+    ):
+        """Create a new metadata updater for the specified ONT run.
+
+        Args:
+            experiment_name: The ONT experiment name. Optional; provide this to limit
+                the updates to only that experiment.
+            instrument_slot: The ONT instrument slot number. Optional; provide this to
+                limit the updates to only that slot.
+            zone: The iRODS zone where the data are located. Optional; provide this to
+                update on an iRODS zone other than local (i.e. on a federated zone)
+        """
+
         self.experiment_name = experiment_name
         self.instrument_slot = instrument_slot
+        self.zone = zone
 
     def update_secondary_metadata(
         self, mlwh_session: Session, since: datetime = None
@@ -96,7 +113,7 @@ class MetadataUpdate(object):
                     if self.experiment_name != expt_name:
                         log.info(
                             "Skipping on experiment name",
-                            experiment_name=expt_name,
+                            expt_name=expt_name,
                             slot=slot,
                         )
                         continue
@@ -104,14 +121,18 @@ class MetadataUpdate(object):
                         if self.instrument_slot != slot:
                             log.info(
                                 "Skipping on slot",
-                                experiment_name=expt_name,
+                                expt_name=expt_name,
                                 slot=slot,
                             )
                             continue
 
-                log.info("Searching iRODS", experiment_name=expt_name, slot=slot)
+                log.info("Searching", expt_name=expt_name, slot=slot, zone=self.zone)
                 colls = query_metadata(
-                    expt_avu, slot_avu, collection=True, data_object=False
+                    expt_avu,
+                    slot_avu,
+                    collection=True,
+                    data_object=False,
+                    zone=self.zone,
                 )
 
                 num_colls = len(colls)
@@ -119,14 +140,12 @@ class MetadataUpdate(object):
                 if num_colls:
                     log.info(
                         "Found collections",
-                        experiment_name=expt_name,
+                        expt_name=expt_name,
                         slot=slot,
                         num_coll=num_colls,
                     )
                 else:
-                    log.warn(
-                        "Found no collections", experiment_name=expt_name, slot=slot
-                    )
+                    log.warn("Found no collections", expt_name=expt_name, slot=slot)
 
                 for coll in colls:
                     try:
@@ -134,10 +153,7 @@ class MetadataUpdate(object):
                             coll, expt_name, slot, mlwh_session
                         ):
                             log.info(
-                                "Updated metadata",
-                                experiment_name=expt_name,
-                                slot=slot,
-                                path=coll,
+                                "Updated", expt_name=expt_name, slot=slot, path=coll
                             )
                             num_updated += 1
                     except RodsError as re1:
@@ -210,9 +226,7 @@ def annotate_results_collection(
         True on success.
     """
     log.debug(
-        "Searching the warehouse for plex information",
-        experiment=experiment_name,
-        slot=instrument_slot,
+        "Searching the ML warehouse", expt_name=experiment_name, slot=instrument_slot
     )
 
     fc_info = find_flowcell_info(mlwh_session, experiment_name, instrument_slot)
@@ -229,7 +243,7 @@ def annotate_results_collection(
     if not coll.exists():
         log.warn(
             "The data collection does not exist",
-            experiment=experiment_name,
+            expt_name=experiment_name,
             slot=instrument_slot,
         )
         return False
@@ -241,7 +255,7 @@ def annotate_results_collection(
     for fc in fc_info:
         log.debug(
             "Found experiment/slot/tag index",
-            experiment=experiment_name,
+            expt_name=experiment_name,
             slot=instrument_slot,
             tag_identifier=fc.tag_identifier,
         )
@@ -259,7 +273,7 @@ def annotate_results_collection(
                 log.warn(
                     "The barcoded data collection does not exist",
                     path=bc_path,
-                    experiment=experiment_name,
+                    expt_name=experiment_name,
                     slot=instrument_slot,
                     tag_identifier=fc.tag_identifier,
                 )

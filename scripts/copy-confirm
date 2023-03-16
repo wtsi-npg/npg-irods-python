@@ -24,7 +24,8 @@ import structlog
 from partisan.exception import RodsError
 
 from npg_irods.exception import ChecksumError
-from npg_irods.utilities import configure_logging, copy
+from npg_irods.utilities import copy
+from npg_irods.cli import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
@@ -46,6 +47,7 @@ abort further copying until the problem is resolved.
 parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
+add_logging_arguments(parser)
 parser.add_argument(
     "source",
     help="Collection or data object path to copy from. Must be an absolute path.",
@@ -76,23 +78,7 @@ parser.add_argument(
     action="store_true",
 )
 parser.add_argument(
-    "--colour",
-    help="Use coloured log rendering to the console.",
-    action="store_true",
-)
-parser.add_argument(
-    "--json",
-    help="Use JSON log rendering.",
-    action="store_true",
-)
-parser.add_argument(
     "--version", help="Print the version and exit.", action="store_true"
-)
-parser.add_argument(
-    "-d", "--debug", help="Enable DEBUG level logging to STDERR.", action="store_true"
-)
-parser.add_argument(
-    "-v", "--verbose", help="Enable INFO level logging to STDERR.", action="store_true"
 )
 
 args = parser.parse_args()
