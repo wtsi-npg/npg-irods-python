@@ -22,7 +22,8 @@ import argparse
 
 import structlog
 
-from npg_irods.utilities import configure_logging, write_safe_remove_script
+from npg_irods.utilities import write_safe_remove_script
+from npg_irods.cli import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
@@ -47,6 +48,7 @@ Procedures e.g. be manually reviewed before use.
 parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
+add_logging_arguments(parser)
 parser.add_argument(
     "target",
     help="Target collection or data object path to remove, recursively if a "
@@ -56,16 +58,6 @@ parser.add_argument(
     "-o",
     "--output",
     help="Output filename.",
-)
-parser.add_argument(
-    "--colour",
-    help="Use coloured log rendering to the console.",
-    action="store_true",
-)
-parser.add_argument(
-    "--json",
-    help="Use JSON log rendering.",
-    action="store_true",
 )
 parser.add_argument(
     "--echo-commands",
@@ -79,12 +71,6 @@ parser.add_argument(
 )
 parser.add_argument(
     "--version", help="Print the version and exit.", action="store_true"
-)
-parser.add_argument(
-    "-d", "--debug", help="Enable DEBUG level logging to STDERR.", action="store_true"
-)
-parser.add_argument(
-    "-v", "--verbose", help="Enable INFO level logging to STDERR.", action="store_true"
 )
 
 args = parser.parse_args()

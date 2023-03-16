@@ -28,7 +28,7 @@ import structlog
 from sqlalchemy.orm import Session
 
 from npg_irods.ont import MetadataUpdate
-from npg_irods.utilities import configure_logging
+from npg_irods.cli import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
@@ -58,7 +58,7 @@ def parse_iso_date(date: str) -> datetime:
 parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
-
+add_logging_arguments(parser)
 parser.add_argument(
     "--begin-date",
     "--begin_date",
@@ -68,6 +68,14 @@ parser.add_argument(
     type=parse_iso_date,
     default=datetime.now() - timedelta(days=14),
 )
+parser.add_argument(
+    "--zone",
+    help="Specify a federated iRODS zone in which to find "
+    "collections to update. This is not required if the target "
+    "collections are in the local zone.",
+    type=str,
+)
+
 parser.add_argument(
     "--database-config",
     "--database_config",
@@ -81,22 +89,6 @@ group1.add_argument(
     "--log_config",
     help="A logging configuration file.",
     type=argparse.FileType("r"),
-)
-group1.add_argument(
-    "-d", "--debug", help="Enable DEBUG level logging to STDERR.", action="store_true"
-)
-group1.add_argument(
-    "-v", "--verbose", help="Enable INFO level logging to STDERR.", action="store_true"
-)
-parser.add_argument(
-    "--json",
-    help="Use JSON log rendering.",
-    action="store_true",
-)
-parser.add_argument(
-    "--colour",
-    help="Use coloured log rendering to the console.",
-    action="store_true",
 )
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
 
@@ -124,7 +116,7 @@ def main():
 
     engine = sqlalchemy.create_engine(connection_uri)
     with Session(engine) as session:
-        mu = MetadataUpdate()
+        mu = MetadataUpdate(zone=args.zone)
         num_processed, num_updated, num_errors = mu.update_secondary_metadata(
             session, since=args.begin_date
         )

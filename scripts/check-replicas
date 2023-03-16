@@ -23,7 +23,8 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import check_replicas, configure_logging
+from npg_irods.utilities import check_replicas
+from npg_irods.cli import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
@@ -37,6 +38,7 @@ error message summarising the results will be sent to STDERR.
 parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
+add_logging_arguments(parser)
 parser.add_argument(
     "-i",
     "--input",
@@ -69,16 +71,6 @@ parser.add_argument(
     action="store_true",
 )
 parser.add_argument(
-    "--colour",
-    help="Use coloured log rendering to the console.",
-    action="store_true",
-)
-parser.add_argument(
-    "--json",
-    help="Use JSON log rendering.",
-    action="store_true",
-)
-parser.add_argument(
     "-c",
     "--clients",
     help="Number of baton clients to use. Defaults to 4.",
@@ -93,12 +85,6 @@ parser.add_argument(
     default=4,
 )
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
-parser.add_argument(
-    "-d", "--debug", help="Enable DEBUG level logging to STDERR", action="store_true"
-)
-parser.add_argument(
-    "-v", "--verbose", help="Enable INFO level logging to STDERR", action="store_true"
-)
 
 args = parser.parse_args()
 configure_logging(args.debug, args.verbose, args.colour, args.json)
