@@ -37,7 +37,7 @@ RUN pyenv global "$PYTHON_VERSION"
 # available for anything more recent than Ubuntu bionic, so that's what we use for
 # the builder (above) and for the clients. This is also the reason we resort to
 # pyenv to get a recent Python, rather than using a python-slim base image.
-FROM wsinpg/ub-18.04-irods-clients-4.2.11
+FROM ghcr.io/wtsi-npg/ub-18.04-irods-clients-4.2.11
 
 RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selections && \
     apt-get update && \
