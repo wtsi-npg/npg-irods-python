@@ -80,7 +80,7 @@ class DBHandle:
 
         Args:
             config: A database configuration.
-            **kwargs: Keywords arguments passed to the SQLAlchemy create_engine
+            **kwargs: Keyword arguments passed to the SQLAlchemy create_engine
               function.
         """
         self.config = config
