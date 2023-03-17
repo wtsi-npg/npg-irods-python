@@ -17,11 +17,9 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-
+import configparser
 import os
 from urllib import parse
-
-from sqlalchemy import MetaData, Table, create_engine
 
 
 class DBConfig:
@@ -30,6 +28,25 @@ class DBConfig:
 
     The database URL attribute is currently constructed in MySQL-specific format.
     """
+
+    HOST = "host"
+    PORT = "port"
+    SCHEMA = "schema"
+    USER = "user"
+    PASSWORD = "password"
+
+    @classmethod
+    def from_file(cls, ini_file, section):
+        parser = configparser.ConfigParser()
+        parser.read(ini_file)
+
+        return cls(
+            parser.get(section, cls.HOST),
+            parser.get(section, cls.PORT),
+            parser.get(section, cls.SCHEMA),
+            parser.get(section, cls.USER),
+            parser.get(section, cls.PASSWORD),
+        )
 
     def __init__(self, host=None, port=None, schema=None, user=None, password=None):
         """Creates a new configuration.
@@ -53,11 +70,11 @@ class DBConfig:
         self.password = password if password else os.environ.get("DB_PASSWORD")
 
         for attr, var in {
-            "host": "DB_HOST",
-            "port": "DB_PORT",
-            "schema": "DB_SCHEMA",
-            "user": "DB_USER",
-            "password": "DB_PASSWORD",
+            DBConfig.HOST: "DB_HOST",
+            DBConfig.PORT: "DB_PORT",
+            DBConfig.SCHEMA: "DB_SCHEMA",
+            DBConfig.USER: "DB_USER",
+            DBConfig.PASSWORD: "DB_PASSWORD",
         }.items():
             if getattr(self, attr) is None:
                 raise ValueError(
@@ -69,41 +86,3 @@ class DBConfig:
             f"mysql+pymysql://{self.user}:{parse.quote_plus(self.password)}"
             f"@{self.host}:{self.port}/{self.schema}?charset=utf8mb4"
         )
-
-
-class DBHandle:
-    """A database handle encapsulating configuration, SQLAlchemy database engine and
-    reflected table metadata."""
-
-    def __init__(self, config: DBConfig, **kwargs):
-        """Creates a new database handle and populates table metadata.
-
-        Args:
-            config: A database configuration.
-            **kwargs: Keyword arguments passed to the SQLAlchemy create_engine
-              function.
-        """
-        self.config = config
-        self.engine = create_engine(config.url, **kwargs)
-        self.metadata = MetaData()
-        self.metadata.reflect(bind=self.engine)
-
-    def tables(self) -> list[Table]:
-        """Return the SQLAlchemy table metadata. This is a convenience method."""
-        return self.metadata.tables
-
-    def table(self, name: str) -> Table:
-        """Return the SQLAlchemy metadata for the named table.
-
-        Args:
-            name: A table name.
-
-        Returns:
-            The metadata for the named table, or raise an exception.
-        """
-        if name not in self.metadata.tables:
-            raise ValueError(
-                f"Database {self.config.schema} does not contain table {name}"
-            )
-
-        return self.metadata.tables[name]

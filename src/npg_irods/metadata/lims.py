@@ -24,11 +24,11 @@ from enum import unique
 from itertools import starmap
 from typing import List
 
-from ml_warehouse.schema import Sample, Study
 from partisan.irods import AC, AVU, DataObject, Permission
 from partisan.metadata import AsValueEnum
 from structlog import get_logger
 
+from npg_irods.db.mlwh import Sample, Study
 from npg_irods.metadata.common import _ensure_avus_present, avu_if_value
 
 STUDY_IDENTIFIER_GROUP = "study_id"
@@ -75,7 +75,7 @@ class SeqConcept(AsValueEnum):
     ALT_PROCESS = "alt_process"
 
 
-def make_sample_metadata(sample: Sample) -> List[AVU]:
+def make_sample_metadata(sample: Sample) -> list[AVU]:
     """Return standard iRODS metadata for a Sample:
 
      - sample ID
@@ -115,7 +115,7 @@ def make_study_metadata(study: Study):
     return list(filter(lambda avu: avu is not None, starmap(avu_if_value, av)))
 
 
-def make_sample_acl(sample: Sample, study: Study) -> List[AC]:
+def make_sample_acl(sample: Sample, study: Study) -> list[AC]:
     irods_group = f"ss_{study.id_study_lims}"
     perm = Permission.NULL if sample.consent_withdrawn else Permission.READ
 

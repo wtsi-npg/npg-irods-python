@@ -17,10 +17,11 @@
 #
 # @author Michael Kubiak <mk35@sanger.ac.uk>
 
-from ml_warehouse.schema import Study, Sample, IseqFlowcell, IseqProductMetrics
 from typing import List, Dict
 from sqlalchemy.orm import Session, Query
 from datetime import datetime
+
+from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics, Sample, Study
 from npg_irods.metadata.lims import TrackedStudy, TrackedSample
 
 column_to_attribute = {
@@ -63,11 +64,9 @@ def _recently_changed_query(sess: Session, start_time: datetime) -> Query:
             ]
         )
         .distinct()
-        .join(
-            IseqFlowcell.sample,
-            IseqFlowcell.study,
-            IseqFlowcell.iseq_product_metrics,
-        )
+        .join(IseqFlowcell.sample)
+        .join(IseqFlowcell.study)
+        .join(IseqFlowcell.iseq_product_metrics)
         .filter(
             (Sample.recorded_at > start_time)
             | (Study.recorded_at > start_time)

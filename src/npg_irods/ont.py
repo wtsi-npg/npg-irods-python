@@ -21,7 +21,7 @@ import re
 from datetime import datetime
 from os import PathLike
 from pathlib import PurePath
-from typing import List, Tuple, Union
+from typing import Type, Union
 
 from partisan.exception import RodsError
 from partisan.irods import AVU, Collection, query_metadata
@@ -29,7 +29,7 @@ from sqlalchemy import asc, distinct
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
-
+from npg_irods.db.mlwh import OseqFlowcell
 from npg_irods.metadata.ont import Instrument
 from npg_irods.metadata.lims import (
     SeqConcept,
@@ -38,7 +38,6 @@ from npg_irods.metadata.lims import (
     make_study_metadata,
 )
 
-from ml_warehouse.schema import OseqFlowcell
 
 log = get_logger(__package__)
 
@@ -229,7 +228,7 @@ def annotate_results_collection(
         "Searching the ML warehouse", expt_name=experiment_name, slot=instrument_slot
     )
 
-    fc_info = find_flowcell_info(mlwh_session, experiment_name, instrument_slot)
+    fc_info = find_flowcell_by_expt_slot(mlwh_session, experiment_name, instrument_slot)
 
     avus = [
         avu.with_namespace(Instrument.namespace)
@@ -299,7 +298,7 @@ def annotate_results_collection(
     return True
 
 
-def find_recent_expt(session: Session, since: datetime) -> List[str]:
+def find_recent_expt(sess: Session, since: datetime) -> list[str]:
     """Find recent ONT experiments in the ML warehouse database.
 
     Find ONT experiments in the ML warehouse database that have been updated
@@ -309,28 +308,23 @@ def find_recent_expt(session: Session, since: datetime) -> List[str]:
     experiment name will be returned.
 
     Args:
-        session: An open SQL session.
+        sess: An open session to the ML warehouse.
         since: A datetime.
 
     Returns:
         List of matching experiment name strings
     """
 
-    result = (
-        session.query(distinct(OseqFlowcell.experiment_name))
+    rows = (
+        sess.query(distinct(OseqFlowcell.experiment_name))
         .filter(OseqFlowcell.last_updated >= since)
         .all()
     )
 
-    # The default behaviour of SQLAlchemy is that the result here is a list
-    # of tuples, each of which must be unpacked. The official way to do
-    # that for all cases is to extend sqlalchemy.orm.query.Query to do the
-    # unpacking. However, that's too fancy for MVP, so we just unpack
-    # manually.
-    return [value for value, in result]
+    return [val for val, in rows]
 
 
-def find_recent_expt_slot(session: Session, since: datetime) -> List[Tuple]:
+def find_recent_expt_slot(sess: Session, since: datetime) -> list[tuple]:
     """Find recent ONT experiments and instrument slot positions in the ML
     warehouse database.
 
@@ -338,26 +332,27 @@ def find_recent_expt_slot(session: Session, since: datetime) -> List[Tuple]:
     warehouse database that have been updated since a specified date and time.
 
     Args:
-        session: An open SQL session.
+        sess: An open session to the ML warehouse.
         since: A datetime.
 
     Returns:
         List of matching (experiment name, slot position) tuples
     """
-    return (
-        session.query(OseqFlowcell.experiment_name, OseqFlowcell.instrument_slot)
+    rows = (
+        sess.query(OseqFlowcell.experiment_name, OseqFlowcell.instrument_slot)
         .filter(OseqFlowcell.last_updated >= since)
         .group_by(OseqFlowcell.experiment_name, OseqFlowcell.instrument_slot)
         .order_by(asc(OseqFlowcell.experiment_name), asc(OseqFlowcell.instrument_slot))
         .all()
     )
+    return [row.tuple() for row in rows]
 
 
-def find_flowcell_info(
-    session: Session, experiment_name: str, instrument_slot: int
-) -> List[OseqFlowcell]:
-    flowcells = (
-        session.query(OseqFlowcell)
+def find_flowcell_by_expt_slot(
+    sess: Session, experiment_name: str, instrument_slot: int
+) -> list[Type[OseqFlowcell]]:
+    return (
+        sess.query(OseqFlowcell)
         .filter(
             OseqFlowcell.experiment_name == experiment_name,
             OseqFlowcell.instrument_slot == instrument_slot,
@@ -370,5 +365,3 @@ def find_flowcell_info(
         )
         .all()
     )
-
-    return flowcells

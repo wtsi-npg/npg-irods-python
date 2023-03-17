@@ -24,7 +24,6 @@
 # package without needing to import them (pytest will automatically discover
 # them)."
 
-import configparser
 import logging
 import os
 from datetime import datetime
@@ -32,15 +31,6 @@ from pathlib import PurePath
 
 import pytest
 import structlog
-from ml_warehouse.schema import (
-    Base,
-    IseqFlowcell,
-    IseqProductMetrics,
-    OseqFlowcell,
-    Sample,
-    Study,
-)
-
 from partisan.icommands import (
     add_specific_sql,
     have_admin,
@@ -64,11 +54,18 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy_utils import create_database, database_exists, drop_database
 
+from npg_irods.db import DBConfig
+from npg_irods.db.mlwh import (
+    Base,
+    IseqFlowcell,
+    IseqProductMetrics,
+    OseqFlowcell,
+    Sample,
+    Study,
+)
 from npg_irods.metadata.common import DataFile
 from npg_irods.metadata.lims import TrackedSample
 from npg_irods.metadata.ont import Instrument
-
-test_ini = os.path.join(os.path.dirname(__file__), "testdb.ini")
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -81,6 +78,9 @@ structlog.configure(
 tests_have_admin = pytest.mark.skipif(
     not have_admin(), reason="tests do not have iRODS admin access"
 )
+
+TEST_INI = os.path.join(os.path.dirname(__file__), "testdb.ini")
+INI_SECTION = "dev"
 
 TEST_GROUPS = ["ss_1000", "ss_2000", "ss_3000"]
 
@@ -163,39 +163,6 @@ def set_checksum_invalid(obj: DataObject, replicate_num: int):
     )
 
 
-def mysql_url(config: configparser.ConfigParser):
-    """Returns a MySQL URL configured through an ini file.
-
-    The keys and values are:
-
-    [MySQL]
-    user       = <database user, defaults to "mlwh">
-    password   = <database password, defaults to empty i.e. "">
-    ip_address = <database IP address, defaults to "127.0.0.1">
-    port       = <database port, defaults to 3306>
-    schema     = <database schema, defaults to "mlwh">
-    """
-    section = "MySQL"
-
-    if section not in config.sections():
-        raise configparser.Error(
-            f"The {section} configuration section is missing. "
-            "You need to fill this in before running "
-            f"tests on a {section} database"
-        )
-    connection_conf = config[section]
-    user = connection_conf.get("user", "mlwh")
-    password = connection_conf.get("password", "")
-    ip_address = connection_conf.get("ip_address", "127.0.0.1")
-    port = connection_conf.get("port", "3306")
-    schema = connection_conf.get("schema", "mlwh")
-
-    return (
-        f"mysql+pymysql://{user}:{password}@"
-        f"{ip_address}:{port}/{schema}?charset=utf8mb4"
-    )
-
-
 def ont_tag_identifier(tag_index: int) -> str:
     """Return an ONT tag identifier in tag set EXP-NBD104, given a tag index."""
     return f"NB{tag_index :02d}"
@@ -213,22 +180,13 @@ def initialize_mlwh_ont(session: Session):
     default_timestamps = {"last_updated": BEGIN, "recorded_at": BEGIN}
 
     study_x = Study(
-        id_lims="LIMS_01",
-        id_study_lims="1000",
-        name="Study X",
-        **default_timestamps,
+        id_lims="LIMS_01", id_study_lims="1000", name="Study X", **default_timestamps
     )
     study_y = Study(
-        id_lims="LIMS_01",
-        id_study_lims="2000",
-        name="Study Y",
-        **default_timestamps,
+        id_lims="LIMS_01", id_study_lims="2000", name="Study Y", **default_timestamps
     )
     study_z = Study(
-        id_lims="LIMS_01",
-        id_study_lims="3000",
-        name="Study Z",
-        **default_timestamps,
+        id_lims="LIMS_01", id_study_lims="3000", name="Study Z", **default_timestamps
     )
     session.add_all([study_x, study_y, study_z])
     session.flush()
@@ -267,7 +225,6 @@ def initialize_mlwh_ont(session: Session):
                     experiment_name=expt_name,
                     id_lims=f"Example LIMS ID {sample_idx}",
                     id_flowcell_lims=id_flowcell,
-                    pipeline_id_lims=pipeline_id_lims,
                     requested_data_type=req_data_type,
                     last_updated=when_expt,
                     recorded_at=BEGIN,
@@ -320,13 +277,13 @@ def initialize_mlwh_ont(session: Session):
                         instrument_slot=slot,
                         experiment_name=expt_name,
                         id_lims=f"Example LIMS ID m{msample_idx}",
+                        pipeline_id_lims=pipeline_id_lims,
+                        requested_data_type=req_data_type,
                         id_flowcell_lims=id_flowcell,
                         tag_set_id_lims="Example LIMS tag set ID",
                         tag_set_name="EXP-NBD104",
                         tag_sequence=barcode,
                         tag_identifier=tag_id,
-                        pipeline_id_lims=pipeline_id_lims,
-                        requested_data_type=req_data_type,
                         last_updated=when,
                         recorded_at=BEGIN,
                     )
@@ -481,28 +438,28 @@ def initialize_mlwh_illumina(sess: Session):
         id_run=12111,
         last_changed=BEGIN,
         id_iseq_flowcell_tmp=study_changed_flowcell.id_iseq_flowcell_tmp,
-        qc="study_changed_qc",
+        qc=0,
     )
     sample_changed_product_metrics = IseqProductMetrics(
         id_iseq_product="PRODUCT_02",
         id_run=12111,
         last_changed=BEGIN,
         id_iseq_flowcell_tmp=sample_changed_flowcell.id_iseq_flowcell_tmp,
-        qc="sample_changed_qc",
+        qc=0,
     )
     flowcell_changed_product_metrics = IseqProductMetrics(
         id_iseq_product="PRODUCT_03",
         id_run=12111,
         last_changed=BEGIN,
         id_iseq_flowcell_tmp=self_changed_flowcell.id_iseq_flowcell_tmp,
-        qc="flowcell_changed_qc",
+        qc=0,
     )
     self_changed_product_metrics = IseqProductMetrics(
         id_iseq_product="PRODUCT_04",
         id_run=12111,
         last_changed=LATEST,
         id_iseq_flowcell_tmp=product_changed_flowcell.id_iseq_flowcell_tmp,
-        qc="self_changed_qc",
+        qc=0,
     )
 
     no_change_product_metrics = IseqProductMetrics(
@@ -510,7 +467,7 @@ def initialize_mlwh_illumina(sess: Session):
         id_run=12111,
         last_changed=BEGIN,
         id_iseq_flowcell_tmp=no_change_flowcell.id_iseq_flowcell_tmp,
-        qc="no_change_qc",
+        qc=0,
     )
     sess.add_all(
         [
@@ -533,19 +490,10 @@ def sql_test_utilities():
         remove_sql_test_utilities()
 
 
-@pytest.fixture(scope="session")
-def config() -> configparser.ConfigParser:
-    # Database credentials for the test MySQL instance are stored here. This
-    # should be an instance in a container, discarded after each test run.
-    test_config = configparser.ConfigParser()
-    test_config.read(test_ini)
-    yield test_config
-
-
 @pytest.fixture(scope="function")
-def mlwh_session(config: configparser.ConfigParser) -> Session:
-    uri = mysql_url(config)
-    engine = create_engine(uri, echo=False, future=True)
+def mlwh_session() -> Session:
+    dbconfig = DBConfig.from_file(TEST_INI, INI_SECTION)
+    engine = create_engine(dbconfig.url, echo=False)
 
     if not database_exists(engine.url):
         create_database(engine.url)

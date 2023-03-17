@@ -21,10 +21,12 @@
 import argparse
 import configparser
 
+import sqlalchemy
 import structlog
 from partisan.irods import AVU, query_metadata
+from sqlalchemy.orm import Session
 
-from npg_irods.db import DBConfig, DBHandle
+from npg_irods.db import DBConfig
 from npg_irods.db.mlwh import find_consent_withdrawn_samples
 from npg_irods.metadata.lims import TrackedSample
 from npg_irods.cli import add_logging_arguments, configure_logging
@@ -68,43 +70,31 @@ def main():
         print(version())
         exit(0)
 
-    section = "MySQL"
-    dbconfig = configparser.ConfigParser()
-    dbconfig.read(args.database_config.name)
-    mysql_section = dbconfig[section]
-    db_user = mysql_section.get("user")
-    db_pass = mysql_section.get("password")
-    db_host = mysql_section.get("host")
-    db_port = mysql_section.get("port")
-    db_schema = mysql_section.get("schema")
+    dbconfig = DBConfig.from_file(args.database_config.name, "MySQL")
 
-    mlwh = DBHandle(
-        DBConfig(
-            host=db_host, port=db_port, schema=db_schema, user=db_user, password=db_pass
-        )
-    )
+    engine = sqlalchemy.create_engine(dbconfig.url)
+    with Session(engine) as session:
+        num_processed, num_errors = 0, 0
+        for s in find_consent_withdrawn_samples(session):
+            log.info("Finding data objects for", sample=s)
+            num_processed += 1
 
-    num_processed, num_errors = 0, 0
-    for s in find_consent_withdrawn_samples(mlwh):
-        log.info("Finding data objects for", sample=s)
-        num_processed += 1
+            if s.id_sample_lims is None:
+                log.error("Missing id_sample_lims", sample=s)
+                num_errors += 1
+                continue
 
-        if s.id_sample_lims is None:
-            log.error("Missing id_sample_lims", sample=s)
-            num_errors += 1
-            continue
+            for obj in query_metadata(
+                AVU(TrackedSample.ID, s.id_sample_lims),
+                data_object=True,
+                collection=False,
+                zone=args.zone,
+            ):
+                print(obj)
 
-        for obj in query_metadata(
-            AVU(TrackedSample.ID, s.id_sample_lims),
-            data_object=True,
-            collection=False,
-            zone=args.zone,
-        ):
-            print(obj)
-
-    log.info(f"Processed {num_processed} with {num_errors} errors")
-    if num_errors:
-        exit(1)
+        log.info(f"Processed {num_processed} with {num_errors} errors")
+        if num_errors:
+            exit(1)
 
 
 if __name__ == "__main__":
