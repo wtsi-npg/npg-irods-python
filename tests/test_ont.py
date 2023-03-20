@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -66,11 +66,14 @@ class TestONT(object):
             path, experiment_name=expt, instrument_slot=slot, mlwh_session=mlwh_session
         )
 
-        for tag_index in range(1, 12):
-            tag_identifier = ont_tag_identifier(tag_index)
-            bc_coll = Collection(path / ont.barcode_name_from_id(tag_identifier))
-            avu = AVU(SeqConcept.TAG_INDEX, ont.tag_index_from_id(tag_identifier))
-            assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
+        for subcoll in ["fast5_fail", "fast5_pass", "fastq_fail", "fastq_pass"]:
+            for tag_index in range(1, 12):
+                tag_identifier = ont_tag_identifier(tag_index)
+                bc_coll = Collection(
+                    path / subcoll / ont.barcode_name_from_id(tag_identifier)
+                )
+                avu = AVU(SeqConcept.TAG_INDEX, ont.tag_index_from_id(tag_identifier))
+                assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
 
     @tests_have_admin
     @m.it("Adds sample and study metadata to barcode<0n> sub-collections")
@@ -84,21 +87,22 @@ class TestONT(object):
             path, experiment_name=expt, instrument_slot=slot, mlwh_session=mlwh_session
         )
 
-        for tag_index in range(1, 12):
-            tag_id = ont_tag_identifier(tag_index)
-            bc_coll = Collection(path / ont.barcode_name_from_id(tag_id))
+        for subcoll in ["fast5_fail", "fast5_pass", "fastq_fail", "fastq_pass"]:
+            for tag_index in range(1, 12):
+                tag_id = ont_tag_identifier(tag_index)
+                bc_coll = Collection(path / subcoll / ont.barcode_name_from_id(tag_id))
 
-            for avu in [
-                AVU(TrackedSample.NAME, f"sample {tag_index}"),
-                AVU(TrackedStudy.ID, "3000"),
-                AVU(TrackedStudy.NAME, "Study Z"),
-            ]:
-                assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
+                for avu in [
+                    AVU(TrackedSample.NAME, f"sample {tag_index}"),
+                    AVU(TrackedStudy.ID, "3000"),
+                    AVU(TrackedStudy.NAME, "Study Z"),
+                ]:
+                    assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
 
-            ac = AC("ss_3000", Permission.READ, zone="testZone")
-            assert ac in bc_coll.acl(), f"{ac} is in {bc_coll} ACL"
-            for item in bc_coll.contents():
-                assert ac in item.acl(), f"{ac} is in {item} ACL"
+                ac = AC("ss_3000", Permission.READ, zone="testZone")
+                assert ac in bc_coll.acl(), f"{ac} is in {bc_coll} ACL"
+                for item in bc_coll.contents():
+                    assert ac in item.acl(), f"{ac} is in {item} ACL"
 
 
 class TestMetadataUpdate(object):
