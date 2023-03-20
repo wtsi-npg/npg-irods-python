@@ -250,7 +250,8 @@ def annotate_results_collection(
     coll.add_metadata(*avus)  # These AVUs should be present already
 
     # There will be either a single fc record (for non-multiplexed data) or
-    # multiple (one per plex of multiplexed data)
+    # multiple (one per plex of multiplexed data).
+
     for fc in fc_info:
         log.debug(
             "Found experiment/slot/tag index",
@@ -262,8 +263,17 @@ def annotate_results_collection(
         if fc.tag_identifier:
             # This is the barcode directory naming style created by current ONT's
             # Guppy de-multiplexer. We add information to the barcode sub-collection.
-            # Guppy creates several subfolders e.g. "fast5_pass", "fast_fail", which we
-            # need to traverse.
+            # Guppy creates several subdirectories e.g. "fast5_pass", "fast_fail",
+            # which we need to traverse.
+            #
+            # Each of these subdirectories contains another directory for each barcode,
+            # plus miscellaneous directories such as "mixed" and "unclassified".
+
+            coll_lookup = {
+                c.path.name: c.path
+                for c in Collection(path).contents()
+                if c.rods_type == Collection
+            }
 
             subcolls = [
                 c for c in Collection(path).contents() if c.rods_type == Collection
