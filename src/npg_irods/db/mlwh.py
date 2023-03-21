@@ -17,47 +17,163 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-from abc import ABC
-from dataclasses import dataclass, fields
-from typing import List
+from typing import Type
 
-from sqlalchemy import select
-
-from npg_irods.db import DBHandle
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship
 
 
-@dataclass
-class MLWHEntity(ABC):
-    """A base class for all ML warehouse entities."""
-
-    def field_names(self) -> List[str]:
-        """Return a list of the dataclass field names."""
-        return [f.name for f in fields(self)]
+class Base(DeclarativeBase):
+    pass
 
 
-@dataclass
-class Sample(MLWHEntity):
-    """A minimal representation of a ML warehouse sample."""
+class Sample(Base):
+    __tablename__ = "sample"
 
-    consent_withdrawn: bool = False
-    id_sample_lims: str = ""
-    name: str = ""
-    sanger_sample_id: str = ""
-    supplier_name: str = ""
+    id_sample_tmp = mapped_column(Integer, primary_key=True)
+    id_lims = mapped_column(String(10), nullable=False)
+    id_sample_lims = mapped_column(String(20), nullable=False)
+    last_updated = mapped_column(DateTime, nullable=False)
+    recorded_at = mapped_column(DateTime, nullable=False)
+    consent_withdrawn = mapped_column(Integer, nullable=False, default=0)
+    name = mapped_column(String(255), index=True)
+    organism = mapped_column(String(255))
+    accession_number = mapped_column(String(50), index=True)
+    common_name = mapped_column(String(255))
+    cohort = mapped_column(String(255))
+    sanger_sample_id = mapped_column(String(255), index=True)
+    supplier_name = mapped_column(String(255), index=True)
+    public_name = mapped_column(String(255))
+    donor_id = mapped_column(String(255))
+    date_of_consent_withdrawn = mapped_column(DateTime)
+    marked_as_consent_withdrawn_by = mapped_column(String(255))
+
+    iseq_flowcell: Mapped["IseqFlowcell"] = relationship(
+        "IseqFlowcell", back_populates="sample"
+    )
+
+    oseq_flowcell: Mapped["OseqFlowcell"] = relationship(
+        "OseqFlowcell", back_populates="sample"
+    )
 
 
-def find_consent_withdrawn_samples(db: DBHandle) -> List[Sample]:
+class Study(Base):
+    __tablename__ = "study"
+
+    id_study_tmp = mapped_column(Integer, primary_key=True)
+    id_lims = mapped_column(String(10), nullable=False)
+    id_study_lims = mapped_column(String(20), nullable=False)
+    last_updated = mapped_column(DateTime, nullable=False)
+    recorded_at = mapped_column(DateTime, nullable=False)
+    name = mapped_column(String(255), index=True)
+    accession_number = mapped_column(String(50), index=True)
+    description = mapped_column(Text)
+    contains_human_dna = mapped_column(Integer, default=0)
+    contaminated_human_dna = mapped_column(Integer, default=0)
+    ena_project_id = mapped_column(String(255))
+    study_title = mapped_column(String(255))
+    study_visibility = mapped_column(String(255))
+    ega_dac_accession_number = mapped_column(String(255))
+    data_access_group = mapped_column(String(255))
+
+    iseq_flowcell: Mapped["IseqFlowcell"] = relationship(
+        "IseqFlowcell", back_populates="study"
+    )
+
+    oseq_flowcell: Mapped["OseqFlowcell"] = relationship(
+        "OseqFlowcell", back_populates="study"
+    )
+
+
+class IseqFlowcell(Base):
+    __tablename__ = "iseq_flowcell"
+
+    id_iseq_flowcell_tmp = mapped_column(Integer, primary_key=True)
+    last_updated = mapped_column(DateTime, nullable=False)
+    recorded_at = mapped_column(DateTime, nullable=False)
+    id_sample_tmp = mapped_column(
+        ForeignKey("sample.id_sample_tmp"), nullable=False, index=True
+    )
+    id_lims = mapped_column(String(10), nullable=False)
+    manual_qc = mapped_column(Integer)
+    id_flowcell_lims = mapped_column(String(20), nullable=False)
+    position = mapped_column(Integer, nullable=False)
+    entity_type = mapped_column(String(30), nullable=False)
+    entity_id_lims = mapped_column(String(20), nullable=False)
+    id_pool_lims = mapped_column(String(20), nullable=False)
+    id_study_tmp = mapped_column(ForeignKey("study.id_study_tmp"), index=True)
+    pipeline_id_lims = mapped_column(String(60))
+    id_library_lims = mapped_column(String(255), index=True)
+    primer_panel = mapped_column(String(255))
+
+    sample: Mapped["Sample"] = relationship("Sample", back_populates="iseq_flowcell")
+    study: Mapped["Study"] = relationship("Study", back_populates="iseq_flowcell")
+    iseq_product_metrics: Mapped["IseqProductMetrics"] = relationship(
+        "IseqProductMetrics", back_populates="iseq_flowcell"
+    )
+
+
+class IseqProductMetrics(Base):
+    __tablename__ = "iseq_product_metrics"
+
+    id_iseq_pr_metrics_tmp = mapped_column(Integer, primary_key=True)
+    id_iseq_product = mapped_column(String(64), nullable=False, unique=True)
+    last_changed = mapped_column(DateTime)
+    id_iseq_flowcell_tmp = mapped_column(
+        ForeignKey("iseq_flowcell.id_iseq_flowcell_tmp", ondelete="SET NULL"),
+        index=True,
+        comment='Flowcell id, see "iseq_flowcell.id_iseq_flowcell_tmp"',
+    )
+    id_run = mapped_column(Integer)
+    position = mapped_column(Integer)
+    qc = mapped_column(Integer)
+
+    iseq_flowcell: Mapped["IseqFlowcell"] = relationship(
+        "IseqFlowcell", back_populates="iseq_product_metrics"
+    )
+
+
+class OseqFlowcell(Base):
+    __tablename__ = "oseq_flowcell"
+
+    id_oseq_flowcell_tmp = mapped_column(Integer, primary_key=True)
+    id_flowcell_lims = mapped_column(String(255), nullable=False)
+    last_updated = mapped_column(DateTime, nullable=False)
+    recorded_at = mapped_column(DateTime, nullable=False)
+    id_sample_tmp = mapped_column(
+        ForeignKey("sample.id_sample_tmp"), nullable=False, index=True
+    )
+    id_study_tmp = mapped_column(
+        ForeignKey("study.id_study_tmp"), nullable=False, index=True
+    )
+    experiment_name = mapped_column(String(255), nullable=False)
+    instrument_name = mapped_column(String(255), nullable=False)
+    instrument_slot = mapped_column(Integer, nullable=False)
+    id_lims = mapped_column(String(10), nullable=False)
+    pipeline_id_lims = mapped_column(String(255))
+    requested_data_type = mapped_column(String(255))
+    tag_identifier = mapped_column(String(255))
+    tag_sequence = mapped_column(String(255))
+    tag_set_id_lims = mapped_column(String(255))
+    tag_set_name = mapped_column(String(255))
+    tag2_identifier = mapped_column(String(255))
+    tag2_sequence = mapped_column(String(255))
+    tag2_set_id_lims = mapped_column(String(255))
+    tag2_set_name = mapped_column(String(255))
+    flowcell_id = mapped_column(String(255))
+    run_id = mapped_column(String(255))
+
+    sample: Mapped["Sample"] = relationship("Sample", back_populates="oseq_flowcell")
+    study: Mapped["Study"] = relationship("Study", back_populates="oseq_flowcell")
+
+
+def find_consent_withdrawn_samples(sess: Session) -> list[Type[Sample]]:
     """Return a list of all samples with consent withdrawn.
 
     Args:
-        db: A database handle.
+        sess: An open session to the ML warehouse.
 
     Returns:
         All samples marked as having their consent withdrawn.
     """
-    with db.engine.connect() as conn:
-        table = db.table("sample")
-        columns = [table.c[name] for name in Sample().field_names()]
-        query = select(*columns).filter(table.c.consent_withdrawn == 1)
-
-        return [Sample(*row) for row in conn.execute(query).all()]
+    return sess.query(Sample).filter(Sample.consent_withdrawn == 1).all()

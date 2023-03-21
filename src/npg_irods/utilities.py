@@ -18,7 +18,6 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import io
-import logging
 import os
 import shlex
 import threading
@@ -26,7 +25,6 @@ from multiprocessing.pool import ThreadPool
 from pathlib import PurePath
 
 import partisan
-import structlog
 from partisan.exception import RodsError
 from partisan.icommands import icp
 from partisan.irods import (
