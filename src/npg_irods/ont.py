@@ -20,7 +20,6 @@
 import re
 from datetime import datetime
 from os import PathLike
-from pathlib import PurePath
 from typing import Type, Union
 
 from partisan.exception import RodsError
@@ -30,14 +29,13 @@ from sqlalchemy.orm import Session
 from structlog import get_logger
 
 from npg_irods.db.mlwh import OseqFlowcell
-from npg_irods.metadata.ont import Instrument
 from npg_irods.metadata.lims import (
     SeqConcept,
     make_sample_acl,
     make_sample_metadata,
     make_study_metadata,
 )
-
+from npg_irods.metadata.ont import Instrument
 
 log = get_logger(__package__)
 
@@ -227,7 +225,6 @@ def annotate_results_collection(
     log.debug(
         "Searching the ML warehouse", expt_name=experiment_name, slot=instrument_slot
     )
-
     fc_info = find_flowcell_by_expt_slot(mlwh_session, experiment_name, instrument_slot)
 
     avus = [
@@ -256,36 +253,55 @@ def annotate_results_collection(
             "Found experiment/slot/tag index",
             expt_name=experiment_name,
             slot=instrument_slot,
-            tag_identifier=fc.tag_identifier,
+            tag_id=fc.tag_identifier,
         )
 
         if fc.tag_identifier:
-            # This is the barcode directory naming style created by ONT's
-            # Guppy and qcat de-multiplexers. We add information to the
-            # barcode sub-collection.
-            bc_path = PurePath(path) / barcode_name_from_id(fc.tag_identifier)
-            log.debug("Annotating", path=bc_path, tag_identifier=fc.tag_identifier)
-            log.debug("Annotating", path=bc_path, sample=fc.sample, study=fc.study)
+            # This is the barcode directory naming style created by current ONT's
+            # Guppy de-multiplexer. We add information to the barcode sub-collection.
+            # Guppy creates several subfolders e.g. "fast5_pass", "fast_fail", which we
+            # need to traverse.
 
-            bc_coll = Collection(bc_path)
-            if not bc_coll.exists():
-                log.warn(
-                    "The barcoded data collection does not exist",
-                    path=bc_path,
-                    expt_name=experiment_name,
-                    slot=instrument_slot,
-                    tag_identifier=fc.tag_identifier,
-                )
-                continue
+            subcolls = [
+                c for c in Collection(path).contents() if c.rods_type == Collection
+            ]
 
-            bc_coll.add_metadata(
-                AVU(SeqConcept.TAG_INDEX, tag_index_from_id(fc.tag_identifier))
-            )
-            bc_coll.add_metadata(*make_study_metadata(fc.study))
-            bc_coll.add_metadata(*make_sample_metadata(fc.sample))
+            num_errors = 0
+            for sc in subcolls:
+                try:
+                    bc_path = sc.path / barcode_name_from_id(fc.tag_identifier)
+                    log.debug("Annotating", path=bc_path, tag_id=fc.tag_identifier)
+                    log.debug(
+                        "Annotating", path=bc_path, sample=fc.sample, study=fc.study
+                    )
 
-            # The ACL could be different for each plex
-            bc_coll.add_permissions(*make_sample_acl(fc.sample, fc.study), recurse=True)
+                    bc_coll = Collection(bc_path)
+                    if not bc_coll.exists():
+                        log.warn(
+                            "The barcoded data collection does not exist",
+                            path=bc_path,
+                            expt_name=experiment_name,
+                            slot=instrument_slot,
+                            tag_id=fc.tag_identifier,
+                        )
+                        continue
+
+                    bc_coll.add_metadata(
+                        AVU(SeqConcept.TAG_INDEX, tag_index_from_id(fc.tag_identifier))
+                    )
+                    bc_coll.add_metadata(*make_study_metadata(fc.study))
+                    bc_coll.add_metadata(*make_sample_metadata(fc.sample))
+
+                    # The ACL could be different for each plex
+                    bc_coll.add_permissions(
+                        *make_sample_acl(fc.sample, fc.study), recurse=True
+                    )
+                except RodsError as e:
+                    log.error(e.message, code=e.code)
+                    num_errors += 1
+
+            if num_errors:
+                return False
         else:
             # There is no tag index, meaning that this is not a
             # multiplexed run, so we add information to the containing
