@@ -20,7 +20,6 @@
 import re
 from datetime import datetime
 from os import PathLike
-from pathlib import PurePath
 from typing import Type, Union
 
 from partisan.exception import RodsError
@@ -30,14 +29,13 @@ from sqlalchemy.orm import Session
 from structlog import get_logger
 
 from npg_irods.db.mlwh import OseqFlowcell
-from npg_irods.metadata.ont import Instrument
 from npg_irods.metadata.lims import (
     SeqConcept,
     make_sample_acl,
     make_sample_metadata,
     make_study_metadata,
 )
-
+from npg_irods.metadata.ont import Instrument
 
 log = get_logger(__package__)
 
@@ -46,8 +44,12 @@ log = get_logger(__package__)
 TAG_IDENTIFIER_GROUP = "tag_id"
 TAG_IDENTIFIER_REGEX = re.compile(r"(?P<tag_id>\d+)$")
 
+# Directories ignored when searching the run folder for directories containing deplexed
+# data. Examples of sibling directories that are not ignored: fast5_fail, fast5_pass
+IGNORED_DIRECTORIES = ["other_reports"]
 
-class MetadataUpdate(object):
+
+class MetadataUpdate:
     """Performs updated on metadata of data objects and collections for ONT data in
     iRODS."""
 
@@ -90,14 +92,14 @@ class MetadataUpdate(object):
         if since is None:
             since = datetime.fromtimestamp(0)  # Everything since the Epoch
 
-        num_found = num_updated = num_errors = 0
-        expt_slots = []
+        num_found, num_updated, num_errors = 0, 0, 0
 
         try:
             expt_slots = find_recent_expt_slot(mlwh_session, since=since)
         except Exception as e:
             num_errors += 1
             log.error(e)
+            return num_found, num_updated, num_errors
 
         for expt_name, slot in expt_slots:
             expt_avu = AVU(
@@ -155,6 +157,8 @@ class MetadataUpdate(object):
                                 "Updated", expt_name=expt_name, slot=slot, path=coll
                             )
                             num_updated += 1
+                        else:
+                            num_errors += 1
                     except RodsError as re1:
                         log.error(re1.message, code=re1.code)
                         num_errors += 1
@@ -219,7 +223,7 @@ def annotate_results_collection(
         path: A collection path to annotate.
         experiment_name: The ONT experiment name.
         instrument_slot: The ONT instrument slot number.
-        mlwh_session:
+        mlwh_session: An open SQL session.
 
     Returns:
         True on success.
@@ -229,6 +233,23 @@ def annotate_results_collection(
     )
 
     fc_info = find_flowcell_by_expt_slot(mlwh_session, experiment_name, instrument_slot)
+    if not fc_info:
+        log.warn(
+            "Failed to find flowcell information in the ML warehouse",
+            expt_name=experiment_name,
+            slot=instrument_slot,
+        )
+        return False
+
+    coll = Collection(path)
+    if not coll.exists():
+        log.warn(
+            "Collection does not exist",
+            path=coll,
+            expt_name=experiment_name,
+            slot=instrument_slot,
+        )
+        return False
 
     avus = [
         avu.with_namespace(Instrument.namespace)
@@ -237,65 +258,84 @@ def annotate_results_collection(
             AVU(Instrument.INSTRUMENT_SLOT, instrument_slot),
         ]
     ]
-
-    coll = Collection(path)
-    if not coll.exists():
-        log.warn(
-            "The data collection does not exist",
-            expt_name=experiment_name,
-            slot=instrument_slot,
-        )
-        return False
-
     coll.add_metadata(*avus)  # These AVUs should be present already
 
-    # There will be either a single fc record (for non-multiplexed data) or
-    # multiple (one per plex of multiplexed data)
-    for fc in fc_info:
-        log.debug(
-            "Found experiment/slot/tag index",
-            expt_name=experiment_name,
-            slot=instrument_slot,
-            tag_identifier=fc.tag_identifier,
+    # A single fc record (for non-multiplexed data)
+    if len(fc_info) == 1:
+        log.info(
+            "Found non-multiplexed", expt_name=experiment_name, slot=instrument_slot
         )
-
-        if fc.tag_identifier:
-            # This is the barcode directory naming style created by ONT's
-            # Guppy and qcat de-multiplexers. We add information to the
-            # barcode sub-collection.
-            bc_path = PurePath(path) / barcode_name_from_id(fc.tag_identifier)
-            log.debug("Annotating", path=bc_path, tag_identifier=fc.tag_identifier)
-            log.debug("Annotating", path=bc_path, sample=fc.sample, study=fc.study)
-
-            bc_coll = Collection(bc_path)
-            if not bc_coll.exists():
-                log.warn(
-                    "The barcoded data collection does not exist",
-                    path=bc_path,
-                    expt_name=experiment_name,
-                    slot=instrument_slot,
-                    tag_identifier=fc.tag_identifier,
-                )
-                continue
-
-            bc_coll.add_metadata(
-                AVU(SeqConcept.TAG_INDEX, tag_index_from_id(fc.tag_identifier))
-            )
-            bc_coll.add_metadata(*make_study_metadata(fc.study))
-            bc_coll.add_metadata(*make_sample_metadata(fc.sample))
-
-            # The ACL could be different for each plex
-            bc_coll.add_permissions(*make_sample_acl(fc.sample, fc.study), recurse=True)
-        else:
-            # There is no tag index, meaning that this is not a
-            # multiplexed run, so we add information to the containing
-            # collection.
+        fc = fc_info[0]
+        try:
             coll.add_metadata(*make_study_metadata(fc.study))
             coll.add_metadata(*make_sample_metadata(fc.sample))
-
             coll.add_permissions(*make_sample_acl(fc.sample, fc.study), recurse=True)
+        except RodsError as e:
+            log.error(e.message, code=e.code)
+            return False
 
-    return True
+        return True
+
+    log.info("Found multiplexed", expt_name=experiment_name, slot=instrument_slot)
+    sub_colls = [c for c in coll.contents() if c.rods_type == Collection]
+
+    # This expects the barcode directory naming style created by current ONT's
+    # Guppy de-multiplexer which creates several subdirectories e.g. "fast5_pass",
+    # "fast_fail". Each of these subdirectories contains another directory for each
+    # barcode, plus miscellaneous directories such as "mixed" and "unclassified".
+
+    num_errors = 0
+    for sc in sub_colls:  # fast5_fail, fast5_pass etc
+        # These are some known special cases that don't have barcode directories
+        if sc.path.name in IGNORED_DIRECTORIES:
+            log.debug("Ignoring", path=sc)
+            continue
+
+        # Multiple fc records (one per plex of multiplexed data)
+        for fc in fc_info:
+            log.debug(
+                "Multiplexed",
+                expt_name=experiment_name,
+                slot=instrument_slot,
+                tag_id=fc.tag_identifier,
+            )
+
+            try:
+                bc_path = sc.path / barcode_name_from_id(fc.tag_identifier)
+                bc_coll = Collection(bc_path)
+                if not bc_coll.exists():
+                    log.warn(
+                        "Collection missing",
+                        path=bc_path,
+                        expt_name=experiment_name,
+                        slot=instrument_slot,
+                        tag_id=fc.tag_identifier,
+                    )
+                    continue
+
+                log.debug(
+                    "Annotating",
+                    path=bc_path,
+                    tag_id=fc.tag_identifier,
+                    sample=fc.sample,
+                    study=fc.study,
+                )
+
+                bc_coll.add_metadata(
+                    AVU(SeqConcept.TAG_INDEX, tag_index_from_id(fc.tag_identifier))
+                )
+                bc_coll.add_metadata(*make_study_metadata(fc.study))
+                bc_coll.add_metadata(*make_sample_metadata(fc.sample))
+
+                # The ACL could be different for each plex
+                bc_coll.add_permissions(
+                    *make_sample_acl(fc.sample, fc.study), recurse=True
+                )
+            except RodsError as e:
+                log.error(e.message, code=e.code)
+                num_errors += 1
+
+    return num_errors == 0
 
 
 def find_recent_expt(sess: Session, since: datetime) -> list[str]:
