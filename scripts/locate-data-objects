@@ -70,7 +70,7 @@ def main():
         print(version())
         exit(0)
 
-    dbconfig = DBConfig.from_file(args.database_config.name, "MySQL")
+    dbconfig = DBConfig.from_file(args.database_config.name, "mlwh_ro")
 
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
