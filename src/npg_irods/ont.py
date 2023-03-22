@@ -314,7 +314,7 @@ def annotate_results_collection(
 
                 log.info(
                     "Annotating",
-                    path=bc_path,
+                    path=bc_coll,
                     expt_name=experiment_name,
                     slot=instrument_slot,
                     tag_id=fc.tag_identifier,
