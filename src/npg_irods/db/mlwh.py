@@ -56,7 +56,7 @@ class Sample(Base):
         "OseqFlowcell", back_populates="sample"
     )
 
-    def __str__(self):
+    def __repr__(self):
         return f"<Sample id_sample_lims={self.id_sample_lims}>"
 
 
@@ -87,7 +87,7 @@ class Study(Base):
         "OseqFlowcell", back_populates="study"
     )
 
-    def __str__(self):
+    def __repr__(self):
         return f"<Study id_study_lims={self.id_study_lims}>"
 
 
@@ -172,7 +172,7 @@ class OseqFlowcell(Base):
     sample: Mapped["Sample"] = relationship("Sample", back_populates="oseq_flowcell")
     study: Mapped["Study"] = relationship("Study", back_populates="oseq_flowcell")
 
-    def __str__(self):
+    def __repr__(self):
         return (
             f"<OseqFlowcell expt_name={self.experiment_name} "
             f"slot={self.instrument_slot} "
