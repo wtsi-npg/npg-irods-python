@@ -21,7 +21,6 @@ import re
 from enum import unique
 from multiprocessing.pool import ThreadPool
 from threading import Lock
-from typing import List
 
 from npg_id_generation.pac_bio import PacBioEntity
 from structlog import get_logger
@@ -151,7 +150,7 @@ def ensure_id_product(
 
 
 def backfill_id_products(
-    paths: List[str],
+    paths: list[str],
     out_path: str,
     overwrite: bool = False,
     num_threads: int = 1,

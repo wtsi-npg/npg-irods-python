@@ -16,14 +16,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Michael Kubiak <mk35@sanger.ac.uk>
+import json
 from pathlib import PurePath
-
-from partisan.irods import DataObject
 
 from structlog import get_logger
 
-from typing import Dict
-import json
+from partisan.irods import DataObject
 
 log = get_logger(__name__)
 JSON_FILE_VERSION = "1.0"
