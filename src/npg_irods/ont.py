@@ -172,6 +172,12 @@ class MetadataUpdate:
 
         return num_found, num_updated, num_errors
 
+    def __str__(self):
+        return (
+            f"<MetadataUpdate expt_name={self.experiment_name} "
+            f"slot={self.instrument_slot}>"
+        )
+
 
 def tag_index_from_id(tag_identifier: str) -> int:
     """Return the barcode tag index given a barcode tag identifier.
@@ -216,7 +222,7 @@ def annotate_results_collection(
     sample and the associated study, including data access permissions. This function
     also sets the appropriate permissions in iRODS.
 
-    This function is idempotent. No harm will come from running it an an already
+    This function is idempotent. No harm will come from running it on an already
     up-to-date collection.
 
     Args:
@@ -293,13 +299,6 @@ def annotate_results_collection(
 
         # Multiple fc records (one per plex of multiplexed data)
         for fc in fc_info:
-            log.debug(
-                "Multiplexed",
-                expt_name=experiment_name,
-                slot=instrument_slot,
-                tag_id=fc.tag_identifier,
-            )
-
             try:
                 bc_path = sc.path / barcode_name_from_id(fc.tag_identifier)
                 bc_coll = Collection(bc_path)
@@ -313,9 +312,11 @@ def annotate_results_collection(
                     )
                     continue
 
-                log.debug(
+                log.info(
                     "Annotating",
-                    path=bc_path,
+                    path=bc_coll,
+                    expt_name=experiment_name,
+                    slot=instrument_slot,
                     tag_id=fc.tag_identifier,
                     sample=fc.sample,
                     study=fc.study,

@@ -56,6 +56,9 @@ class Sample(Base):
         "OseqFlowcell", back_populates="sample"
     )
 
+    def __repr__(self):
+        return f"<Sample id_sample_lims={self.id_sample_lims}>"
+
 
 class Study(Base):
     __tablename__ = "study"
@@ -83,6 +86,9 @@ class Study(Base):
     oseq_flowcell: Mapped["OseqFlowcell"] = relationship(
         "OseqFlowcell", back_populates="study"
     )
+
+    def __repr__(self):
+        return f"<Study id_study_lims={self.id_study_lims}>"
 
 
 class IseqFlowcell(Base):
@@ -165,6 +171,13 @@ class OseqFlowcell(Base):
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="oseq_flowcell")
     study: Mapped["Study"] = relationship("Study", back_populates="oseq_flowcell")
+
+    def __repr__(self):
+        return (
+            f"<OseqFlowcell expt_name={self.experiment_name} "
+            f"slot={self.instrument_slot} "
+            f"flowcell={self.flowcell_id}>"
+        )
 
 
 def find_consent_withdrawn_samples(sess: Session) -> list[Type[Sample]]:
