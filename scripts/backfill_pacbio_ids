@@ -115,6 +115,7 @@ def main():
         print(version())
         exit(0)
 
-    backfill_id_products(
+    if not backfill_id_products(
         args.paths, args.out, num_clients=args.clients, num_threads=args.threads
-    )
+    ):
+        exit(1)

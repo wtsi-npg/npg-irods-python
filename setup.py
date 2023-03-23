@@ -31,7 +31,13 @@ setup(
     package_dir={"": "src"},
     setup_requires=["setuptools-git-versioning"],
     setuptools_git_versioning={"enabled": True},
-    install_requires=["partisan", "rich", "sqlalchemy", "structlog"],
+    install_requires=[
+        "npg_id_generation",
+        "partisan",
+        "rich",
+        "sqlalchemy",
+        "structlog",
+    ],
     tests_require=["black", "pytest", "pytest-it"],
     scripts=[
         "scripts/backfill_illumina_locations.py",

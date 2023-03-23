@@ -35,7 +35,7 @@ from partisan.irods import (
     DataObject,
     RodsError,
     client_pool,
-    rods_path_type,
+    make_rods_item,
 )
 from partisan.metadata import AsValueEnum
 
@@ -81,37 +81,38 @@ def requires_id_product_metadata(obj: DataObject) -> bool:
     return False
 
 
-def ensure_id_product(obj: DataObject, overwrite: bool = False) -> str | None:
+def ensure_id_product(
+    obj: DataObject, writer: LocationWriter, overwrite: bool = False
+) -> bool:
     """Ensure that a data object has id_product metadata if it should need it.
     Else do nothing.
 
     Args:
         obj: The data object.
+        writer: The LocationWriter object that stores and writes locations
+                json for any changed product id values.
         overwrite: A flag to overwrite metadata that is already present.
                    Defaults to False.
 
-    Returns: The id product added as metadata or None if no change is required.
-             str.
+    Returns: True if a change was made, False otherwise
 
     """
 
     if not overwrite and has_id_product_metadata(obj):
-        log.debug(f"{obj} already has id_product metadata")
-        return None
+        log.debug("Data object already has id_product metadata", path=obj)
+        return False
 
     if not requires_id_product_metadata(obj):
-        log.debug(f"{obj} does not require id_product metadata")
-        return None
+        log.debug("Data object does not require id_product metadata", path=obj)
+        return False
 
-    log.debug(f"Making id_product metadata for {obj}")
+    log.debug("Making id_product metadata for data object", path=obj)
     metadata = {}
     id_product_old = ""
     for avu in obj.metadata():
         if avu.attribute == SeqConcept.ID_PRODUCT.value:
             id_product_old = avu.value
-        elif avu.attribute in [
-            meta.value for meta in Instrument
-        ]:  # until python 3.12 is released, there is no easy way to test against a value being present in an Enum
+        elif avu.attribute in Instrument.values():
             metadata[avu.attribute] = avu.value
 
     id_args = {
@@ -120,26 +121,33 @@ def ensure_id_product(obj: DataObject, overwrite: bool = False) -> str | None:
     }
 
     if has_target_metadata(obj):
-        try:
+        if Instrument.TAG_SEQUENCE.value in metadata:
             id_args["tags"] = metadata[Instrument.TAG_SEQUENCE.value]
             log.debug(
-                f"{obj} is a target data file, adding tag sequence, if "
-                "present, to product id generation"
+                "Data object is a target data file, adding tag sequence, if "
+                "present, to product id generation",
+                path=obj,
             )
-        except KeyError:
-            pass  # key error means that no tag metadata is present,
-            # so the well level id_product will be used
 
     id_product = PacBioEntity(**id_args).hash_product_id()
 
     if id_product_old:
-        log.debug(f"Removing old id_product {id_product_old} from {obj}")
-        obj.remove_metadata(AVU(SeqConcept.ID_PRODUCT.value, id_product_old))
+        log.debug(
+            "Removing old id_product value from data object",
+            id_product=id_product_old,
+            path=obj,
+        )
+        obj.remove_metadata(AVU(SeqConcept.ID_PRODUCT, id_product_old))
 
-    log.debug(f"Adding id_product = {id_product} to {obj}")
-    obj.add_metadata(AVU(SeqConcept.ID_PRODUCT.value, id_product))
+    log.debug("Adding id_product to data object", id_product=id_product, path=obj)
+    obj.add_metadata(AVU(SeqConcept.ID_PRODUCT, id_product))
 
-    return id_product
+    if has_target_metadata(obj):
+        lock.acquire()
+        writer.add_product(obj, id_product)
+        lock.release()
+
+    return True
 
 
 def backfill_id_products(
@@ -164,32 +172,21 @@ def backfill_id_products(
     Returns: bool
 
     """
-    rv = False
+    rv = True
     writer = LocationWriter(PACBIO, path=out_path)
-
-    def fn(obj: DataObject):
-        id_product = ensure_id_product(obj, overwrite)
-
-        if has_target_metadata(obj):
-            lock.acquire()
-            writer.add_product(obj, id_product)
-            lock.release()
-        if id_product:
-            return True
-        else:
-            return False
 
     with client_pool(num_clients) as bp, ThreadPool(num_threads) as tp:
         results = []
         for path in paths:
-            if rods_path_type(path) == Collection:
-                objs = Collection(path, pool=bp).iter_contents(recurse=True)
+            item = make_rods_item(path, pool=bp)
+            if isinstance(item, Collection):
+                objs = item.iter_contents(recurse=True)
             else:
-                objs = [DataObject(path, pool=bp)]
+                objs = [item]
 
             results.extend(
                 [
-                    tp.apply_async(fn, (obj,))
+                    tp.apply_async(ensure_id_product, (obj, writer, overwrite))
                     for obj in objs
                     if isinstance(obj, DataObject)
                 ]
@@ -198,9 +195,9 @@ def backfill_id_products(
         for result in results:
             try:
                 result.get()
-                rv = True
             except RodsError as e:
                 log.error(e.message, code=e.code)
+                rv = False
 
     writer.write()
     return rv

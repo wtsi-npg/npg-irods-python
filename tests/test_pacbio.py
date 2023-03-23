@@ -115,7 +115,7 @@ class TestIDProductMetadata:
         obj = DataObject(pacbio_has_id)
 
         obj.add_metadata(AVU(SeqConcept.ID_PRODUCT, "abcde12345"))
-        assert ensure_id_product(obj)
+        assert ensure_id_product(obj, LocationWriter(PACBIO))
 
         for avu in obj.metadata():
             if avu.attribute == SeqConcept.ID_PRODUCT:
@@ -129,7 +129,7 @@ class TestIDProductMetadata:
 
         obj.add_metadata(AVU(Instrument.RUN_NAME, "RUN-01"))
         obj.add_metadata(AVU(Instrument.WELL_LABEL, "A01"))
-        assert ensure_id_product(obj, overwrite=True)
+        assert ensure_id_product(obj, LocationWriter(PACBIO), overwrite=True)
 
         expected_id_product = PacBioEntity(
             run_name="RUN-01", well_label="A1"
@@ -150,7 +150,7 @@ class TestIDProductMetadata:
         obj.add_metadata(AVU(Instrument.RUN_NAME, "RUN-01"))
         obj.add_metadata(AVU(Instrument.WELL_LABEL, "A01"))
         obj.add_metadata(AVU(Instrument.TAG_SEQUENCE, "ACTCAGTC"))
-        assert ensure_id_product(obj)
+        assert ensure_id_product(obj, LocationWriter(PACBIO))
 
         expected_id_product = PacBioEntity(
             run_name="RUN-01", well_label="A1", tags="ACTCAGTC"
@@ -169,7 +169,7 @@ class TestIDProductMetadata:
     def test_ensure_metadata_absent_not_required(self, annotated_data_object):
         obj = DataObject(annotated_data_object)
 
-        assert not ensure_id_product(obj)
+        assert not ensure_id_product(obj, LocationWriter(PACBIO))
 
     @m.context("When id_product metadata are present")
     @m.context("When backfill_id_products is run")
