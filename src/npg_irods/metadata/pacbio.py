@@ -73,11 +73,7 @@ def requires_id_product_metadata(obj: DataObject) -> bool:
     Returns: True if the metadata are required, False if not.
 
     """
-    if (
-        parse_object_type(obj) == "bam"
-    ):  # Currently, the only Pac Bio sequence files in iRODS are bams
-        return True
-    return False
+    return parse_object_type(obj) == "bam"
 
 
 def ensure_id_product(
