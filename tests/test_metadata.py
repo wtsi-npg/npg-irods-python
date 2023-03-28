@@ -40,6 +40,7 @@ from npg_irods.metadata.common import (
     has_creation_metadata,
     has_matching_checksum_metadata,
     has_matching_checksums,
+    has_target_metadata,
     has_type_metadata,
     make_creation_metadata,
     make_type_metadata,
@@ -429,3 +430,23 @@ class TestCommonMetadata:
         assert not has_checksum_metadata(obj)
         assert ensure_checksum_metadata(obj)
         assert has_checksum_metadata(obj)
+
+
+@m.describe("Target metadata")
+class TestTargetMetadata:
+    @m.context("When target metadata are present")
+    @m.context("When has_ function is called")
+    @m.it("Returns True")
+    def test_has_metadata_present(self, annotated_data_object):
+        obj = DataObject(annotated_data_object)
+
+        obj.add_metadata(AVU(DataFile.TARGET, "1"))
+        assert has_target_metadata(obj)
+
+    @m.context("When target metadata are not present")
+    @m.context("When has_ function is called")
+    @m.it("Returns False")
+    def test_has_metadata_absent(self, annotated_data_object):
+        obj = DataObject(annotated_data_object)
+
+        assert not has_target_metadata(obj)

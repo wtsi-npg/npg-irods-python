@@ -24,7 +24,9 @@ from enum import unique
 from itertools import starmap
 from typing import List
 
-from partisan.irods import AC, AVU, DataObject, Permission
+from ml_warehouse.schema import Sample, Study
+from partisan.irods import AC, AVU, Permission, DataObject
+
 from partisan.metadata import AsValueEnum
 from structlog import get_logger
 
@@ -233,3 +235,15 @@ def ensure_consent_withdrawn(obj: DataObject) -> bool:
         has_withdrawn_perm=has_consent_withdrawn_permissions(obj),
     )
     return True
+
+
+def has_id_product_metadata(obj: DataObject):
+    """Return True if the data object has id product metadata.
+
+    Args:
+        obj: The data object to check
+
+    Returns:
+        True if the object has id product metadata, False otherwise.
+    """
+    return any(avu.attribute == SeqConcept.ID_PRODUCT.value for avu in obj.metadata())
