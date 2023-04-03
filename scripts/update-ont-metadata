@@ -19,7 +19,6 @@
 # @author Marco M. Mosca <mm51@sanger.ac.uk>
 
 import argparse
-import configparser
 from datetime import datetime, timedelta
 
 import dateutil.parser
@@ -27,9 +26,9 @@ import sqlalchemy
 import structlog
 from sqlalchemy.orm import Session
 
+from npg_irods.cli import add_logging_arguments, configure_logging
 from npg_irods.db import DBConfig
 from npg_irods.ont import MetadataUpdate
-from npg_irods.cli import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
@@ -60,6 +59,7 @@ parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
 add_logging_arguments(parser)
+
 parser.add_argument(
     "--begin-date",
     "--begin_date",
@@ -84,17 +84,11 @@ parser.add_argument(
     type=argparse.FileType("r"),
     required=True,
 )
-group1 = parser.add_mutually_exclusive_group()
-group1.add_argument(
-    "--log-config",
-    "--log_config",
-    help="A logging configuration file.",
-    type=argparse.FileType("r"),
-)
+
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
 
 args = parser.parse_args()
-configure_logging(args.debug, args.verbose, args.colour, args.json)
+configure_logging(args.log_config, args.debug, args.verbose, args.colour, args.json)
 log = structlog.get_logger("main")
 
 

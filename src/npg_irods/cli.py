@@ -18,6 +18,9 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import logging
+import logging.config
+import json as json_parser
+
 from argparse import ArgumentParser
 
 import structlog
@@ -26,10 +29,12 @@ import structlog
 def add_logging_arguments(parser: ArgumentParser) -> ArgumentParser:
     """Adds standard CLI logging arguments to a parser.
 
+    - --log-config Use a log configuration file (mutually exclusive with --debug,
+        --verbose, --colour and --json).
     - -d/--debug   Enable DEBUG level logging to STDERR.
     - -v/--verbose Enable INFO level logging to STDERR.
-    - --json       Use JSON log rendering.
     - --colour     Use coloured log rendering to the console.
+    - --json       Use JSON log rendering.
 
     Args:
         parser: An argument parser to modify.
@@ -37,18 +42,26 @@ def add_logging_arguments(parser: ArgumentParser) -> ArgumentParser:
     Returns:
         The parser
     """
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--log-config",
+        "--log_config",
+        help="A logging configuration file.",
+        type=str,
+    )
+    group.add_argument(
         "-d",
         "--debug",
         help="Enable DEBUG level logging to STDERR.",
         action="store_true",
     )
-    parser.add_argument(
+    group.add_argument(
         "-v",
         "--verbose",
         help="Enable INFO level logging to STDERR.",
         action="store_true",
     )
+
     parser.add_argument(
         "--json",
         help="Use JSON log rendering.",
@@ -63,39 +76,89 @@ def add_logging_arguments(parser: ArgumentParser) -> ArgumentParser:
     return parser
 
 
-def configure_logging(debug=False, verbose=False, colour=False, json=False):
-    """Configure structlog logging.
+def configure_logging(
+    config_file=None, debug=False, verbose=False, colour=False, json=False
+):
+    """Configure logging with a file, or individual parameters.
 
-    Sets the log level, enables ANSI colour or JSON structured logging and sets the
-    logging timestamp format to UTC.
+    Configures logging using a configuration file or by setting a log level.
+
+    The structlog pipeline is mostly not configurable (only the "colour" and "json"
+    keywords are available). The configuration file modifies the behaviour of
+    standard logging, into which structlog sends pre-formatted messages.
+
+    The configuration file must be JSON in the form of a standard logging configuration
+    dictionary.
+
+    See https://docs.python.org/3/library/logging.config.html#configuration-dictionary-schema
 
         Args:
-            debug: Set to True for DEBUG logging, Defaults to False.
-            verbose: Set to True for INFO logging. Defaults to False and overrides debug.
+            config_file: A file path. Optional. If provided, the debug and verbose
+                keywords are ignored in favour of the settings in the file.
+            debug: Set to True for DEBUG logging, Defaults to False and overrides
+                verbose if set.
+            verbose: Set to True for INFO logging. Defaults to False.
             colour: Set to True for colour logging. Defaults to False.
-            json: Set to True for JSON structured logs. Defaults to False and overrides
-              colour.
+            json: Set to True for JSON structured logs. Defaults to False and
+              overrides colour if set.
 
         Returns:
             Void
     """
-    level = logging.ERROR
-    if debug:
-        level = logging.DEBUG
-    elif verbose:
-        level = logging.INFO
-
-    logging.basicConfig(level=level, encoding="utf-8")
+    # The processor pipeline (and comments) are taken from the structlog
+    # documentation "Rendering within structlog":
+    #
+    # "This is the simplest approach where structlog does all the heavy
+    # lifting and passes a fully-formatted string to logging."
 
     log_processors = [
+        # If log level is too low, abort pipeline and throw away log entry.
+        structlog.stdlib.filter_by_level,
+        # Add the name of the logger to event dict.
         structlog.stdlib.add_logger_name,
+        # Add log level to event dict.
         structlog.stdlib.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        # Perform %-style formatting.
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        # Add a timestamp in ISO 8601 format.
+        structlog.processors.TimeStamper(fmt="iso", utc=True),  # UTC added by kdj
+        # If the "stack_info" key in the event dict is true, remove it and
+        # render the current stack trace in the "stack" key.
+        structlog.processors.StackInfoRenderer(),
+        # If the "exc_info" key in the event dict is either true or a
+        # sys.exc_info() tuple, remove "exc_info" and render the exception
+        # with traceback into the "exception" key.
+        structlog.processors.format_exc_info,
+        # If some value is in bytes, decode it to a unicode str.
+        structlog.processors.UnicodeDecoder(),
+        # Add call site parameters.
+        structlog.processors.CallsiteParameterAdder(
+            {
+                structlog.processors.CallsiteParameter.FILENAME,
+                structlog.processors.CallsiteParameter.FUNC_NAME,
+                structlog.processors.CallsiteParameter.LINENO,
+            }
+        ),
     ]
+
+    if config_file is not None:
+        with open(config_file, "rb") as f:
+            conf = json_parser.load(f)
+            logging.config.dictConfig(conf)
+    else:
+        level = logging.ERROR
+        if debug:
+            level = logging.DEBUG
+        elif verbose:
+            level = logging.INFO
+
+        logging.basicConfig(level=level, encoding="utf-8")
+
     if json:
         log_processors.append(structlog.processors.JSONRenderer())
     else:
         log_processors.append(structlog.dev.ConsoleRenderer(colors=colour))
+
     structlog.configure(
         processors=log_processors,
         logger_factory=structlog.stdlib.LoggerFactory(),
