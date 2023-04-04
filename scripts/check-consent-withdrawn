@@ -71,7 +71,13 @@ parser.add_argument("--version", help="Print the version and exit", action="stor
 
 
 args = parser.parse_args()
-configure_logging(args.debug, args.verbose, args.colour, args.json)
+configure_logging(
+    config_file=args.log_config,
+    debug=args.debug,
+    verbose=args.verbose,
+    colour=args.colour,
+    json=args.json,
+)
 log = structlog.get_logger("main")
 
 

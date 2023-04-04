@@ -45,16 +45,19 @@ abort further copying until the problem is resolved.
 """
 
 parser = argparse.ArgumentParser(
-    description=description, formatter_class=argparse.RawDescriptionHelpFormatter
+    description=description,
+    formatter_class=argparse.RawDescriptionHelpFormatter,
 )
 add_logging_arguments(parser)
 parser.add_argument(
     "source",
     help="Collection or data object path to copy from. Must be an absolute path.",
+    nargs="?",
 )
 parser.add_argument(
     "destination",
     help="Collection or data object path to copy to. Must be an absolute path.",
+    nargs="?",
 )
 parser.add_argument(
     "--copy-metadata",
@@ -82,7 +85,13 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-configure_logging(args.debug, args.verbose, args.colour, args.json)
+configure_logging(
+    config_file=args.log_config,
+    debug=args.debug,
+    verbose=args.verbose,
+    colour=args.colour,
+    json=args.json,
+)
 log = structlog.get_logger("main")
 
 
