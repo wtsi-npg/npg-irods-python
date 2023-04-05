@@ -21,9 +21,27 @@ import logging
 import logging.config
 import json as json_parser
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 
 import structlog
+from partisan.irods import rods_path_type
+
+
+def rods_path(path):
+    """Return the iRODS path, if it exists, or raise ArgumentTypeError.
+
+    This function is to be used as an argparse type check.
+
+    Args:
+        path: An iRODS path
+
+    Returns:
+        The path
+    """
+    if rods_path_type(path) is None:
+        raise ArgumentTypeError(f"iRODS path does not exist '{path}'")
+
+    return path
 
 
 def add_logging_arguments(parser: ArgumentParser) -> ArgumentParser:

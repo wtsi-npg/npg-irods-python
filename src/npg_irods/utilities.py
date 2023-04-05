@@ -719,11 +719,78 @@ def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int
         A tuple of the number of items (collections and data objects) processed, the
         number of items copied.
 
-        If exist_ok is True, this number copied does not include counts of collections
+        If exist_ok is True, the number copied does not include counts of collections
         and data objects which were not copied because they already existed at the
         destination.
     Raises:
         ChecksumError if checksums are inconsistent.
+    """
+    if src is None:
+        raise ValueError(f"A source iRODS path is required")
+    if dest is None:
+        raise ValueError(f"A dest iRODS path is required")
+
+    if not isinstance(src, RodsItem):
+        src = make_rods_item(src)
+    if not src.exists():
+        raise ValueError(f"Cannot copy from a non-existent iRODS path '{src}'")
+
+    if not isinstance(dest, RodsItem):
+        if rods_path_type(dest):
+            # The dest path exists, so make the appropriate object
+            dest = make_rods_item(dest)
+        elif src.rods_type == Collection:
+            # The dest path doesn't exist and the src is a collection, so the dest must
+            # also be a collection
+            dest = Collection(dest)
+        elif src.rods_type == DataObject:
+            # The dest path doesn't exist and the src path is a data object, so the dest
+            # can be either. In this case, we default to a data object.
+            dest = DataObject(dest)
+        else:
+            raise ValueError(
+                f"Invalid iRODS path type combination src: {src}: "
+                f"src type: {src.rods_type}, "
+                f"dest: {dest}, dest type: {dest.rods_type}"
+            )
+
+    if src == dest:
+        raise ValueError(f"Cannot copy a path {src} to itself")
+
+    # Allow copying of a collection with renaming i.e. rather than copying into a
+    # destination that must exist, we are copying into the destination's parent
+    # collection (which must exist), while renaming.
+    into = True
+    if src.rods_type == Collection and dest.rods_type is None:
+        if rods_path_type(dest.path.parent.as_posix()) == Collection:
+            into = False
+
+    return _copy(
+        src, dest, acl=acl, avu=avu, exist_ok=exist_ok, into=into, recurse=recurse
+    )
+
+
+def _copy(
+    src, dest, acl=False, avu=False, into=True, exist_ok=False, recurse=False
+) -> (int, int):
+    """Implement copy for the public copy function.
+
+    Args:
+        src: A DataObject or Collection to copy from.
+        dest: A DataObject or Collection to copy to.
+        acl: If True, also copy any permissions.
+        avu: If True, also copy any metadata.
+        into: If True, copy any source collection contents directly into the
+            destination, rather than copying the source collection itself into the
+            destination (effectively renaming the collection while copying).
+        exist_ok: If True, check for existing collections and data objects at the
+            destination. If they exist and are identical to what would be the result of
+            copying, do not raise an error.
+        recurse: If True, recurse into collections when copying.
+
+    Returns:
+         A tuple of the number of items (collections and data objects) processed, the
+        number of items copied.
     """
     num_processed, num_copied = 0, 0
 
@@ -779,35 +846,9 @@ def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int
             return 0
 
         log.info("Copying collection", src=s, dest=d)
-
         coll.create(exist_ok=exist_ok)
         return 1
 
-    # If we were not passed RodsItems, but bare paths, work out what their iRODS types
-    # should be
-    if not isinstance(src, RodsItem):
-        #  The source path must exist, or it's an error
-        src = make_rods_item(src)
-    if not isinstance(dest, RodsItem):
-        if rods_path_type(dest):
-            # The dest path exists, so make the appropriate object
-            dest = make_rods_item(dest)
-        elif src.rods_type == partisan.irods.Collection:
-            # The dest path doesn't exist and the src is a collection, so the dest must
-            # also be a collection
-            dest = Collection(dest)
-        elif src.rods_type == partisan.irods.DataObject:
-            # The dest path doesn't exist and the src path is a data object, so the dest
-            # can be either. In this case, we default to a data object.
-            dest = DataObject(dest)
-        else:
-            raise ValueError(
-                f"Invalid iRODS path type combination src: {src}: "
-                f"src type: {src.rods_type}, "
-                f"dest: {dest}, dest type: {dest.rods_type}"
-            )
-
-    # Now that we have the iRODS types of the src and dest
     match (src.rods_type, dest.rods_type):
         case (partisan.irods.Collection, partisan.irods.DataObject):
             raise ValueError(
@@ -818,14 +859,14 @@ def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int
             partisan.irods.Collection,
             None,
         ):
-            coll = Collection(PurePath(dest.path, src.path.name))
+            coll = Collection(PurePath(dest.path, src.path.name)) if into else dest
             num_processed += 1
             num_copied += _maybe_copy_coll(src, coll)
             _cp_avu_acl(src, coll)
 
             if recurse:
                 for item in src.contents():
-                    np, nc = copy(
+                    np, nc = _copy(
                         item,
                         Collection(coll.path),
                         avu=avu,

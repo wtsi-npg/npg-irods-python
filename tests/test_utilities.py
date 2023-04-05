@@ -22,7 +22,6 @@ import subprocess
 from io import StringIO
 from pathlib import Path, PurePath
 
-import partisan.irods
 import pytest
 from partisan.exception import RodsError
 from partisan.irods import AC, AVU, Collection, DataObject, Permission
@@ -46,9 +45,7 @@ from npg_irods.utilities import (
 
 def collect_objs(coll: Collection):
     return [
-        item
-        for item in coll.contents(recurse=True)
-        if item.rods_type == partisan.irods.DataObject
+        item for item in coll.contents(recurse=True) if item.rods_type == DataObject
     ]
 
 
@@ -341,17 +338,48 @@ class TestConsentUtilities:
 
 @m.describe("Copy utilities")
 class TestCopyUtilities:
+    @m.context("When any path is copied")
+    @m.context("When the source and destination paths are the same")
+    @m.it("Raises an error")
+    def test_copy_to_self(self, simple_collection, simple_data_object):
+        c = Collection(simple_collection)
+        with pytest.raises(ValueError):
+            copy(c, c)
+
+        d = DataObject(simple_data_object)
+        with pytest.raises(ValueError):
+            copy(d, d)
+
     @m.context("When a collection is copied")
     @m.context("When a there is no collection with that name at the destination")
     @m.it("Creates a copy within the destination collection")
     def test_copy_collection(self, simple_collection):
         x = Collection(PurePath(simple_collection, "x"))
         x.create()
+        assert x.exists()
         y = Collection(PurePath(simple_collection, "y"))
         y.create()
+        assert y.exists()
 
         copy(x, y)
         assert Collection(PurePath(simple_collection, "y", "x")).exists()
+
+    @m.context("When a collection is copied recursively")
+    @m.context("When a there is no collection with that name at the destination")
+    @m.context("When the destination's parent collection exists")
+    @m.it("Creates a renamed copy within the destination's parent collection")
+    def test_copy_rename_collection(self, simple_collection):
+        x = Collection(PurePath(simple_collection, "x"))
+        z = Collection(PurePath(simple_collection, "x", "y", "z"))
+        z.create(parents=True)
+        assert z.exists()
+
+        a = Collection(PurePath(simple_collection, "a"))
+        assert not a.exists()
+        assert Collection(a.path.parent).exists()
+
+        copy(x, a, recurse=True)
+        assert Collection(PurePath(simple_collection, "a", "y", "z")).exists()
 
     @m.context("When a collection is copied")
     @m.context("When a there is already a collection with that name at the destination")

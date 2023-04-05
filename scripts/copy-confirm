@@ -25,7 +25,7 @@ from partisan.exception import RodsError
 
 from npg_irods.exception import ChecksumError
 from npg_irods.utilities import copy
-from npg_irods.cli import add_logging_arguments, configure_logging
+from npg_irods.cli import add_logging_arguments, configure_logging, rods_path
 from npg_irods.version import version
 
 description = """
@@ -53,6 +53,7 @@ parser.add_argument(
     "source",
     help="Collection or data object path to copy from. Must be an absolute path.",
     nargs="?",
+    type=rods_path,
 )
 parser.add_argument(
     "destination",
