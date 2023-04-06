@@ -351,7 +351,7 @@ class TestCopyUtilities:
             copy(d, d)
 
     @m.context("When a collection is copied")
-    @m.context("When a there is no collection with that name at the destination")
+    @m.context("When there is no collection with that name at the destination")
     @m.it("Creates a copy within the destination collection")
     def test_copy_collection(self, simple_collection):
         x = Collection(PurePath(simple_collection, "x"))
@@ -365,7 +365,7 @@ class TestCopyUtilities:
         assert Collection(PurePath(simple_collection, "y", "x")).exists()
 
     @m.context("When a collection is copied recursively")
-    @m.context("When a there is no collection with that name at the destination")
+    @m.context("When there is no collection with that name at the destination")
     @m.context("When the destination's parent collection exists")
     @m.it("Creates a renamed copy within the destination's parent collection")
     def test_copy_rename_collection(self, simple_collection):
@@ -382,7 +382,7 @@ class TestCopyUtilities:
         assert Collection(PurePath(simple_collection, "a", "y", "z")).exists()
 
     @m.context("When a collection is copied")
-    @m.context("When a there is already a collection with that name at the destination")
+    @m.context("When there is already a collection with that name at the destination")
     @m.it("Raises an exception, unless exists_ok is True")
     def test_copy_collection_error(self, simple_collection):
         x = Collection(PurePath(simple_collection, "x"))
