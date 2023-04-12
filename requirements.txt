@@ -7,4 +7,4 @@ rich==13.3.3
 setuptools==67.6.1
 setuptools-git-versioning==1.13.3
 sqlalchemy==2.0.9
-structlog==22.3.0
+structlog==23.1.0
