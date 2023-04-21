@@ -256,6 +256,26 @@ class TestReplicaUtilities:
 
 @m.describe("Consent utilities")
 class TestConsentUtilities:
+    @m.context("When a data object's consent is withdrawn")
+    @m.it("Has permissions removed, except for the current user and rodsadmins")
+    def test_ensure_consent_withdrawn(self, annotated_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_tree))
+        study_ac = AC("ss_1000", Permission.READ, zone="testZone")
+        admin_ac = AC("irods", Permission.OWN, zone="testZone")
+        public_ac = AC("public", Permission.READ, zone="testZone")
+
+        for p in obj_paths:
+            obj = DataObject(p)
+            assert study_ac in obj.permissions()
+            assert admin_ac in obj.permissions()
+            assert public_ac in obj.permissions()
+
+            ensure_consent_withdrawn(obj)
+
+            assert study_ac not in obj.permissions()
+            assert public_ac not in obj.permissions()
+            assert admin_ac in obj.permissions()
+
     @m.context("When data object consent withdrawn state is checked")
     @m.context("When all of the data objects have consent withdrawn")
     @m.it("Counts successes correctly")
