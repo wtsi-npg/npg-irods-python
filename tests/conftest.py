@@ -64,7 +64,6 @@ from npg_irods.db.mlwh import (
     Study,
 )
 from npg_irods.metadata.common import DataFile
-
 from npg_irods.metadata.lims import SeqConcept, TrackedSample
 from npg_irods.metadata.ont import Instrument
 
@@ -642,7 +641,8 @@ def annotated_tree(tmp_path):
     tree_root = rods_path / "tree"
 
     add_test_groups()
-    ac = AC("ss_1000", Permission.READ, zone="testZone")
+    group_ac = AC("ss_1000", Permission.READ, zone="testZone")
+    public_ac = AC("public", Permission.READ, zone="testZone")
 
     coll = Collection(tree_root)
 
@@ -653,17 +653,17 @@ def annotated_tree(tmp_path):
         Collection(c.path / x).create()
 
     coll.add_metadata(AVU("path", str(coll)))
-    coll.add_permissions(ac)
+    coll.add_permissions(group_ac, public_ac)
 
     for item in coll.contents(recurse=True):
         item.add_metadata(AVU("path", str(item)))
-        item.add_permissions(ac)
+        item.add_permissions(group_ac, public_ac)
 
     try:
         yield tree_root
     finally:
         Collection(rods_path).add_permissions(
-            AC(user="irods", perm=Permission.OWN), recurse=True
+            AC(user="irods", perm=Permission.OWN, zone="testZone"), recurse=True
         )
         irm(rods_path, force=True, recurse=True)
         remove_test_groups()

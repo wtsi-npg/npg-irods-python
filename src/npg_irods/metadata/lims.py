@@ -22,11 +22,8 @@
 import re
 from enum import unique
 from itertools import starmap
-from typing import List
 
-from ml_warehouse.schema import Sample, Study
-from partisan.irods import AC, AVU, Permission, DataObject
-
+from partisan.irods import AC, AVU, DataObject, Permission, current_user, rods_user
 from partisan.metadata import AsValueEnum
 from structlog import get_logger
 
@@ -202,7 +199,10 @@ def has_consent_withdrawn(obj: DataObject) -> bool:
 
 def ensure_consent_withdrawn(obj: DataObject) -> bool:
     """Ensure that a data object has its metadata and permissions in the correct state
-    for having consent withdrawn.
+    for having consent withdrawn. All read permissions are withdrawn except for:
+
+    - The current user making these changes.
+    - Any rodsadmin.
 
     Args:
         obj: The data object to check.
@@ -220,18 +220,34 @@ def ensure_consent_withdrawn(obj: DataObject) -> bool:
             has_withdrawn_meta=has_consent_withdrawn_metadata(obj),
         )
 
-    null_perms = [
-        AC(ac.user, Permission.NULL)
-        for ac in obj.permissions()
-        if STUDY_IDENTIFIER_REGEX.match(ac.user)
-    ]
+    to_remove = []
+    curr_user = current_user()
+    for ac in obj.permissions():
+        u = rods_user(ac.user)
 
-    num_removed, num_added = obj.supersede_permissions(*null_perms)
+        if u is None:
+            log.info("Removing permissions (non-local user)", path=obj, ac=ac)
+            to_remove.append(ac)
+            continue
+
+        if u == curr_user:
+            log.info("Not removing permissions for self", path=obj, user=str(u), ac=ac)
+            continue
+
+        if u.is_rodsadmin():
+            log.info(
+                "Not removing permissions for rodsadmin", path=obj, user=str(u), ac=ac
+            )
+            continue
+
+        log.info("Removing permissions", path=obj, user=str(u), ac=ac)
+        to_remove.append(ac)
+
+    num_removed = obj.remove_permissions(*to_remove)
     log.info(
-        "Updated permissions",
+        "Removed permissions",
         path=obj,
         num_removed=num_removed,
-        num_added=num_added,
         has_withdrawn_perm=has_consent_withdrawn_permissions(obj),
     )
     return True

@@ -28,6 +28,7 @@ import partisan
 from partisan.exception import RodsError
 from partisan.icommands import icp
 from partisan.irods import (
+    AC,
     Collection,
     DataObject,
     RodsItem,
@@ -800,7 +801,7 @@ def _copy(
             log.info(f"Added {n} AVUs", path=d)
         if acl:
             n = d.add_permissions(*s.permissions())
-            log.info(f"Added {n} permissions", path=d)
+            log.info(f"Added {n} permissions", path=d, perm=s.permissions())
 
     def _maybe_copy_obj(s: DataObject, d: DataObject) -> int:
         if exist_ok and d.exists():
@@ -843,10 +844,12 @@ def _copy(
                 src=s,
                 dest=d,
             )
+
             return 0
 
         log.info("Copying collection", src=s, dest=d)
-        coll.create(exist_ok=exist_ok)
+        d.create(exist_ok=exist_ok)
+
         return 1
 
     match (src.rods_type, dest.rods_type):
