@@ -67,9 +67,14 @@ jobs:
         curl -sSL -O "https://github.com/sylabs/singularity/releases/download/v${SINGULARITY_VERSION}/sha256sums"
         grep "$os_release" sha256sums | sha256sum
         sudo apt-get install -q -y "./$pkg"
-        
+                
         # Avoid the runner's loop devices being exhausted
-        sudo singularity config global --set "shared loop devices" yes
+        sudo singularity config global --set "max loop devices" 128
+        
+        # Enable DBus for this user, so that rootless cgroups works and we can create
+        # Singularity service instances. See https://github.com/containers/podman/issues/5443
+        systemctl --user enable --now dbus.socket
+        echo DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus" >> $GITHUB_ENV
 
     - name: "Cache Singularity images"
       uses: actions/cache@v3
@@ -83,7 +88,8 @@ jobs:
         PREFIX: ${{ github.workspace }}
         SINGULARITY_CACHEDIR: ${{ github.workspace }}/.singularity-cache
       run: |
-        singularity exec docker://$DOCKER_IMAGE singularity-wrapper -e -p $PREFIX install
+        # Use -s option for the wrappers to enable re-usable service instances
+        singularity exec docker://$DOCKER_IMAGE singularity-wrapper -s -p $PREFIX install
         echo "$PREFIX/bin" >> $GITHUB_PATH
 
     - name: "Configure iRODS clients"
@@ -132,3 +138,7 @@ jobs:
       run: |
         pip install .
         pytest --it
+
+    - name: "Log on failure"
+      if: ${{ failure() }}
+      run: journalctl --no-pager
