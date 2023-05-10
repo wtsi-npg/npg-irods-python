@@ -17,6 +17,8 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+"""Business logic API, schema-specific API and utilities for SQL databases."""
+
 import configparser
 import os
 from urllib import parse

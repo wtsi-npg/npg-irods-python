@@ -63,9 +63,9 @@ from npg_irods.db.mlwh import (
     Sample,
     Study,
 )
+from npg_irods.metadata import illumina, ont
 from npg_irods.metadata.common import DataFile
 from npg_irods.metadata.lims import SeqConcept, TrackedSample
-from npg_irods.metadata.ont import Instrument
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -724,11 +724,8 @@ def ont_synthetic(tmp_path):
             coll = Collection(expt_root / expt_name / run_folder)
             coll.create(parents=True)
             meta = [
-                avu.with_namespace(Instrument.namespace)
-                for avu in [
-                    AVU(Instrument.EXPERIMENT_NAME, expt_name),
-                    AVU(Instrument.INSTRUMENT_SLOT, f"{slot}"),
-                ]
+                AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
+                AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
             ]
             coll.add_metadata(*meta)
 
@@ -741,11 +738,8 @@ def ont_synthetic(tmp_path):
             coll = Collection(expt_root / expt_name / run_folder)
             coll.create(parents=True)
             meta = [
-                avu.with_namespace(Instrument.namespace)
-                for avu in [
-                    AVU(Instrument.EXPERIMENT_NAME, expt_name),
-                    AVU(Instrument.INSTRUMENT_SLOT, f"{slot}"),
-                ]
+                AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
+                AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
             ]
             coll.add_metadata(*meta)
 
@@ -769,68 +763,68 @@ def illumina_products(tmp_path):
     rods_path = add_rods_path(root_path, tmp_path)
 
     Collection(rods_path).create(parents=True)
+    run = illumina.Instrument.RUN
+    tag = SeqConcept.TAG_INDEX
+    idp = SeqConcept.ID_PRODUCT
+    cmp = SeqConcept.COMPONENT
+    ref = SeqConcept.REFERENCE
 
     metadata = {
         "12345/12345#1.cram": (
-            AVU("id_product", "31a3d460bb3c7d98845187c716a30db81c44b615"),
-            AVU("component", "{'id_run': 12345, 'position': 1, 'tag_index': 1}"),
-            AVU("component", "{'id_run': 12345, 'position': 2, 'tag_index': 1}"),
-            AVU("reference", "Any/other/reference"),
-            AVU("tag_index", 1),
+            AVU(idp, "31a3d460bb3c7d98845187c716a30db81c44b615"),
+            AVU(cmp, "{'id_run':12345, 'position':1, 'tag_index':1}"),
+            AVU(cmp, "{'id_run':12345, 'position':2, 'tag_index':1}"),
+            AVU(ref, "Any/other/reference"),
+            AVU(run, 12345),
+            AVU(tag, 1),
         ),
         "12345/12345#2.cram": (
-            AVU("id_product", "0b3bd00f1d186247f381aa87e213940b8c7ab7e5"),
-            AVU("component", "{'id_run': 12345, 'position': 1, 'tag_index': 2"),
-            AVU("component", "{'id_run': 12345, 'position': 2, 'tag_index': 2"),
-            AVU("tag_index", 2),
-            AVU("alt_process", "Alternative Process"),
+            AVU(idp, "0b3bd00f1d186247f381aa87e213940b8c7ab7e5"),
+            AVU(cmp, "{'id_run':12345, 'position':1, 'tag_index':2"),
+            AVU(cmp, "{'id_run':12345, 'position':2, 'tag_index':2"),
+            AVU(tag, 2),
+            AVU(SeqConcept.ALT_PROCESS, "Alternative Process"),
         ),
         "12345/12345#1_phix.cram": (
-            AVU("id_product", "31a3d460bb3c7d98845187c716a30db81c44b615"),
-            AVU(
-                "component",
-                "{'id_run': 12345, 'position': 1, 'subset': 'phix', tag_index': 1}",
-            ),
-            AVU(
-                "component",
-                "{'id_run': 12345, 'position': 2, 'subset': 'phix', tag_index': 1}",
-            ),
-            AVU("tag_index", 1),
+            AVU(idp, "31a3d460bb3c7d98845187c716a30db81c44b615"),
+            AVU(cmp, "{'id_run':12345, 'position':1, 'subset':'phix', tag_index':1}"),
+            AVU(cmp, "{'id_run':12345, 'position':2, 'subset':'phix', tag_index':1}"),
+            AVU(tag, 1),
         ),
         "12345/12345#888.cram": (
-            AVU("id_product", "5e67fc5c63b7ceb4e63bbb8e62ab58dcc57b6e64"),
-            AVU("component", "{'id_run': 12345, 'position': 1, 'tag_index': 888"),
-            AVU("component", "{'id_run': 12345, 'position': 2, 'tag_index': 888"),
-            AVU("reference", "A/reference/with/PhiX/present"),
-            AVU("tag_index", 888),
+            AVU(idp, "5e67fc5c63b7ceb4e63bbb8e62ab58dcc57b6e64"),
+            AVU(cmp, "{'id_run':12345, 'position':1, 'tag_index':888"),
+            AVU(cmp, "{'id_run':12345, 'position':2, 'tag_index':888"),
+            AVU(ref, "A/reference/with/PhiX/present"),
+            AVU(tag, 888),
         ),
         "12345/12345#0.cram": (
-            AVU("id_product", "f54f4a5c3eba5bdf302c1ce4a7c18add33a04315"),
-            AVU("component", "{'id_run': 12345, 'position': 1, 'tag_index': 0"),
-            AVU("component", "{'id_run': 12345, 'position': 2, 'tag_index': 0"),
-            AVU("tag_index", 0),
+            AVU(cmp, "f54f4a5c3eba5bdf302c1ce4a7c18add33a04315"),
+            AVU(cmp, "{'id_run':12345, 'position':1, 'tag_index':0"),
+            AVU(cmp, "{'id_run':12345, 'position':2, 'tag_index':0"),
+            AVU(tag, 0),
         ),
         "12345/cellranger/12345.cram": (),
         "54321/54321#1.bam": (
-            AVU("id_product", "1a08a7027d9f9c20d01909989370ea6b70a5bccc"),
-            AVU("component", "{'id_run': 54321, 'position': 1, 'tag_index': 1}"),
-            AVU("component", "{'id_run': 54321, 'position': 2, 'tag_index': 1}"),
-            AVU("tag_index", 1),
+            AVU(idp, "1a08a7027d9f9c20d01909989370ea6b70a5bccc"),
+            AVU(cmp, "{'id_run':54321, 'position':1, 'tag_index':1}"),
+            AVU(cmp, "{'id_run':54321, 'position':2, 'tag_index':1}"),
+            AVU(tag, 1),
         ),
         "67890/67890#1.cram": (
-            AVU("component", "{'id_run': 54321, 'position': 1, 'tag_index': 1}"),
-            AVU("component", "{'id_run': 54321, 'position': 2, 'tag_index': 1}"),
-            AVU("tag_index", 1),
+            AVU(cmp, "{'id_run':54321, 'position':1, 'tag_index':1}"),
+            AVU(cmp, "{'id_run':54321, 'position':2, 'tag_index':1}"),
+            AVU(tag, 1),
         ),
     }
 
-    iput("./tests/data/illumina/mlwh_locations", rods_path, recurse=True)
+    iput("./tests/data/illumina/synthetic", rods_path, recurse=True)
     for path in metadata.keys():
-        obj = DataObject(rods_path / "mlwh_locations" / path)
+        obj = DataObject(rods_path / "synthetic" / path)
         for avu in metadata[path]:
             obj.add_metadata(avu)
     try:
-        yield rods_path / "mlwh_locations"
+        yield rods_path / "synthetic"
     finally:
         irm(rods_path, force=True, recurse=True)
 

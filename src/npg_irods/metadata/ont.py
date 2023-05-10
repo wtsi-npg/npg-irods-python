@@ -28,3 +28,6 @@ class Instrument(AsValueEnum, metaclass=with_namespace("ont")):
 
     EXPERIMENT_NAME = "experiment_name"
     INSTRUMENT_SLOT = "instrument_slot"
+
+    def __repr__(self):
+        return f"{Instrument.namespace}:{self.value}"

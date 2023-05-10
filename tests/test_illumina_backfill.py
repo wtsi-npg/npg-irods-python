@@ -20,10 +20,16 @@
 import json
 from multiprocessing import Pool
 
-from partisan.irods import Collection
+from partisan.irods import AVU, Collection, DataObject
 from pytest import mark as m, raises
 
+from npg_irods.metadata.lims import SeqConcept
 from npg_irods.mlwh_locations import illumina
+from npg_irods.mlwh_locations.illumina import (
+    has_phix_reference,
+    has_subset,
+    has_zero_tag_index,
+)
 
 
 def assert_excluded_object(obj_path: str):
@@ -33,6 +39,21 @@ def assert_excluded_object(obj_path: str):
 
 @m.describe("Making a product dictionary for a data object")
 class TestCreateProductDict:
+    def test_has_zero_tag_index(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+        obj.add_metadata(AVU(SeqConcept.TAG_INDEX, "0"))
+        assert has_zero_tag_index(obj)
+
+    def test_has_phi_reference(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+        obj.add_metadata(AVU(SeqConcept.REFERENCE, "PhiX"))
+        assert has_phix_reference(obj)
+
+    def test_has_subset(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+        obj.add_metadata(AVU(SeqConcept.COMPONENT, "{'subset': 'phix'}"))
+        assert has_subset(obj)
+
     @m.context("When the data object has expected metadata")
     @m.it("Creates an accurate dictionary")
     def test_expected_object(self, illumina_products):

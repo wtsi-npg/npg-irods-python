@@ -17,7 +17,7 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-"""Support for metadata common to all data objects added to iRODS by NPG."""
+"""Support for metadata common to all data added to iRODS by NPG."""
 
 from datetime import datetime
 from enum import unique
@@ -375,12 +375,8 @@ def make_creation_metadata(creator: str, created: datetime) -> list[AVU]:
     Returns: List[AVU]
     """
     return [
-        AVU(DublinCore.CREATOR.value, creator, namespace=DublinCore.namespace),
-        AVU(
-            DublinCore.CREATED.value,
-            created.isoformat(timespec="seconds"),
-            namespace=DublinCore.namespace,
-        ),
+        AVU(DublinCore.CREATOR, creator),
+        AVU(DublinCore.CREATED, created.isoformat(timespec="seconds")),
     ]
 
 
@@ -438,13 +434,7 @@ def make_modification_metadata(modified: datetime) -> list[AVU]:
 
     Returns: List[AVU]
     """
-    return [
-        AVU(
-            DublinCore.MODIFIED.value,
-            modified.isoformat(timespec="seconds"),
-            namespace=DublinCore.namespace,
-        )
-    ]
+    return [AVU(DublinCore.MODIFIED, modified.isoformat(timespec="seconds"))]
 
 
 def requires_checksum_metadata(obj: DataObject) -> bool:
