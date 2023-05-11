@@ -223,9 +223,7 @@ class TestMetadataUpdate(object):
         update = MetadataUpdate(
             experiment_name="simple_experiment_001", instrument_slot=1
         )
-        num_found, num_updated, num_errors = update.update_secondary_metadata(
-            mlwh_session=mlwh_session
-        )
+        update.update_secondary_metadata(mlwh_session=mlwh_session)
         assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
 
     @m.context("When correct metadata is already present")
@@ -239,9 +237,7 @@ class TestMetadataUpdate(object):
         update = MetadataUpdate(
             experiment_name="simple_experiment_001", instrument_slot=1
         )
-        num_found, num_updated, num_errors = update.update_secondary_metadata(
-            mlwh_session=mlwh_session
-        )
+        update.update_secondary_metadata(mlwh_session=mlwh_session)
         assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
 
     @m.context("When incorrect metadata is present")
@@ -255,9 +251,7 @@ class TestMetadataUpdate(object):
         update = MetadataUpdate(
             experiment_name="simple_experiment_001", instrument_slot=1
         )
-        num_found, num_updated, num_errors = update.update_secondary_metadata(
-            mlwh_session=mlwh_session
-        )
+        update.update_secondary_metadata(mlwh_session=mlwh_session)
         assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
         assert AVU(TrackedSample.NAME, "sample 0") not in coll.metadata()
         assert ont_history_in_meta(
@@ -276,9 +270,7 @@ class TestMetadataUpdate(object):
         update = MetadataUpdate(
             experiment_name="simple_experiment_001", instrument_slot=1
         )
-        num_found, num_updated, num_errors = update.update_secondary_metadata(
-            mlwh_session=mlwh_session
-        )
+        update.update_secondary_metadata(mlwh_session=mlwh_session)
         assert AVU(TrackedStudy.NAME, "Study Y") in coll.metadata()
         assert AVU(TrackedStudy.NAME, "Study A") not in coll.metadata()
         assert AVU(TrackedStudy.NAME, "Study B") not in coll.metadata()

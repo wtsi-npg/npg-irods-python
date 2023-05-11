@@ -26,7 +26,6 @@
 
 import logging
 import os
-import re
 from datetime import datetime
 from pathlib import PurePath
 
@@ -43,7 +42,7 @@ from partisan.icommands import (
     remove_specific_sql,
     rmgroup,
 )
-from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
+from partisan.irods import AC, AVU, Collection, DataObject, Permission
 from partisan.metadata import DublinCore
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -174,27 +173,19 @@ def ont_history_in_meta(history: AVU, meta: list[AVU]):
     Returns: bool
 
     """
-    entity_histories = []
-    for avu in meta:
-        # breakpoint()
-        if avu.attribute.endswith("_history"):
-            entity_histories.append(avu)
-    if entity_histories:
-        now = format_timestamp(datetime.utcnow())
-        regex = r"\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]"
-        for h in entity_histories:
-            # breakpoint()
-            if all(
+    entity_histories = [avu for avu in meta if avu.attribute.endswith("_history")]
+    return any(
+        [
+            all(
                 [
                     history.attribute == h.attribute,
-                    re.sub(regex, str(now), history.value)
-                    == re.sub(regex, str(now), h.value),
+                    history.value.split("]")[1] == h.value.split("]")[1],
                     history.units == h.units,
                 ]
-            ):
-                return True
-
-    return False
+                for h in entity_histories
+            )
+        ]
+    )
 
 
 def initialize_mlwh_ont(session: Session):
