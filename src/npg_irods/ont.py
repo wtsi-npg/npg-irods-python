@@ -17,6 +17,8 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+"""ONT-specific business logic API."""
+
 import re
 from datetime import datetime
 from os import PathLike
@@ -102,12 +104,8 @@ class MetadataUpdate:
             return num_found, num_updated, num_errors
 
         for expt_name, slot in expt_slots:
-            expt_avu = AVU(
-                Instrument.EXPERIMENT_NAME, expt_name, namespace=Instrument.namespace
-            )
-            slot_avu = AVU(
-                Instrument.INSTRUMENT_SLOT, slot, namespace=Instrument.namespace
-            )
+            expt_avu = AVU(Instrument.EXPERIMENT_NAME, expt_name)
+            slot_avu = AVU(Instrument.INSTRUMENT_SLOT, slot)
 
             try:
                 if self.experiment_name is not None:
@@ -258,11 +256,8 @@ def annotate_results_collection(
         return False
 
     avus = [
-        avu.with_namespace(Instrument.namespace)
-        for avu in [
-            AVU(Instrument.EXPERIMENT_NAME, experiment_name),
-            AVU(Instrument.INSTRUMENT_SLOT, instrument_slot),
-        ]
+        AVU(Instrument.EXPERIMENT_NAME, experiment_name),
+        AVU(Instrument.INSTRUMENT_SLOT, instrument_slot),
     ]
     coll.add_metadata(*avus)  # These AVUs should be present already
 

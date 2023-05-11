@@ -87,7 +87,8 @@ def make_sample_metadata(sample: Sample) -> list[AVU]:
     Args:
         sample: An ML warehouse schema Sample.
 
-    Returns: List[AVU]
+    Returns:
+        AVUs
     """
     av = [
         [TrackedSample.ID, sample.sanger_sample_id],
@@ -104,17 +105,43 @@ def make_sample_metadata(sample: Sample) -> list[AVU]:
     return list(filter(lambda avu: avu is not None, starmap(avu_if_value, av)))
 
 
-def make_study_metadata(study: Study):
+def make_study_metadata(study: Study) -> list[AVU]:
+    """Return standard iRODS metadata for a Study:
+
+    - study ID
+    - study name
+    - study accession
+    - study title.
+
+    Args:
+        study: An ML warehouse schema Study.
+
+    Returns:
+        AVUs
+    """
     av = [
+        [TrackedStudy.ACCESSION_NUMBER, study.accession_number],
         [TrackedStudy.ID, study.id_study_lims],
         [TrackedStudy.NAME, study.name],
-        [TrackedStudy.ACCESSION_NUMBER, study.accession_number],
+        [TrackedStudy.TITLE, study.study_title],
     ]
 
     return list(filter(lambda avu: avu is not None, starmap(avu_if_value, av)))
 
 
 def make_sample_acl(sample: Sample, study: Study) -> list[AC]:
+    """Returns an ACL for a given Sample in a Study.
+
+    Note that this function doe not check that the sample is in the study.
+
+    Args:
+        sample: A sample, which will be used to confirm consent, which modifies the
+            ACL.
+        study: A study, which will provide permissions for the ACL.
+
+    Returns:
+        An ACL
+    """
     irods_group = f"ss_{study.id_study_lims}"
     perm = Permission.NULL if sample.consent_withdrawn else Permission.READ
 

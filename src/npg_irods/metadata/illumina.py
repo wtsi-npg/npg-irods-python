@@ -17,12 +17,24 @@
 #
 # @author Michael Kubiak <mk35@sanger.ac.uk>
 
+from enum import unique
 from typing import List, Dict
+
+from partisan.metadata import AsValueEnum
 from sqlalchemy.orm import Session, Query
 from datetime import datetime
 
 from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics, Sample, Study
 from npg_irods.metadata.lims import TrackedStudy, TrackedSample
+
+
+@unique
+class Instrument(AsValueEnum):
+    """Illumina platform metadata"""
+
+    RUN = "id_run"
+    LANE = "lane"
+
 
 column_to_attribute = {
     Study.accession_number: TrackedStudy.ACCESSION_NUMBER,
