@@ -26,6 +26,7 @@
 
 import logging
 import os
+import re
 from datetime import datetime
 from pathlib import PurePath
 
@@ -42,13 +43,7 @@ from partisan.icommands import (
     remove_specific_sql,
     rmgroup,
 )
-from partisan.irods import (
-    AC,
-    AVU,
-    Collection,
-    DataObject,
-    Permission,
-)
+from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
 from partisan.metadata import DublinCore
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -166,6 +161,40 @@ def set_checksum_invalid(obj: DataObject, replicate_num: int):
 def ont_tag_identifier(tag_index: int) -> str:
     """Return an ONT tag identifier in tag set EXP-NBD104, given a tag index."""
     return f"NB{tag_index :02d}"
+
+
+def ont_history_in_meta(history: AVU, meta: list[AVU]):
+    """Return true if the histories have no differences other than datetime.
+    False otherwise.
+
+    Args:
+        history: An AVU created by the AVU.history method.
+        meta: The metadata list of an entitiy.
+
+    Returns: bool
+
+    """
+    entity_histories = []
+    for avu in meta:
+        # breakpoint()
+        if avu.attribute.endswith("_history"):
+            entity_histories.append(avu)
+    if entity_histories:
+        now = format_timestamp(datetime.utcnow())
+        regex = r"\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]"
+        for h in entity_histories:
+            # breakpoint()
+            if all(
+                [
+                    history.attribute == h.attribute,
+                    re.sub(regex, str(now), history.value)
+                    == re.sub(regex, str(now), h.value),
+                    history.units == h.units,
+                ]
+            ):
+                return True
+
+    return False
 
 
 def initialize_mlwh_ont(session: Session):
