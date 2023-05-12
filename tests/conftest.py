@@ -42,13 +42,7 @@ from partisan.icommands import (
     remove_specific_sql,
     rmgroup,
 )
-from partisan.irods import (
-    AC,
-    AVU,
-    Collection,
-    DataObject,
-    Permission,
-)
+from partisan.irods import AC, AVU, Collection, DataObject, Permission
 from partisan.metadata import DublinCore
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -166,6 +160,29 @@ def set_checksum_invalid(obj: DataObject, replicate_num: int):
 def ont_tag_identifier(tag_index: int) -> str:
     """Return an ONT tag identifier in tag set EXP-NBD104, given a tag index."""
     return f"NB{tag_index :02d}"
+
+
+def ont_history_in_meta(history: AVU, meta: list[AVU]):
+    """Return true if the histories have no differences other than datetime.
+    False otherwise.
+    N.B. This function assumes that only one history avu is present.
+
+    Args:
+        history: An AVU created by the AVU.history method.
+        meta: The metadata list of an entitiy.
+
+    Returns: bool
+
+    """
+    for avu in meta:
+        if avu.attribute.endswith("_history"):
+            return all(
+                [
+                    history.attribute == avu.attribute,
+                    history.value.split("]")[1] == avu.value.split("]")[1],
+                    history.units == avu.units,
+                ]
+            )
 
 
 def initialize_mlwh_ont(session: Session):

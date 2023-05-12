@@ -259,7 +259,7 @@ def annotate_results_collection(
         AVU(Instrument.EXPERIMENT_NAME, experiment_name),
         AVU(Instrument.INSTRUMENT_SLOT, instrument_slot),
     ]
-    coll.add_metadata(*avus)  # These AVUs should be present already
+    coll.supersede_metadata(*avus)  # These AVUs should be present already
 
     # A single fc record (for non-multiplexed data)
     if len(fc_info) == 1:
@@ -268,9 +268,11 @@ def annotate_results_collection(
         )
         fc = fc_info[0]
         try:
-            coll.add_metadata(*make_study_metadata(fc.study))
-            coll.add_metadata(*make_sample_metadata(fc.sample))
-            coll.add_permissions(*make_sample_acl(fc.sample, fc.study), recurse=True)
+            coll.supersede_metadata(*make_study_metadata(fc.study), history=True)
+            coll.supersede_metadata(*make_sample_metadata(fc.sample), history=True)
+            coll.supersede_permissions(
+                *make_sample_acl(fc.sample, fc.study), recurse=True
+            )
         except RodsError as e:
             log.error(e.message, code=e.code)
             return False
@@ -317,14 +319,17 @@ def annotate_results_collection(
                     study=fc.study,
                 )
 
-                bc_coll.add_metadata(
-                    AVU(SeqConcept.TAG_INDEX, tag_index_from_id(fc.tag_identifier))
+                bc_coll.supersede_metadata(
+                    AVU(SeqConcept.TAG_INDEX, tag_index_from_id(fc.tag_identifier)),
+                    history=True,
                 )
-                bc_coll.add_metadata(*make_study_metadata(fc.study))
-                bc_coll.add_metadata(*make_sample_metadata(fc.sample))
+                bc_coll.supersede_metadata(*make_study_metadata(fc.study), history=True)
+                bc_coll.supersede_metadata(
+                    *make_sample_metadata(fc.sample), history=True
+                )
 
                 # The ACL could be different for each plex
-                bc_coll.add_permissions(
+                bc_coll.supersede_permissions(
                     *make_sample_acl(fc.sample, fc.study), recurse=True
                 )
             except RodsError as e:

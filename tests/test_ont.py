@@ -17,11 +17,12 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-from partisan.irods import AC, AVU, Collection, Permission
+from partisan.irods import AC, AVU, Collection, Permission, format_timestamp
 from pytest import mark as m
 
+from datetime import datetime
 from npg_irods import ont
-from conftest import LATEST, ont_tag_identifier, tests_have_admin
+from conftest import LATEST, ont_tag_identifier, tests_have_admin, ont_history_in_meta
 from npg_irods.metadata.lims import SeqConcept, TrackedSample, TrackedStudy
 from npg_irods.ont import MetadataUpdate, annotate_results_collection
 
@@ -209,3 +210,74 @@ class TestMetadataUpdate(object):
         ), f"Found {num_expected} collections (slot 1 from simple experiment 1)"
         assert num_updated == num_expected
         assert num_errors == 0
+
+    @m.context("When metadata is updated")
+    @m.context("When the metadata is absent")
+    @m.it("Adds the metadata")
+    def test_updates_absent_metadata(self, ont_synthetic, mlwh_session):
+        coll = Collection(
+            ont_synthetic
+            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
+        )
+        assert AVU(TrackedSample.NAME, "sample 1") not in coll.metadata()
+        update = MetadataUpdate(
+            experiment_name="simple_experiment_001", instrument_slot=1
+        )
+        update.update_secondary_metadata(mlwh_session=mlwh_session)
+        assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
+
+    @m.context("When correct metadata is already present")
+    @m.it("Leaves the metadata unchanged")
+    def test_updates_present_metadata(self, ont_synthetic, mlwh_session):
+        coll = Collection(
+            ont_synthetic
+            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
+        )
+        coll.add_metadata(AVU(TrackedSample.NAME, "sample 1"))
+        update = MetadataUpdate(
+            experiment_name="simple_experiment_001", instrument_slot=1
+        )
+        update.update_secondary_metadata(mlwh_session=mlwh_session)
+        assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
+
+    @m.context("When incorrect metadata is present")
+    @m.it("Changes the metadata and adds history metadata")
+    def test_updates_changed_metadata(self, ont_synthetic, mlwh_session):
+        coll = Collection(
+            ont_synthetic
+            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
+        )
+        coll.add_metadata(AVU(TrackedSample.NAME, "sample 0"))
+        update = MetadataUpdate(
+            experiment_name="simple_experiment_001", instrument_slot=1
+        )
+        update.update_secondary_metadata(mlwh_session=mlwh_session)
+        assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
+        assert AVU(TrackedSample.NAME, "sample 0") not in coll.metadata()
+        assert ont_history_in_meta(
+            AVU.history(AVU(TrackedSample.NAME, "sample 0")), coll.metadata()
+        )
+
+    @m.context("When an attribute has multiple incorrect values")
+    @m.it("Groups those values in the history metadata")
+    def test_updates_multiple_metadata(self, ont_synthetic, mlwh_session):
+        coll = Collection(
+            ont_synthetic
+            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
+        )
+        coll.add_metadata(AVU(TrackedStudy.NAME, "Study A"))
+        coll.add_metadata(AVU(TrackedStudy.NAME, "Study B"))
+        update = MetadataUpdate(
+            experiment_name="simple_experiment_001", instrument_slot=1
+        )
+        update.update_secondary_metadata(mlwh_session=mlwh_session)
+        assert AVU(TrackedStudy.NAME, "Study Y") in coll.metadata()
+        assert AVU(TrackedStudy.NAME, "Study A") not in coll.metadata()
+        assert AVU(TrackedStudy.NAME, "Study B") not in coll.metadata()
+        assert ont_history_in_meta(
+            AVU(
+                f"{TrackedStudy.NAME}_history",
+                f"[{format_timestamp(datetime.utcnow())}] Study A,Study B",
+            ),
+            coll.metadata(),
+        )
