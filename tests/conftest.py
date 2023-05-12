@@ -165,6 +165,7 @@ def ont_tag_identifier(tag_index: int) -> str:
 def ont_history_in_meta(history: AVU, meta: list[AVU]):
     """Return true if the histories have no differences other than datetime.
     False otherwise.
+    N.B. This function assumes that only one history avu is present.
 
     Args:
         history: An AVU created by the AVU.history method.
@@ -173,19 +174,15 @@ def ont_history_in_meta(history: AVU, meta: list[AVU]):
     Returns: bool
 
     """
-    entity_histories = [avu for avu in meta if avu.attribute.endswith("_history")]
-    return any(
-        [
-            all(
+    for avu in meta:
+        if avu.attribute.endswith("_history"):
+            return all(
                 [
-                    history.attribute == h.attribute,
-                    history.value.split("]")[1] == h.value.split("]")[1],
-                    history.units == h.units,
+                    history.attribute == avu.attribute,
+                    history.value.split("]")[1] == avu.value.split("]")[1],
+                    history.units == avu.units,
                 ]
-                for h in entity_histories
             )
-        ]
-    )
 
 
 def initialize_mlwh_ont(session: Session):
