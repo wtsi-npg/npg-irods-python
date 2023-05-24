@@ -17,6 +17,8 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+"""Business logic API and schema-level API for the ML warehouse."""
+
 from typing import Type
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
@@ -57,7 +59,10 @@ class Sample(Base):
     )
 
     def __repr__(self):
-        return f"<Sample id_sample_lims={self.id_sample_lims}>"
+        return (
+            f"<Sample pk={self.id_sample_tmp} id_sample_lims={self.id_sample_lims} "
+            f"name='{self.name}'>"
+        )
 
 
 class Study(Base):
@@ -88,7 +93,7 @@ class Study(Base):
     )
 
     def __repr__(self):
-        return f"<Study id_study_lims={self.id_study_lims}>"
+        return f"<Study pk={self.id_study_tmp} id_study_lims={self.id_study_lims}>"
 
 
 class IseqFlowcell(Base):
@@ -101,13 +106,14 @@ class IseqFlowcell(Base):
         ForeignKey("sample.id_sample_tmp"), nullable=False, index=True
     )
     id_lims = mapped_column(String(10), nullable=False)
-    manual_qc = mapped_column(Integer)
     id_flowcell_lims = mapped_column(String(20), nullable=False)
     position = mapped_column(Integer, nullable=False)
     entity_type = mapped_column(String(30), nullable=False)
     entity_id_lims = mapped_column(String(20), nullable=False)
     id_pool_lims = mapped_column(String(20), nullable=False)
     id_study_tmp = mapped_column(ForeignKey("study.id_study_tmp"), index=True)
+    manual_qc = mapped_column(Integer)
+    tag_index = mapped_column(Integer)
     pipeline_id_lims = mapped_column(String(60))
     id_library_lims = mapped_column(String(255), index=True)
     primer_panel = mapped_column(String(255))
@@ -117,6 +123,9 @@ class IseqFlowcell(Base):
     iseq_product_metrics: Mapped["IseqProductMetrics"] = relationship(
         "IseqProductMetrics", back_populates="iseq_flowcell"
     )
+
+    def __repr__(self):
+        return f"<IseqFlowcell pk={self.id_iseq_flowcell_tmp}>"
 
 
 class IseqProductMetrics(Base):
@@ -132,11 +141,19 @@ class IseqProductMetrics(Base):
     )
     id_run = mapped_column(Integer)
     position = mapped_column(Integer)
+    tag_index = mapped_column(Integer)
     qc = mapped_column(Integer)
 
     iseq_flowcell: Mapped["IseqFlowcell"] = relationship(
         "IseqFlowcell", back_populates="iseq_product_metrics"
     )
+
+    def __repr__(self):
+        return (
+            f"<IseqProductMetrics pk={self.id_iseq_pr_metrics_tmp} "
+            f"id_run={self.id_run} position={self.position} "
+            f"tag_index={self.tag_index} flowcell={self.iseq_flowcell}>"
+        )
 
 
 class OseqFlowcell(Base):

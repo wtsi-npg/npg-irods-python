@@ -56,69 +56,69 @@ class TestCreateProductDict:
 
     @m.context("When the data object has expected metadata")
     @m.it("Creates an accurate dictionary")
-    def test_expected_object(self, illumina_products):
+    def test_expected_object(self, illumina_synthetic_irods):
         expected = {
             "seq_platform_name": "illumina",
             "pipeline_name": illumina.NPG_PROD,
-            "irods_root_collection": f"{illumina_products}/12345",
+            "irods_root_collection": f"{illumina_synthetic_irods}/12345",
             "irods_data_relative_path": "12345#1.cram",
             "id_product": "31a3d460bb3c7d98845187c716a30db81c44b615",
         }
         assert (
             illumina.create_product_dict(
-                illumina_products / "12345/12345#1.cram", "cram"
+                illumina_synthetic_irods / "12345/12345#1.cram", "cram"
             )
             == expected
         )
 
     @m.context("When the data object has alt_process metadata")
     @m.it("Sets pipeline_name as npg-prod-alt-process")
-    def test_alt_process_object(self, illumina_products):
+    def test_alt_process_object(self, illumina_synthetic_irods):
         expected = {
             "seq_platform_name": "illumina",
             "pipeline_name": "alt_Alternative Process",
-            "irods_root_collection": f"{illumina_products}/12345",
+            "irods_root_collection": f"{illumina_synthetic_irods}/12345",
             "irods_data_relative_path": "12345#2.cram",
             "id_product": "0b3bd00f1d186247f381aa87e213940b8c7ab7e5",
         }
         assert (
             illumina.create_product_dict(
-                illumina_products / "12345/12345#2.cram", "cram"
+                illumina_synthetic_irods / "12345/12345#2.cram", "cram"
             )
             == expected
         )
 
     @m.context("When the data object has any subset in its metadata")
     @m.it("Fails with an ExcludedObjectException")
-    def test_subset_object(self, illumina_products):
-        assert_excluded_object(illumina_products / "12345/12345#1_phix.cram")
+    def test_subset_object(self, illumina_synthetic_irods):
+        assert_excluded_object(illumina_synthetic_irods / "12345/12345#1_phix.cram")
 
     @m.context("When the data object has tag 0")
     @m.it("Fails with an ExcludedObjectException")
-    def test_tag_0_object(self, illumina_products):
-        assert_excluded_object(illumina_products / "12345/12345#0.cram")
+    def test_tag_0_object(self, illumina_synthetic_irods):
+        assert_excluded_object(illumina_synthetic_irods / "12345/12345#0.cram")
 
     @m.context("When the data object uses a PhiX reference")
     @m.it("Fails with an ExcludedObjectException")
-    def test_phix_reference_object(self, illumina_products):
-        assert_excluded_object(illumina_products / "12345/12345#888.cram")
+    def test_phix_reference_object(self, illumina_synthetic_irods):
+        assert_excluded_object(illumina_synthetic_irods / "12345/12345#888.cram")
 
     @m.context("When the data object is from a 10x collection")
     @m.it("Fails with an ExcludedObjectException")
-    def test_10x_object(self, illumina_products):
-        assert_excluded_object(illumina_products / "12345/cellranger/12345.cram")
+    def test_10x_object(self, illumina_synthetic_irods):
+        assert_excluded_object(illumina_synthetic_irods / "12345/cellranger/12345.cram")
 
     @m.context("When the object does not have the requested extension")
     @m.it("Fails with an ExcludedObjectException")
-    def test_wrong_extension(self, illumina_products):
-        assert_excluded_object(illumina_products / "12345/12345#1.bam")
+    def test_wrong_extension(self, illumina_synthetic_irods):
+        assert_excluded_object(illumina_synthetic_irods / "12345/12345#1.bam")
 
     @m.context("When the object is missing id_product_metadata")
     @m.it("Fails with a MissingMetadataError")
-    def test_missing_meta(self, illumina_products):
+    def test_missing_meta(self, illumina_synthetic_irods):
         with raises(illumina.MissingMetadataError):
             illumina.create_product_dict(
-                illumina_products / "67890/67890#1.cram", "cram"
+                illumina_synthetic_irods / "67890/67890#1.cram", "cram"
             )
 
 
@@ -126,12 +126,12 @@ class TestCreateProductDict:
 class TestExtractProducts:
     @m.context("When the result contains a dict")
     @m.it("Returns a list containing that dict")
-    def test_product_result(self, illumina_products):
+    def test_product_result(self, illumina_synthetic_irods):
         expected = [
             {
                 "seq_platform_name": "illumina",
                 "pipeline_name": illumina.NPG_PROD,
-                "irods_root_collection": f"{illumina_products}/12345",
+                "irods_root_collection": f"{illumina_synthetic_irods}/12345",
                 "irods_data_relative_path": "12345#1.cram",
                 "id_product": "31a3d460bb3c7d98845187c716a30db81c44b615",
             }
@@ -140,25 +140,25 @@ class TestExtractProducts:
             results = [
                 p.apply_async(
                     illumina.create_product_dict,
-                    (f"{illumina_products}/12345/12345#1.cram", "cram"),
+                    (f"{illumina_synthetic_irods}/12345/12345#1.cram", "cram"),
                 )
             ]
             assert illumina.extract_products(results, timeout=10) == expected
 
     @m.context("When the result contains an expected error")
     @m.it("Returns an empty list")
-    def test_expected_error_result(self, illumina_products):
+    def test_expected_error_result(self, illumina_synthetic_irods):
         with Pool(2) as p:
             missing_meta_results = [
                 p.apply_async(
                     illumina.create_product_dict,
-                    (illumina_products / "67890/67890#1.cram", "cram"),
+                    (illumina_synthetic_irods / "67890/67890#1.cram", "cram"),
                 )
             ]
             excluded_object_results = [
                 p.apply_async(
                     illumina.create_product_dict,
-                    (illumina_products / "12345/12345#1_phix.cram", "cram"),
+                    (illumina_synthetic_irods / "12345/12345#1_phix.cram", "cram"),
                 )
             ]
             assert illumina.extract_products(missing_meta_results) == []
@@ -166,36 +166,36 @@ class TestExtractProducts:
 
     @m.context("When there are multiple results, some expected errors")
     @m.it("Produces a list of the good results and handles the errors")
-    def test_mixed_result(self, illumina_products):
+    def test_mixed_result(self, illumina_synthetic_irods):
         expected = [
             {
                 "seq_platform_name": "illumina",
                 "pipeline_name": illumina.NPG_PROD,
-                "irods_root_collection": f"{illumina_products}/12345",
+                "irods_root_collection": f"{illumina_synthetic_irods}/12345",
                 "irods_data_relative_path": "12345#1.cram",
                 "id_product": "31a3d460bb3c7d98845187c716a30db81c44b615",
             },
             {
                 "seq_platform_name": "illumina",
                 "pipeline_name": "alt_Alternative Process",
-                "irods_root_collection": f"{illumina_products}/12345",
+                "irods_root_collection": f"{illumina_synthetic_irods}/12345",
                 "irods_data_relative_path": "12345#2.cram",
                 "id_product": "0b3bd00f1d186247f381aa87e213940b8c7ab7e5",
             },
             {
                 "seq_platform_name": "illumina",
                 "pipeline_name": illumina.NPG_PROD,
-                "irods_root_collection": f"{illumina_products}/54321",
+                "irods_root_collection": f"{illumina_synthetic_irods}/54321",
                 "irods_data_relative_path": "54321#1.bam",
                 "id_product": "1a08a7027d9f9c20d01909989370ea6b70a5bccc",
             },
         ]
         tuples_in = [
-            (f"{illumina_products}/12345/12345#1.cram", "cram"),
-            (f"{illumina_products}/67890/67890#1.cram", "cram"),
-            (f"{illumina_products}/12345/12345#2.cram", "cram"),
-            (f"{illumina_products}/67890/67890#1.cram", "cram"),
-            (f"{illumina_products}/54321/54321#1.bam", "bam"),
+            (f"{illumina_synthetic_irods}/12345/12345#1.cram", "cram"),
+            (f"{illumina_synthetic_irods}/67890/67890#1.cram", "cram"),
+            (f"{illumina_synthetic_irods}/12345/12345#2.cram", "cram"),
+            (f"{illumina_synthetic_irods}/67890/67890#1.cram", "cram"),
+            (f"{illumina_synthetic_irods}/54321/54321#1.bam", "bam"),
         ]
         with Pool(3) as p:
             results = [
@@ -209,42 +209,42 @@ class TestExtractProducts:
 class TestFindProducts:
     @m.context("When the collection has a mixture of included and excluded objects")
     @m.it("Includes the correct objects")
-    def test_mixed_coll(self, illumina_products):
+    def test_mixed_coll(self, illumina_synthetic_irods):
         expected = [
             {
                 "seq_platform_name": "illumina",
                 "pipeline_name": illumina.NPG_PROD,
-                "irods_root_collection": f"{illumina_products}/12345",
+                "irods_root_collection": f"{illumina_synthetic_irods}/12345",
                 "irods_data_relative_path": "12345#1.cram",
                 "id_product": "31a3d460bb3c7d98845187c716a30db81c44b615",
             },
             {
                 "seq_platform_name": "illumina",
                 "pipeline_name": "alt_Alternative Process",
-                "irods_root_collection": f"{illumina_products}/12345",
+                "irods_root_collection": f"{illumina_synthetic_irods}/12345",
                 "irods_data_relative_path": "12345#2.cram",
                 "id_product": "0b3bd00f1d186247f381aa87e213940b8c7ab7e5",
             },
         ]
         assert (
-            illumina.find_products(Collection(illumina_products / "12345"), 4)
+            illumina.find_products(Collection(illumina_synthetic_irods / "12345"), 4)
             == expected
         )
 
     @m.context("When the collection does not contain any included cram files")
     @m.it("Includes bam files instead")
-    def test_bam_only_coll(self, illumina_products):
+    def test_bam_only_coll(self, illumina_synthetic_irods):
         expected = [
             {
                 "seq_platform_name": "illumina",
                 "pipeline_name": illumina.NPG_PROD,
-                "irods_root_collection": f"{illumina_products}/54321",
+                "irods_root_collection": f"{illumina_synthetic_irods}/54321",
                 "irods_data_relative_path": "54321#1.bam",
                 "id_product": "1a08a7027d9f9c20d01909989370ea6b70a5bccc",
             }
         ]
         assert (
-            illumina.find_products(Collection(illumina_products / "54321"), 1)
+            illumina.find_products(Collection(illumina_synthetic_irods / "54321"), 1)
             == expected
         )
 
@@ -257,28 +257,28 @@ class TestGenerateFiles:
     @m.it(
         "Writes a file containing product information for objects in those collections"
     )
-    def test_existing_colls(self, illumina_products, tmp_path):
+    def test_existing_colls(self, illumina_synthetic_irods, tmp_path):
         expected = {
             "version": illumina.JSON_FILE_VERSION,
             "products": [
                 {
                     "seq_platform_name": "illumina",
                     "pipeline_name": illumina.NPG_PROD,
-                    "irods_root_collection": f"{illumina_products}/12345",
+                    "irods_root_collection": f"{illumina_synthetic_irods}/12345",
                     "irods_data_relative_path": "12345#1.cram",
                     "id_product": "31a3d460bb3c7d98845187c716a30db81c44b615",
                 },
                 {
                     "seq_platform_name": "illumina",
                     "pipeline_name": "alt_Alternative Process",
-                    "irods_root_collection": f"{illumina_products}/12345",
+                    "irods_root_collection": f"{illumina_synthetic_irods}/12345",
                     "irods_data_relative_path": "12345#2.cram",
                     "id_product": "0b3bd00f1d186247f381aa87e213940b8c7ab7e5",
                 },
                 {
                     "seq_platform_name": "illumina",
                     "pipeline_name": illumina.NPG_PROD,
-                    "irods_root_collection": f"{illumina_products}/54321",
+                    "irods_root_collection": f"{illumina_synthetic_irods}/54321",
                     "irods_data_relative_path": "54321#1.bam",
                     "id_product": "1a08a7027d9f9c20d01909989370ea6b70a5bccc",
                 },
@@ -286,7 +286,7 @@ class TestGenerateFiles:
         }
         json_path = f"{tmp_path}/existing_colls.json"
         illumina.generate_files(
-            [illumina_products / "12345", illumina_products / "54321"],
+            [illumina_synthetic_irods / "12345", illumina_synthetic_irods / "54321"],
             4,
             json_path,
         )
@@ -295,21 +295,21 @@ class TestGenerateFiles:
 
     @m.context("When a mixture of real and fake collections are passed")
     @m.it("Adds objects from the existing collections to the list of products")
-    def test_coll_mixture(self, illumina_products, tmp_path):
+    def test_coll_mixture(self, illumina_synthetic_irods, tmp_path):
         expected = {
             "version": illumina.JSON_FILE_VERSION,
             "products": [
                 {
                     "seq_platform_name": "illumina",
                     "pipeline_name": illumina.NPG_PROD,
-                    "irods_root_collection": f"{illumina_products}/12345",
+                    "irods_root_collection": f"{illumina_synthetic_irods}/12345",
                     "irods_data_relative_path": "12345#1.cram",
                     "id_product": "31a3d460bb3c7d98845187c716a30db81c44b615",
                 },
                 {
                     "seq_platform_name": "illumina",
                     "pipeline_name": "alt_Alternative Process",
-                    "irods_root_collection": f"{illumina_products}/12345",
+                    "irods_root_collection": f"{illumina_synthetic_irods}/12345",
                     "irods_data_relative_path": "12345#2.cram",
                     "id_product": "0b3bd00f1d186247f381aa87e213940b8c7ab7e5",
                 },
@@ -318,9 +318,9 @@ class TestGenerateFiles:
         json_path = f"{tmp_path}/mixed_colls.json"
         illumina.generate_files(
             [
-                illumina_products / "12345",
-                illumina_products / "fake_file",
-                illumina_products / "23456",
+                illumina_synthetic_irods / "12345",
+                illumina_synthetic_irods / "fake_file",
+                illumina_synthetic_irods / "23456",
             ],
             4,
             json_path,

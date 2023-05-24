@@ -137,6 +137,15 @@ def add_rods_path(root_path: PurePath, tmp_path: PurePath) -> PurePath:
     return rods_path
 
 
+def remove_rods_path(rods_path: PurePath):
+    coll = Collection(rods_path)
+    if coll.exists():
+        coll.add_permissions(
+            AC(user="irods", perm=Permission.OWN, zone="testZone"), recurse=True
+        )
+        irm(rods_path, force=True, recurse=True)
+
+
 def set_replicate_invalid(obj: DataObject, replicate_num: int):
     iquest(
         "--sql",
@@ -162,31 +171,37 @@ def ont_tag_identifier(tag_index: int) -> str:
     return f"NB{tag_index :02d}"
 
 
-def ont_history_in_meta(history: AVU, meta: list[AVU]):
-    """Return true if the histories have no differences other than datetime.
-    False otherwise.
-    N.B. This function assumes that only one history avu is present.
+def history_in_meta(history: AVU, metadata: list[AVU]):
+    """Return true if the history AVU is present in metadata, using a comparator
+    which ignores the timestamp portion of the AVU value, False otherwise.
 
     Args:
         history: An AVU created by the AVU.history method.
-        meta: The metadata list of an entitiy.
+        metadata: The metadata list of an entity.
 
     Returns: bool
-
     """
-    for avu in meta:
-        if avu.attribute.endswith("_history"):
-            return all(
-                [
-                    history.attribute == avu.attribute,
-                    history.value.split("]")[1] == avu.value.split("]")[1],
-                    history.units == avu.units,
-                ]
-            )
+    if not history.is_history():
+        raise ValueError(f"{history} is not a history AVU")
+
+    def compare_without_timestamp(val1, val2):
+        return val1.split("]")[1] == val2.split("]")[1]
+
+    for avu in metadata:
+        if (
+            avu.is_history()
+            and history.attribute == avu.attribute
+            and compare_without_timestamp(history.value, avu.value)
+            and history.units == avu.units
+        ):
+            return True
+
+    return False
 
 
-def initialize_mlwh_ont(session: Session):
-    """Create test data for all synthetic simple and multiplexed experiments.
+def initialize_mlwh_ont_synthetic(session: Session):
+    """Insert ML warehouse test data for all synthetic simple and multiplexed
+    ONT experiments.
 
     This is a superset of the experiments represented by the files in
     ./tests/data/ont/synthetic
@@ -311,7 +326,89 @@ def initialize_mlwh_ont(session: Session):
     session.commit()
 
 
-def initialize_mlwh_illumina(sess: Session):
+def initialize_mlwh_illumina_synthetic(session: Session):
+    """Insert ML warehouse test data for synthetic simple and multiplexed Illumina runs.
+
+    This is represented by the files in ./tests/data/illumina/synthetic
+    """
+    default_timestamps = {"last_updated": BEGIN, "recorded_at": BEGIN}
+    default_run = 12345
+
+    study_a = Study(
+        id_lims="LIMS_01", id_study_lims="3000", name="Study A", **default_timestamps
+    )
+    session.add_all([study_a])
+    session.flush()
+
+    sample1 = Sample(
+        donor_id="donor1",
+        id_lims="LIMS_01",
+        id_sample_lims="sample1",
+        name="sample 1",
+        sanger_sample_id="sanger_sample1",
+        supplier_name="supplier_name1",
+        **default_timestamps,
+    )
+    sample2 = Sample(
+        donor_id="donor2",
+        id_lims="LIMS_01",
+        id_sample_lims="sample2",
+        name="sample 2",
+        sanger_sample_id="sanger_sample2",
+        supplier_name="supplier_name2",
+        **default_timestamps,
+    )
+    sample3 = Sample(
+        id_lims="LIMS_99", id_sample_lims="phix", name="Phi X", **default_timestamps
+    )
+    session.add_all([sample1, sample2, sample3])
+    session.flush()
+
+    sample_pos_tag = [
+        {"sample": sample1, "position": 1, "tag_index": None},  # Not multiplexed
+        {"sample": sample1, "position": 1, "tag_index": 1},
+        {"sample": sample2, "position": 1, "tag_index": 2},
+        {"sample": sample1, "position": 2, "tag_index": 1},
+        {"sample": sample2, "position": 2, "tag_index": 2},
+        {"sample": sample3, "position": 1, "tag_index": 888},  # PhiX
+        {"sample": sample3, "position": 2, "tag_index": 888},  # PhiX
+    ]
+
+    flowcells = [
+        IseqFlowcell(
+            entity_id_lims=f"ENTITY_01",
+            entity_type=f"ENTITY_TYPE_01",
+            id_flowcell_lims=f"FLOWCELL{i}",
+            id_lims="LIMS_01",
+            id_pool_lims=f"POOL_01",
+            position=spt["position"],
+            sample=spt["sample"],
+            study=study_a,
+            tag_index=spt["tag_index"],
+            **default_timestamps,
+        )
+        for i, spt in enumerate(sample_pos_tag)
+    ]
+    session.add_all(flowcells)
+    session.flush()
+
+    product_metrics = [
+        IseqProductMetrics(
+            id_iseq_product=f"product{i}",
+            id_run=default_run,
+            iseq_flowcell=fc,
+            last_changed=BEGIN,
+            position=fc.position,
+            tag_index=fc.tag_index,
+        )
+        for i, fc in enumerate(flowcells)
+    ]
+    session.add_all(product_metrics)
+    session.commit()
+
+
+def initialize_mlwh_illumina_backfill(sess: Session):
+    """Insert ML warehouse test data for Illumina product iRODS paths."""
     changed_study = Study(
         id_lims="LIMS_05",
         id_study_lims="4000",
@@ -331,9 +428,7 @@ def initialize_mlwh_illumina(sess: Session):
         recorded_at=BEGIN,
     )
     sess.add_all([changed_study, unchanged_study])
-    sess.commit()
-    sess.refresh(changed_study)
-    sess.refresh(unchanged_study)
+    sess.flush()
 
     changed_sample = Sample(
         id_lims="LIMS_05",
@@ -364,9 +459,7 @@ def initialize_mlwh_illumina(sess: Session):
         recorded_at=BEGIN,
     )
     sess.add_all([changed_sample, unchanged_sample])
-    sess.commit()
-    sess.refresh(changed_sample)
-    sess.refresh(unchanged_sample)
+    sess.flush()
 
     study_changed_flowcell = IseqFlowcell(
         id_lims="LIMS_05",
@@ -446,9 +539,7 @@ def initialize_mlwh_illumina(sess: Session):
         no_change_flowcell,
     ]
     sess.add_all(flowcells)
-    sess.commit()
-    for flowcell in flowcells:
-        sess.refresh(flowcell)
+    sess.flush()
 
     study_changed_product_metrics = IseqProductMetrics(
         id_iseq_product="PRODUCT_01",
@@ -500,6 +591,7 @@ def initialize_mlwh_illumina(sess: Session):
 
 @pytest.fixture(scope="session")
 def sql_test_utilities():
+    """Install SQL test utilities for the iRODS backend database."""
     try:
         add_sql_test_utilities()
         yield
@@ -509,11 +601,14 @@ def sql_test_utilities():
 
 @pytest.fixture(scope="function")
 def mlwh_session() -> Session:
+    """Create an empty ML warehouse database fixture."""
     dbconfig = DBConfig.from_file(TEST_INI, INI_SECTION)
-    engine = create_engine(dbconfig.url, echo=False)
+    engine = create_engine(dbconfig.url, echo=True)
 
-    if not database_exists(engine.url):
-        create_database(engine.url)
+    if database_exists(engine.url):
+        drop_database(engine.url)
+
+    create_database(engine.url)
 
     with engine.connect() as conn:
         # Workaround for invalid default values for dates.
@@ -523,9 +618,6 @@ def mlwh_session() -> Session:
     Base.metadata.create_all(engine)
     session_maker = sessionmaker(bind=engine)
     sess: Session() = session_maker()
-
-    initialize_mlwh_ont(sess)
-    initialize_mlwh_illumina(sess)
 
     try:
         yield sess
@@ -543,8 +635,30 @@ def mlwh_session() -> Session:
 
 
 @pytest.fixture(scope="function")
+def ont_synthetic_mlwh(mlwh_session) -> Session:
+    """An ML warehouse database fixture populated with ONT-related records."""
+    initialize_mlwh_ont_synthetic(mlwh_session)
+    yield mlwh_session
+
+
+@pytest.fixture(scope="function")
+def illumina_synthetic_mlwh(mlwh_session) -> Session:
+    """An ML warehouse database fixture populated with Illumina-related records."""
+    initialize_mlwh_illumina_synthetic(mlwh_session)
+    yield mlwh_session
+
+
+@pytest.fixture(scope="function")
+def illumina_backfill_mlwh(mlwh_session) -> Session:
+    """An ML warehouse database fixture populated with Illumina iRODS path backfill
+    records."""
+    initialize_mlwh_illumina_backfill(mlwh_session)
+    yield mlwh_session
+
+
+@pytest.fixture(scope="function")
 def simple_collection(tmp_path):
-    """A fixture providing an empty collection"""
+    """A fixture providing an empty collection."""
     root_path = PurePath("/testZone/home/irods/test/simple_collection")
     coll_path = add_rods_path(root_path, tmp_path)
 
@@ -567,7 +681,7 @@ def simple_data_object(tmp_path):
     try:
         yield obj_path
     finally:
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
 
 
 @pytest.fixture(scope="function")
@@ -593,7 +707,7 @@ def annotated_data_object(tmp_path):
     try:
         yield obj_path
     finally:
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
 
 
 @pytest.fixture(scope="function")
@@ -610,7 +724,7 @@ def consent_withdrawn_gapi_data_object(tmp_path):
     try:
         yield obj_path
     finally:
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
 
 
 @pytest.fixture(scope="function")
@@ -627,13 +741,13 @@ def consent_withdrawn_npg_data_object(tmp_path):
     try:
         yield obj_path
     finally:
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
 
 
 @pytest.fixture(scope="function")
 def invalid_replica_data_object(tmp_path, sql_test_utilities):
     """A fixture providing a data object with one of its two replicas marked invalid."""
-    root_path = PurePath("/testZone/home/irods/test")
+    root_path = PurePath("/testZone/home/irods/test/invalid_replica_data_object")
     rods_path = add_rods_path(root_path, tmp_path)
 
     obj_path = rods_path / "invalid_replica.txt"
@@ -643,15 +757,15 @@ def invalid_replica_data_object(tmp_path, sql_test_utilities):
     try:
         yield obj_path
     finally:
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
 
 
 @pytest.fixture(scope="function")
-def annotated_tree(tmp_path):
+def annotated_collection_tree(tmp_path):
     """A fixture providing a tree of collections and data objects, with both
     collections and data objects having annotation."""
 
-    root_path = PurePath("/testZone/home/irods/test/annotated_tree")
+    root_path = PurePath("/testZone/home/irods/test/annotated_collection_tree")
     rods_path = add_rods_path(root_path, tmp_path)
 
     iput("./tests/data/tree", rods_path, recurse=True)
@@ -679,35 +793,32 @@ def annotated_tree(tmp_path):
     try:
         yield tree_root
     finally:
-        Collection(rods_path).add_permissions(
-            AC(user="irods", perm=Permission.OWN, zone="testZone"), recurse=True
-        )
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
         remove_test_groups()
 
 
 @pytest.fixture(scope="function")
-def special_paths(tmp_path):
+def challenging_paths_irods(tmp_path):
     """A fixture providing a collection of challengingly named paths which contain spaces
     and/or quotes."""
-    root_path = PurePath("/testZone/home/irods/test")
+    root_path = PurePath("/testZone/home/irods/test/challenging_paths_irods")
     rods_path = add_rods_path(root_path, tmp_path)
 
-    iput("./tests/data/special", rods_path, recurse=True)
-    expt_root = rods_path / "special"
+    iput("./tests/data/challenging", rods_path, recurse=True)
+    expt_root = rods_path / "challenging"
 
     try:
         yield expt_root
     finally:
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
 
 
 @pytest.fixture(scope="function")
-def ont_gridion(tmp_path):
+def ont_gridion_irods(tmp_path):
     """A fixture providing a set of files based on output from an ONT GridION
     instrument. This dataset provides an example of file and directory naming
     conventions. The file contents are dummy values."""
-    root_path = PurePath("/testZone/home/irods/test/ont_gridion")
+    root_path = PurePath("/testZone/home/irods/test/ont_gridion_irods")
     rods_path = add_rods_path(root_path, tmp_path)
 
     iput("./tests/data/ont/gridion", rods_path, recurse=True)
@@ -717,19 +828,19 @@ def ont_gridion(tmp_path):
     try:
         yield expt_root
     finally:
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
         remove_test_groups()
 
 
 @pytest.fixture(scope="function")
-def ont_synthetic(tmp_path):
+def ont_synthetic_irods(tmp_path):
     """A fixture providing a synthetic set of files and metadata based on output
     from an ONT GridION instrument, modified to represent the way simple and
     multiplexed experiments are laid out. The file contents are dummy values."""
-    root_path = PurePath("/testZone/home/irods/test/ont_synthetic")
+    root_path = PurePath("/testZone/home/irods/test/ont_synthetic_irods")
     rods_path = add_rods_path(root_path, tmp_path)
 
-    expt_root = PurePath(rods_path, "synthetic")
+    expt_root = rods_path / "synthetic"
     add_test_groups()
 
     for expt in range(1, NUM_SIMPLE_EXPTS + 1):
@@ -767,70 +878,78 @@ def ont_synthetic(tmp_path):
     try:
         yield expt_root
     finally:
-        Collection(rods_path).add_permissions(
-            AC(user="irods", perm=Permission.OWN), recurse=True
-        )
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
         remove_test_groups()
 
 
 @pytest.fixture(scope="function")
-def illumina_products(tmp_path):
-    root_path = PurePath("/testZone/home/irods/test/illumina_products")
+def illumina_synthetic_irods(tmp_path):
+    root_path = PurePath("/testZone/home/irods/test/illumina_synthetic_irods")
     rods_path = add_rods_path(root_path, tmp_path)
 
     Collection(rods_path).create(parents=True)
+    add_test_groups()
+
     run = illumina.Instrument.RUN
+    pos = illumina.Instrument.LANE
     tag = SeqConcept.TAG_INDEX
     idp = SeqConcept.ID_PRODUCT
     cmp = SeqConcept.COMPONENT
     ref = SeqConcept.REFERENCE
 
     metadata = {
-        "12345/12345#1.cram": (
-            AVU(idp, "31a3d460bb3c7d98845187c716a30db81c44b615"),
-            AVU(cmp, "{'id_run':12345, 'position':1, 'tag_index':1}"),
-            AVU(cmp, "{'id_run':12345, 'position':2, 'tag_index':1}"),
+        "12345/12345.cram": (
+            AVU(cmp, '{"id_run":12345, "position":1}'),
             AVU(ref, "Any/other/reference"),
             AVU(run, 12345),
+            AVU(pos, 1),
+        ),
+        "12345/12345#1.cram": (
+            AVU(idp, "31a3d460bb3c7d98845187c716a30db81c44b615"),
+            AVU(cmp, '{"id_run":12345, "position":1, "tag_index":1}'),
+            AVU(cmp, '{"id_run":12345, "position":2, "tag_index":1}'),
+            AVU(ref, "Any/other/reference"),
+            AVU(run, 12345),
+            AVU(pos, 1),
+            AVU(pos, 2),
             AVU(tag, 1),
         ),
         "12345/12345#2.cram": (
             AVU(idp, "0b3bd00f1d186247f381aa87e213940b8c7ab7e5"),
-            AVU(cmp, "{'id_run':12345, 'position':1, 'tag_index':2"),
-            AVU(cmp, "{'id_run':12345, 'position':2, 'tag_index':2"),
+            AVU(cmp, '{"id_run":12345, "position":1, "tag_index":2}'),
+            AVU(cmp, '{"id_run":12345, "position":2, "tag_index":2}'),
             AVU(tag, 2),
             AVU(SeqConcept.ALT_PROCESS, "Alternative Process"),
         ),
         "12345/12345#1_phix.cram": (
             AVU(idp, "31a3d460bb3c7d98845187c716a30db81c44b615"),
-            AVU(cmp, "{'id_run':12345, 'position':1, 'subset':'phix', tag_index':1}"),
-            AVU(cmp, "{'id_run':12345, 'position':2, 'subset':'phix', tag_index':1}"),
+            AVU(cmp, '{"id_run":12345, "position":1, "subset":"phix", tag_index":1}'),
+            AVU(cmp, '{"id_run":12345, "position":2, "subset":"phix", tag_index":1}'),
             AVU(tag, 1),
         ),
         "12345/12345#888.cram": (
             AVU(idp, "5e67fc5c63b7ceb4e63bbb8e62ab58dcc57b6e64"),
-            AVU(cmp, "{'id_run':12345, 'position':1, 'tag_index':888"),
-            AVU(cmp, "{'id_run':12345, 'position':2, 'tag_index':888"),
+            AVU(cmp, '{"id_run":12345, "position":1, "tag_index":888}'),
+            AVU(cmp, '{"id_run":12345, "position":2, "tag_index":888}'),
             AVU(ref, "A/reference/with/PhiX/present"),
             AVU(tag, 888),
         ),
         "12345/12345#0.cram": (
-            AVU(cmp, "f54f4a5c3eba5bdf302c1ce4a7c18add33a04315"),
-            AVU(cmp, "{'id_run':12345, 'position':1, 'tag_index':0"),
-            AVU(cmp, "{'id_run':12345, 'position':2, 'tag_index':0"),
+            AVU(idp, "f54f4a5c3eba5bdf302c1ce4a7c18add33a04315"),
+            AVU(cmp, '{"id_run":12345, "position":1, "tag_index":0}'),
+            AVU(cmp, '{"id_run":12345, "position":2, "tag_index":0}'),
             AVU(tag, 0),
         ),
         "12345/cellranger/12345.cram": (),
         "54321/54321#1.bam": (
             AVU(idp, "1a08a7027d9f9c20d01909989370ea6b70a5bccc"),
-            AVU(cmp, "{'id_run':54321, 'position':1, 'tag_index':1}"),
-            AVU(cmp, "{'id_run':54321, 'position':2, 'tag_index':1}"),
+            AVU(cmp, '{"id_run":54321, "position":1, "tag_index":1}'),
+            AVU(cmp, '{"id_run":54321, "position":2, "tag_index":1}'),
             AVU(tag, 1),
         ),
         "67890/67890#1.cram": (
-            AVU(cmp, "{'id_run':54321, 'position':1, 'tag_index':1}"),
-            AVU(cmp, "{'id_run':54321, 'position':2, 'tag_index':1}"),
+            AVU(cmp, '{"id_run":54321, "position":1, "tag_index":1}'),
+            AVU(cmp, '{"id_run":54321, "position":2, "tag_index":1}'),
             AVU(tag, 1),
         ),
     }
@@ -840,10 +959,12 @@ def illumina_products(tmp_path):
         obj = DataObject(rods_path / "synthetic" / path)
         for avu in metadata[path]:
             obj.add_metadata(avu)
+
     try:
         yield rods_path / "synthetic"
     finally:
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
+        remove_test_groups()
 
 
 @pytest.fixture(scope="function")
@@ -858,7 +979,7 @@ def pacbio_requires_id(tmp_path):
     try:
         yield obj_path
     finally:
-        irm(rods_path, force=True, recurse=True)
+        remove_rods_path(rods_path)
 
 
 @pytest.fixture(scope="function")
@@ -866,10 +987,6 @@ def pacbio_has_id(pacbio_requires_id):
     """A fixture providing a data object that has a product id in metadata"""
 
     obj = DataObject(pacbio_requires_id)
-
     obj.add_metadata(AVU(SeqConcept.ID_PRODUCT, "abcde12345"))
 
-    try:
-        yield pacbio_requires_id
-    finally:
-        irm(pacbio_requires_id, force=True, recurse=True)
+    yield pacbio_requires_id

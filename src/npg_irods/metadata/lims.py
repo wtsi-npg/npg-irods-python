@@ -67,11 +67,12 @@ class TrackedStudy(AsValueEnum):
 class SeqConcept(AsValueEnum):
     """Sequencing terminology."""
 
-    TAG_INDEX = "tag_index"
-    REFERENCE = "reference"
+    ALT_PROCESS = "alt_process"
     COMPONENT = "component"
     ID_PRODUCT = "id_product"
-    ALT_PROCESS = "alt_process"
+    REFERENCE = "reference"
+    SUBSET = "subset"
+    TAG_INDEX = "tag_index"
 
 
 def make_sample_metadata(sample: Sample) -> list[AVU]:

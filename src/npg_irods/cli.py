@@ -16,13 +16,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
-
+import argparse
 import logging
 import logging.config
 import json as json_parser
+import re
 
 from argparse import ArgumentParser, ArgumentTypeError
+from datetime import datetime
 
+import dateutil.parser
 import structlog
 from partisan.irods import rods_path_type
 
@@ -182,3 +185,13 @@ def configure_logging(
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
+
+
+def parse_iso_date(date: str) -> datetime:
+    """Custom argparse type for ISO8601 dates."""
+    try:
+        return dateutil.parser.isoparse(date)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"Incorrect format {date}. Please use ISO8601 UTC e.g. 2022-01-30T11:11:03Z"
+        )

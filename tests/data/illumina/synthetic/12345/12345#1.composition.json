@@ -1,0 +1,17 @@
+{
+  "__CLASS__": "npg_tracking::glossary::composition-90.0",
+  "components": [
+    {
+      "__CLASS__": "npg_tracking::glossary::composition::component::illumina-90.0",
+      "id_run": 12345,
+      "position": 1,
+      "tag_index": 1
+    },
+    {
+      "__CLASS__": "npg_tracking::glossary::composition::component::illumina-90.0",
+      "id_run": 12345,
+      "position": 2,
+      "tag_index": 1
+    }
+  ]
+}

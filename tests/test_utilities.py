@@ -58,8 +58,8 @@ class TestChecksumUtilities:
     @m.context("When data object checksums are checked")
     @m.context("When all of the data objects have checksum metadata")
     @m.it("Counts successes correctly")
-    def test_checked_checksums_passes(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_checked_checksums_passes(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
 
         for p in obj_paths:
             ensure_common_metadata(DataObject(p))
@@ -79,8 +79,8 @@ class TestChecksumUtilities:
     @m.context("When data object checksums are checked")
     @m.context("When none of the data objects have checksum metadata")
     @m.it("Counts failures correctly")
-    def test_check_checksums_failures(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_check_checksums_failures(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
 
         with StringIO("\n".join(obj_paths)) as reader:
             with StringIO() as writer:
@@ -97,8 +97,8 @@ class TestChecksumUtilities:
     @m.context("When data object checksums are repaired")
     @m.context("When all of the data objects have checksum metadata")
     @m.it("Counts repairs correctly")
-    def test_repair_checksums_all(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_repair_checksums_all(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
         for p in obj_paths:
             ensure_common_metadata(DataObject(p))
 
@@ -117,8 +117,8 @@ class TestChecksumUtilities:
     @m.context("When data object checksums are repaired")
     @m.context("When none of the data objects have checksum metadata")
     @m.it("Counts repairs correctly")
-    def test_repair_checksums_none(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_repair_checksums_none(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
 
         with StringIO("\n".join(obj_paths)) as reader:
             with StringIO() as writer:
@@ -159,8 +159,8 @@ class TestReplicaUtilities:
     @m.context("When data object replicas are checked")
     @m.context("When all of the data objects have conforming replicas")
     @m.it("Counts successes correctly")
-    def test_checked_replicas_none(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_checked_replicas_none(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
         expected_num_replicas = 2
 
         with StringIO("\n".join(obj_paths)) as reader:
@@ -178,8 +178,8 @@ class TestReplicaUtilities:
     @m.context("When data object replicas are checked")
     @m.context("When none of the data objects have conforming replicas")
     @m.it("Counts failures correctly")
-    def test_check_replicas_all(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_check_replicas_all(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
         expected_num_replicas = 999  # Cause failure by expecting an impossible number
 
         with StringIO("\n".join(obj_paths)) as reader:
@@ -197,8 +197,8 @@ class TestReplicaUtilities:
     @m.context("When data object replicas are repaired")
     @m.context("When all of the data objects have conforming replicas")
     @m.it("Counts repairs correctly")
-    def test_repair_replicas_none(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_repair_replicas_none(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
         desired_num_replicas = 2
 
         with StringIO("\n".join(obj_paths)) as reader:
@@ -216,8 +216,10 @@ class TestReplicaUtilities:
     @m.context("When data object replicas are repaired")
     @m.context("When all of the data objects need invalid replicas repaired")
     @m.it("Counts repairs correctly")
-    def test_repair_invalid_replicas_all(self, annotated_tree, sql_test_utilities):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_repair_invalid_replicas_all(
+        self, annotated_collection_tree, sql_test_utilities
+    ):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
         for p in obj_paths:
             set_replicate_invalid(DataObject(p), replicate_num=1)
 
@@ -237,8 +239,10 @@ class TestReplicaUtilities:
     @m.context("When data object replicas are repaired")
     @m.context("When all of the data objects need valid replicas repaired")
     @m.it("Counts repairs correctly")
-    def test_repair_valid_replicas_all(self, annotated_tree, sql_test_utilities):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_repair_valid_replicas_all(
+        self, annotated_collection_tree, sql_test_utilities
+    ):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
 
         desired_num_replicas = 1  # The test fixture has 2 replicas
         with StringIO("\n".join(obj_paths)) as reader:
@@ -258,8 +262,8 @@ class TestReplicaUtilities:
 class TestConsentUtilities:
     @m.context("When a data object's consent is withdrawn")
     @m.it("Has permissions removed, except for the current user and rodsadmins")
-    def test_ensure_consent_withdrawn(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_ensure_consent_withdrawn(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
         study_ac = AC("ss_1000", Permission.READ, zone="testZone")
         admin_ac = AC("irods", Permission.OWN, zone="testZone")
         public_ac = AC("public", Permission.READ, zone="testZone")
@@ -279,8 +283,8 @@ class TestConsentUtilities:
     @m.context("When data object consent withdrawn state is checked")
     @m.context("When all of the data objects have consent withdrawn")
     @m.it("Counts successes correctly")
-    def test_checked_consent_withdrawn_passes(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_checked_consent_withdrawn_passes(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
 
         for p in obj_paths:
             ensure_consent_withdrawn(DataObject(p))
@@ -300,8 +304,8 @@ class TestConsentUtilities:
     @m.context("When data object consent withdrawn state is checked")
     @m.context("When none of the data objects have consent withdrawn")
     @m.it("Counts failures correctly")
-    def test_checked_consent_withdrawn_failures(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_checked_consent_withdrawn_failures(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
 
         with StringIO("\n".join(obj_paths)) as reader:
             with StringIO() as writer:
@@ -318,8 +322,8 @@ class TestConsentUtilities:
     @m.context("When data objects have their consent withdrawn")
     @m.context("When all of the data objects need to have their consent withdrawn")
     @m.it("Counts repairs correctly")
-    def test_withdraw_consent_all(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_withdraw_consent_all(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
 
         with StringIO("\n".join(obj_paths)) as reader:
             with StringIO() as writer:
@@ -336,8 +340,8 @@ class TestConsentUtilities:
     @m.context("When data objects have their consent withdrawn")
     @m.context("When none of the data objects need to have their consent withdrawn")
     @m.it("Counts repairs correctly")
-    def test_withdraw_consent_none(self, annotated_tree):
-        obj_paths = collect_obj_paths(Collection(annotated_tree))
+    def test_withdraw_consent_none(self, annotated_collection_tree):
+        obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
 
         # Make sure the object is already marked as consent withdrawn
         for p in obj_paths:
@@ -463,8 +467,8 @@ class TestCopyUtilities:
 
     @m.context("When a tree is copied")
     @m.it("Copies all collections and objects")
-    def test_copy_recurse(self, annotated_tree, simple_collection):
-        src = Collection(annotated_tree)
+    def test_copy_recurse(self, annotated_collection_tree, simple_collection):
+        src = Collection(annotated_collection_tree)
         dest = Collection(simple_collection)
 
         num_processed, num_copied = copy(src, dest, recurse=True)
@@ -507,8 +511,10 @@ class TestCopyUtilities:
 
     @m.context("When a tree with annotation is copied")
     @m.it("Copies annotation on collections and data objects")
-    def test_copy_annotation_recurse(self, annotated_tree, simple_collection):
-        src = Collection(annotated_tree)
+    def test_copy_annotation_recurse(
+        self, annotated_collection_tree, simple_collection
+    ):
+        src = Collection(annotated_collection_tree)
         dest = Collection(simple_collection)
 
         copy(src, dest, avu=True, recurse=True)
@@ -516,13 +522,17 @@ class TestCopyUtilities:
         for item in dest.contents(avu=True, recurse=True):
             # The path of the source item must appear in the annotation of the dest
             # item for the test to pass
-            src_path = re.sub(r"simple_collection", "annotated_tree", str(item))
+            src_path = re.sub(
+                r"simple_collection", "annotated_collection_tree", str(item)
+            )
             assert item.metadata() == [AVU("path", src_path)]
 
     @m.context("When a tree with permissions is copied")
     @m.it("Copies permissions on collections and data objects")
-    def test_copy_permissions_recurse(self, annotated_tree, simple_collection):
-        src = Collection(annotated_tree)
+    def test_copy_permissions_recurse(
+        self, annotated_collection_tree, simple_collection
+    ):
+        src = Collection(annotated_collection_tree)
         dest = Collection(simple_collection)
 
         copy(src, dest, acl=True, recurse=True)
@@ -535,9 +545,9 @@ class TestCopyUtilities:
 class TestSafeRemoveUtilities:
     @m.context("When passed a hierarchy of collections and data objects")
     @m.it("Writes the expected commands")
-    def test_write_safe_remove_commands(self, annotated_tree):
+    def test_write_safe_remove_commands(self, annotated_collection_tree):
         with StringIO() as writer:
-            write_safe_remove_commands(annotated_tree, writer)
+            write_safe_remove_commands(annotated_collection_tree, writer)
 
             expected = [
                 ("irm", "w.txt"),
@@ -574,19 +584,19 @@ class TestSafeRemoveUtilities:
 
     @m.context("When a generated safe remove script is run")
     @m.it("Removes the expected collections and data objects")
-    def test_write_safe_remove_script(self, tmp_path, annotated_tree):
+    def test_write_safe_remove_script(self, tmp_path, annotated_collection_tree):
         script = Path(tmp_path, "safe_rm.sh")
-        write_safe_remove_script(script, annotated_tree)
+        write_safe_remove_script(script, annotated_collection_tree)
         subprocess.run([script.as_posix()], check=True)
 
-        assert not Collection(annotated_tree).exists()
+        assert not Collection(annotated_collection_tree).exists()
 
     @m.context("When passed a hierarchy of collections and data objects")
     @m.context("When paths contain spaces and/or quotes")
     @m.it("Writes the expected commands")
-    def test_write_safe_remove_commands_special(self, special_paths):
+    def test_write_safe_remove_commands_special(self, challenging_paths_irods):
         with StringIO() as writer:
-            write_safe_remove_commands(special_paths, writer)
+            write_safe_remove_commands(challenging_paths_irods, writer)
 
             expected = [
                 ("irm", "x.txt"),
@@ -600,7 +610,7 @@ class TestSafeRemoveUtilities:
                 ("irm", 'z".txt'),
                 ("irmdir", 'b"b'),
                 ("irmdir", "a a"),
-                ("irmdir", "special"),
+                ("irmdir", "challenging"),
             ]
             observed = []
             for line in writer.getvalue().splitlines():
@@ -614,9 +624,9 @@ class TestSafeRemoveUtilities:
     @m.context("When a generated safe remove script is run")
     @m.context("When paths contain spaces and/or quotes")
     @m.it("Removes the expected collections and data objects")
-    def test_write_safe_remove_script_special(self, tmp_path, special_paths):
+    def test_write_safe_remove_script_special(self, tmp_path, challenging_paths_irods):
         script = Path(tmp_path, "safe_rm.sh")
-        write_safe_remove_script(script, special_paths)
+        write_safe_remove_script(script, challenging_paths_irods)
         subprocess.run([script.as_posix()], check=True)
 
-        assert not Collection(special_paths).exists()
+        assert not Collection(challenging_paths_irods).exists()
