@@ -128,7 +128,7 @@ def has_complete_checksums(obj: DataObject) -> bool:
 
 
 def has_matching_checksums(obj: DataObject) -> bool:
-    """Return True if the data object has the same checksum for every replica.
+    """Return True if the data object has the same checksum for every valid replica.
 
     If the data object does not have complete checksums, this function returns False.
 
@@ -136,7 +136,7 @@ def has_matching_checksums(obj: DataObject) -> bool:
         obj: The data object to check.
 
     Returns:
-        True if all the replicas share the same checksum, or False otherwise.
+        True if all the valid replicas share the same checksum, or False otherwise.
     """
     if not has_complete_checksums(obj):
         return False
@@ -168,25 +168,15 @@ def has_matching_checksum_metadata(obj: DataObject) -> bool:
 
     Returns:
         True if all checksums and metadata concur, or False otherwise.
-
-    Raises:
-        ChecksumError if there are multiple items of checksum metadata on the
-        data object.
     """
     # It's possible, technically, for there to be multiple checksum AVUs in an
     # object's metadata because iRODS is permissive on this. If we find more than
-    # one, we raise an exception.
+    # one, we consider that the checksum metadata do not match.
     checksum_meta = [
         avu for avu in obj.metadata() if avu.attribute == DataFile.MD5.value
     ]
     if len(checksum_meta) > 1:
-        checksums = [avu.value for avu in checksum_meta]
-        raise ChecksumError(
-            f"Found {len(checksums)} checksums in iRODS metadata",
-            path=obj,
-            expected=obj.checksum(),
-            observed=checksums,
-        )
+        return False
 
     if not has_matching_checksums(obj):
         return False
@@ -244,16 +234,30 @@ def ensure_matching_checksum_metadata(obj: DataObject) -> bool:
             observed=observed_checksums,
         )
 
-    # If we get here we know it either has 0 or 1 checksum AVU,
     if not has_checksum_metadata(obj):
         obj.add_metadata(AVU(DataFile.MD5, obj.checksum()))
         return True
 
     expected_avu = AVU(DataFile.MD5, obj.checksum())
+    observed_avus = [
+        avu for avu in obj.metadata() if avu.attribute == DataFile.MD5.value
+    ]
+
+    num_added, num_removed = obj.supersede_metadata(expected_avu, history=True)
+    if num_added and expected_avu in obj.metadata():
+        delta = set(obj.metadata()).difference(observed_avus)
+        log.info(
+            "Updated checksum metadata",
+            path=obj,
+            expected=expected_avu,
+            observed=observed_avus,
+            num_added=num_added,
+            num_removed=num_removed,
+            delta=delta,
+        )
+        return True
+
     if expected_avu not in obj.metadata():
-        observed_avus = [
-            avu for avu in obj.metadata() if avu.attribute == DataFile.MD5.value
-        ]
         raise ChecksumError(
             "Existing checksum metadata did not match the iRODS checksum",
             path=obj,

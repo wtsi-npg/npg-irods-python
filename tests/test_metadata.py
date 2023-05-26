@@ -207,8 +207,8 @@ class TestChecksums:
 
     @m.context("When a data object has complete checksums")
     @m.context("When there are extra, unexpected checksum metadata")
-    @m.it("Raises an exception")
-    def test_has_matching_checksum_metadata_error(self):
+    @m.it("Returns False")
+    def test_has_matching_checksum_metadata_extra(self):
         checksum = "aaaaaaaaaa"
         unexpected_checksum = "bbbbbbbbbb"
         obj = DataObject("/dummy/path.txt")
@@ -224,15 +224,13 @@ class TestChecksums:
             checksum=lambda: checksum,
             metadata=lambda: metadata,
         ):
-            with pytest.raises(ChecksumError) as ce:
-                has_matching_checksum_metadata(obj)
-                assert ce.value.expected == checksum
+            assert not has_matching_checksum_metadata(obj)
 
     @m.context("When a data object has complete checksums")
     @m.context("When a data object has matching checksums")
     @m.context("When there are no existing checksum metadata")
     @m.it("Adds checksum metadata and returns True")
-    def test_ensure_matching_checksum_metadata(self, simple_data_object):
+    def test_ensure_matching_checksum_metadata_none(self, simple_data_object):
         obj = DataObject(simple_data_object)
 
         assert not has_matching_checksum_metadata(obj)
@@ -243,28 +241,13 @@ class TestChecksums:
     @m.context("When a data object has matching checksums")
     @m.context("When there are existing, correct checksum metadata")
     @m.it("Does nothing and returns False")
-    def test_ensure_matching_checksum_metadata(self, simple_data_object):
+    def test_ensure_matching_checksum_metadata_correct(self, simple_data_object):
         obj = DataObject(simple_data_object)
         ensure_matching_checksum_metadata(obj)
 
         assert has_matching_checksum_metadata(obj)
         assert not ensure_matching_checksum_metadata(obj)
 
-    @m.context("When a data object has complete checksums")
-    @m.context("When a data object has matching checksums")
-    @m.context("When there are existing, correct checksum metadata")
-    @m.context("When there are extra, unexpected checksum metadata")
-    @m.it("Raises an exception")
-    def test_ensure_matching_checksum_extra(self, simple_data_object):
-        obj = DataObject(simple_data_object)
-        ensure_matching_checksum_metadata(obj)
-        obj.add_metadata(AVU(DataFile.MD5, "unexpected_checksum"))
-
-        msg_regex = re.compile(r"found \d+ checksums", re.IGNORECASE)
-        with pytest.raises(ChecksumError, match=msg_regex):
-            ensure_matching_checksum_metadata(obj)
-
-    @m.context("When a data object has incomplete checksums")
     @m.it("Raises an exception")
     def test_ensure_matching_checksum_metadata_incomplete(self, simple_data_object):
         obj = DataObject(simple_data_object)
@@ -294,6 +277,17 @@ class TestChecksums:
                 ChecksumError, match="checksums do not match each other"
             ):
                 ensure_matching_checksum_metadata(obj)
+
+    @m.context("When a data object has complete checksums")
+    @m.context("When a data object has matching checksums")
+    @m.context("When there are existing, incorrect checksum metadata")
+    def test_ensure_matching_checksum_metadata_incorrect(self, simple_data_object):
+        obj = DataObject(simple_data_object)
+        obj.add_metadata(AVU(DataFile.MD5, "invalid_checksum"))
+        obj.add_metadata(AVU(DataFile.MD5, "another_invalid_checksum"))
+
+        assert ensure_matching_checksum_metadata(obj)
+        assert has_matching_checksum_metadata(obj)
 
 
 @m.describe("Consent metadata")
