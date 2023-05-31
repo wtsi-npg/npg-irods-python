@@ -1,4 +1,4 @@
-cryptography==40.0.2
+cryptography==41.0.0
 ml-warehouse@https://github.com/wtsi-npg/ml-warehouse-python/releases/download/1.3.0/ml-warehouse-1.3.0.tar.gz
 partisan@https://github.com/wtsi-npg/partisan/releases/download/2.3.2/partisan-2.3.2.tar.gz
 pymysql==1.0.3
