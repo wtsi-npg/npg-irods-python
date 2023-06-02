@@ -281,6 +281,7 @@ class TestChecksums:
     @m.context("When a data object has complete checksums")
     @m.context("When a data object has matching checksums")
     @m.context("When there are existing, incorrect checksum metadata")
+    @m.it("Corrects the metadata")
     def test_ensure_matching_checksum_metadata_incorrect(self, simple_data_object):
         obj = DataObject(simple_data_object)
         obj.add_metadata(AVU(DataFile.MD5, "invalid_checksum"))
