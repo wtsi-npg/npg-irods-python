@@ -173,7 +173,7 @@ def repair_checksums(
     - Data object metadata: if all valid replicas have the same checksum and there is
       no checksum metadata AVU, then one is added.
 
-    - Data object metadata: f all valid replicas have the same checksum and current
+    - Data object metadata: if all valid replicas have the same checksum and current
       checksum metadata are incorrect, a new AVU is added and any previous metadata
       moved to history.
 
