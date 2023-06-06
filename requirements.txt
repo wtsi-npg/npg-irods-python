@@ -3,7 +3,7 @@ ml-warehouse@https://github.com/wtsi-npg/ml-warehouse-python/releases/download/1
 partisan@https://github.com/wtsi-npg/partisan/releases/download/2.3.2/partisan-2.3.2.tar.gz
 pymysql==1.0.3
 npg_id_generation@https://github.com/wtsi-npg/npg_id_generation/releases/download/1.0.1/npg_id_generation-1.0.1.tar.gz
-rich==13.3.5
+rich==13.4.1
 setuptools==67.7.2
 setuptools-git-versioning==1.13.3
 sqlalchemy==2.0.12
