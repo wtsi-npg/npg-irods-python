@@ -6,5 +6,5 @@ npg_id_generation@https://github.com/wtsi-npg/npg_id_generation/releases/downloa
 rich==13.4.1
 setuptools==67.8.0
 setuptools-git-versioning==1.13.3
-sqlalchemy==2.0.12
+sqlalchemy==2.0.15
 structlog==23.1.0
