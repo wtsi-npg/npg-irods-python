@@ -189,6 +189,19 @@ def ensure_consent_withdrawn_metadata(obj: DataObject) -> bool:
     return _ensure_avus_present(obj, AVU(TrackedSample.CONSENT_WITHDRAWN, 1))
 
 
+def is_managed_access(ac: AC):
+    """Return True if the access control is managed by this API and can safely be added or
+    removed.
+
+    Args:
+        ac: The access control to test
+
+    Returns:
+        True if managed by this API.
+    """
+    return STUDY_IDENTIFIER_REGEX.match(ac.user)
+
+
 def has_consent_withdrawn_permissions(obj: DataObject) -> bool:
     """Return True if the object has permissions expected for data with consent
     withdrawn.
@@ -202,9 +215,7 @@ def has_consent_withdrawn_permissions(obj: DataObject) -> bool:
     # Alternatively, we could keep a list of rodsadmin users who should have continued
     # access e.g. in order to redact the data, and check that no other users are in the
     # ACL. Using a list of rodsadmins would mean we don't need to use regex.
-    study_acl = [
-        ac for ac in obj.permissions() if STUDY_IDENTIFIER_REGEX.match(ac.user)
-    ]
+    study_acl = [ac for ac in obj.permissions() if is_managed_access(ac)]
 
     return not study_acl
 

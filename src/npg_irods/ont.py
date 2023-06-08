@@ -25,7 +25,7 @@ from os import PathLike
 from typing import Type, Union
 
 from partisan.exception import RodsError
-from partisan.irods import AVU, Collection, query_metadata
+from partisan.irods import AVU, Collection, query_metadata, current_user
 from sqlalchemy import asc, distinct
 from sqlalchemy.orm import Session
 from structlog import get_logger
@@ -33,6 +33,7 @@ from structlog import get_logger
 from npg_irods.db.mlwh import OseqFlowcell
 from npg_irods.metadata.lims import (
     SeqConcept,
+    is_managed_access,
     make_sample_acl,
     make_sample_metadata,
     make_study_metadata,
@@ -270,8 +271,11 @@ def annotate_results_collection(
         try:
             coll.supersede_metadata(*make_study_metadata(fc.study), history=True)
             coll.supersede_metadata(*make_sample_metadata(fc.sample), history=True)
+
+            # Keep the access controls that we don't manage
+            keep = [ac for ac in coll.permissions() if not is_managed_access(ac)]
             coll.supersede_permissions(
-                *make_sample_acl(fc.sample, fc.study), recurse=True
+                *keep, *make_sample_acl(fc.sample, fc.study), recurse=True
             )
         except RodsError as e:
             log.error(e.message, code=e.code)
@@ -329,8 +333,10 @@ def annotate_results_collection(
                 )
 
                 # The ACL could be different for each plex
+                # Keep the access controls that we don't manage
+                keep = [ac for ac in bc_coll.permissions() if not is_managed_access(ac)]
                 bc_coll.supersede_permissions(
-                    *make_sample_acl(fc.sample, fc.study), recurse=True
+                    *keep, *make_sample_acl(fc.sample, fc.study), recurse=True
                 )
             except RodsError as e:
                 log.error(e.message, code=e.code)
