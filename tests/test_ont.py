@@ -49,10 +49,13 @@ class TestONT(object):
         ]:
             assert avu in coll.metadata(), f"{avu} is in {coll} metadata"
 
-        ac = AC("ss_2000", Permission.READ, zone="testZone")
-        assert ac in coll.acl()
+        expected_acl = [
+            AC("irods", Permission.OWN, zone="testZone"),
+            AC("ss_2000", Permission.READ, zone="testZone"),
+        ]
+        assert coll.acl() == expected_acl
         for item in coll.contents():
-            assert ac in item.acl(), f"{ac} is in {item} ACL"
+            assert item.acl() == expected_acl
 
     @tests_have_admin
     @m.context("When the experiment is multiplexed")
@@ -100,10 +103,14 @@ class TestONT(object):
                 ]:
                     assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
 
-                ac = AC("ss_3000", Permission.READ, zone="testZone")
-                assert ac in bc_coll.acl(), f"{ac} is in {bc_coll} ACL"
+                expected_acl = [
+                    AC("irods", Permission.OWN, zone="testZone"),
+                    AC("ss_3000", Permission.READ, zone="testZone"),
+                ]
+
+                assert bc_coll.acl() == expected_acl
                 for item in bc_coll.contents():
-                    assert ac in item.acl(), f"{ac} is in {item} ACL"
+                    assert item.acl() == expected_acl
 
 
 class TestMetadataUpdate(object):
