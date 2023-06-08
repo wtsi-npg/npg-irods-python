@@ -190,7 +190,7 @@ def ensure_consent_withdrawn_metadata(obj: DataObject) -> bool:
 
 
 def is_managed_access(ac: AC):
-    """Return True if the access control is managed this API and can safely be added or
+    """Return True if the access control is managed by this API and can safely be added or
     removed.
 
     Args:
