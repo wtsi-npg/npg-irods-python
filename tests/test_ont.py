@@ -23,7 +23,8 @@ from pytest import mark as m
 from datetime import datetime
 from npg_irods import ont
 from conftest import LATEST, ont_tag_identifier, tests_have_admin, history_in_meta
-from npg_irods.metadata.lims import SeqConcept, TrackedSample, TrackedStudy
+from npg_irods.metadata.lims import TrackedSample, TrackedStudy
+from npg_irods.metadata.common import SeqConcept
 from npg_irods.ont import MetadataUpdate, annotate_results_collection
 
 

@@ -23,7 +23,7 @@ from multiprocessing import Pool
 from partisan.irods import AVU, Collection, DataObject
 from pytest import mark as m, raises
 
-from npg_irods.metadata.lims import SeqConcept
+from npg_irods.metadata.common import SeqConcept
 from npg_irods.mlwh_locations import illumina
 from npg_irods.mlwh_locations.illumina import (
     has_phix_reference,

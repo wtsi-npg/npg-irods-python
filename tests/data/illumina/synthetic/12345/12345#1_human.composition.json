@@ -1,0 +1,16 @@
+{
+  "components": [
+    {
+      "id_run": 12345,
+      "position": 1,
+      "subset": "human",
+      "tag_index": 1
+    },
+    {
+      "id_run": 12345,
+      "position": 2,
+      "subset": "human",
+      "tag_index": 1
+    }
+  ]
+}

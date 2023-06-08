@@ -58,8 +58,8 @@ from npg_irods.db.mlwh import (
     Study,
 )
 from npg_irods.metadata import illumina, ont
-from npg_irods.metadata.common import DataFile
-from npg_irods.metadata.lims import SeqConcept, TrackedSample
+from npg_irods.metadata.common import DataFile, SeqConcept
+from npg_irods.metadata.lims import TrackedSample
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -76,7 +76,7 @@ tests_have_admin = pytest.mark.skipif(
 TEST_INI = os.path.join(os.path.dirname(__file__), "testdb.ini")
 INI_SECTION = "dev"
 
-TEST_GROUPS = ["ss_1000", "ss_2000", "ss_3000"]
+TEST_GROUPS = ["ss_1000", "ss_2000", "ss_3000", "ss_888"]
 
 TEST_SQL_STALE_REPLICATE = "setObjectReplStale"
 TEST_SQL_INVALID_CHECKSUM = "setObjectChecksumInvalid"
@@ -337,7 +337,13 @@ def initialize_mlwh_illumina_synthetic(session: Session):
     study_a = Study(
         id_lims="LIMS_01", id_study_lims="3000", name="Study A", **default_timestamps
     )
-    session.add_all([study_a])
+    control_study = Study(
+        id_lims="LIMS_888",
+        id_study_lims="888",
+        name="Control Study",
+        **default_timestamps,
+    )
+    session.add_all([study_a, control_study])
     session.flush()
 
     sample1 = Sample(
@@ -358,20 +364,35 @@ def initialize_mlwh_illumina_synthetic(session: Session):
         supplier_name="supplier_name2",
         **default_timestamps,
     )
-    sample3 = Sample(
-        id_lims="LIMS_99", id_sample_lims="phix", name="Phi X", **default_timestamps
+    control_sample = Sample(
+        id_lims="LIMS_888", id_sample_lims="phix", name="Phi X", **default_timestamps
     )
-    session.add_all([sample1, sample2, sample3])
+    session.add_all([sample1, sample2, control_sample])
     session.flush()
 
-    sample_pos_tag = [
-        {"sample": sample1, "position": 1, "tag_index": None},  # Not multiplexed
-        {"sample": sample1, "position": 1, "tag_index": 1},
-        {"sample": sample2, "position": 1, "tag_index": 2},
-        {"sample": sample1, "position": 2, "tag_index": 1},
-        {"sample": sample2, "position": 2, "tag_index": 2},
-        {"sample": sample3, "position": 1, "tag_index": 888},  # PhiX
-        {"sample": sample3, "position": 2, "tag_index": 888},  # PhiX
+    sample_info = [
+        {
+            "study": study_a,
+            "sample": sample1,
+            "position": 1,
+            "tag_index": None,
+        },  # Not multiplexed
+        {"study": study_a, "sample": sample1, "position": 1, "tag_index": 1},
+        {"study": study_a, "sample": sample2, "position": 1, "tag_index": 2},
+        {"study": study_a, "sample": sample1, "position": 2, "tag_index": 1},
+        {"study": study_a, "sample": sample2, "position": 2, "tag_index": 2},
+        {
+            "study": control_study,
+            "sample": control_sample,
+            "position": 1,
+            "tag_index": 888,
+        },  # PhiX
+        {
+            "study": control_study,
+            "sample": control_sample,
+            "position": 2,
+            "tag_index": 888,
+        },  # PhiX
     ]
 
     flowcells = [
@@ -381,13 +402,13 @@ def initialize_mlwh_illumina_synthetic(session: Session):
             id_flowcell_lims=f"FLOWCELL{i}",
             id_lims="LIMS_01",
             id_pool_lims=f"POOL_01",
-            position=spt["position"],
-            sample=spt["sample"],
-            study=study_a,
-            tag_index=spt["tag_index"],
+            position=info["position"],
+            sample=info["sample"],
+            study=info["study"],
+            tag_index=info["tag_index"],
             **default_timestamps,
         )
-        for i, spt in enumerate(sample_pos_tag)
+        for i, info in enumerate(sample_info)
     ]
     session.add_all(flowcells)
     session.flush()

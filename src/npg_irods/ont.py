@@ -30,6 +30,7 @@ from sqlalchemy import asc, distinct
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
+from npg_irods.common import Component
 from npg_irods.db.mlwh import OseqFlowcell
 from npg_irods.metadata.lims import (
     SeqConcept,
@@ -38,6 +39,7 @@ from npg_irods.metadata.lims import (
     make_sample_metadata,
     make_study_metadata,
 )
+from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.ont import Instrument
 
 log = get_logger(__package__)
@@ -403,6 +405,23 @@ def find_flowcell_by_expt_slot(
         .filter(
             OseqFlowcell.experiment_name == experiment_name,
             OseqFlowcell.instrument_slot == instrument_slot,
+        )
+        .order_by(
+            asc(OseqFlowcell.experiment_name),
+            asc(OseqFlowcell.instrument_slot),
+            asc(OseqFlowcell.tag_identifier),
+            asc(OseqFlowcell.tag2_identifier),
+        )
+        .all()
+    )
+
+
+def find_flowcells_by_component(sess: Session, component: Component):
+    return (
+        sess.query(OseqFlowcell)
+        .filter(
+            OseqFlowcell.experiment_name == component.suid,
+            OseqFlowcell.instrument_slot == component.position,
         )
         .order_by(
             asc(OseqFlowcell.experiment_name),

@@ -18,7 +18,6 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import datetime
-import re
 from unittest.mock import patch
 
 import pytest

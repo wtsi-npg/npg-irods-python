@@ -24,7 +24,7 @@ from enum import unique
 from pathlib import PurePath
 from typing import List
 
-from partisan.irods import AVU, DataObject, RodsItem
+from partisan.irods import AVU, DataObject, Replica, RodsItem
 from partisan.metadata import AsValueEnum, DublinCore
 from structlog import get_logger
 
@@ -80,6 +80,34 @@ RECOGNISED_FILE_SUFFIXES = {
         "xml",
     ]
 }
+
+
+@unique
+class SeqConcept(AsValueEnum):
+    """Sequencing terminology."""
+
+    ALT_PROCESS = "alt_process"
+    COMPONENT = "component"
+    ID_PRODUCT = "id_product"
+    REFERENCE = "reference"
+    POSITION = "position"
+    SUBSET = "subset"
+    TAG_INDEX = "tag_index"
+
+
+@unique
+class SeqSubset(AsValueEnum):
+    """Categorised subsets of sequence reads which are separated from each other after
+    sequencing."""
+
+    HUMAN = "human"
+    """Human DNA."""
+    XAHUMAN = "xahuman"
+    """Human X chromosome and autosome reads."""
+    YHUMAN = "yhuman"
+    """Human Y chromosome reads separated from X and autosomal data."""
+    PHIX = "phix"
+    """Phi X control reads."""
 
 
 @unique
@@ -293,7 +321,7 @@ def has_complete_replicas(obj: DataObject, num_replicas=2) -> bool:
 
 def trimmable_replicas(
     obj: DataObject, num_replicas=2
-) -> (List[DataObject], List[DataObject]):
+) -> (List[Replica], List[Replica]):
     """Return tuple of lists of valid and invalid replicas that are trimmable.
 
     Trimmable replicas are any valid replicas in excess of the expected number

@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
+
 from enum import Enum, unique
 from typing import Type
 
@@ -28,11 +29,12 @@ from structlog import get_logger
 from npg_irods.common import Component
 from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics
 from npg_irods.metadata.lims import (
-    SeqConcept,
+    is_managed_access,
     make_sample_acl,
     make_sample_metadata,
     make_study_metadata,
 )
+from npg_irods.metadata.common import SeqConcept
 
 log = get_logger(__package__)
 
@@ -46,7 +48,9 @@ class TagIndex(Enum):
     Rather, it is a bin for reads that cannot be associated with any of the candidate
     tags in a pool after sequencing."""
 
-    CONTROL = 888
+    CONTROL_198 = 198
+
+    CONTROL_888 = 888
     """Tag index 888 is conventionally used to indicate a control sample e.g. Phi X
     that has been added to a pool."""
 
@@ -55,6 +59,46 @@ class MetadataUpdate:
     def update_secondary_metadata(
         self, paths, mlwh_session, include_controls=False
     ) -> (int, int, int):
+        """
+
+        - A data object relating to a single sample instance e.g. a cram file for a
+        single plex from a pool that has been de-multiplexed by identifying its indexing
+        tag(s), will get sample metadata appropriate for that single sample. It will get
+        study metadata (which includes appropriate opening of access controls) for the
+        single study that sample is a member of.
+
+        - A data objects relating to multiple samples that were sequenced separately and
+        then had their sequence data merged will get sample metadata appropriate to all
+        the constituent samples. They will get study metadata (which includes
+        appropriate opening of access controls) only if all the samples are from the
+        same study. A data object with mixed-study data will not be made accessible.
+
+        - Data objects which contain control data from spiked-in controls e.g. Phi X
+        where the control was not added as a member of a pool are treated as any other
+        data object derived from the sample they were mixed with. They get no special
+        treatment for metadata or permissions and are not considered members of any
+        control study.
+
+        - Data objects which contain control data from spiked-in controls e.g. Phi X
+        where the control was added as a member of a pool (typically with tag index 198
+        or 888) are treated as any other member of a pool and have their own identity as
+        samples in LIMS. They get no special treatment for metadata or permissions and
+        are considered members the appropriate control study.
+
+        - Data objects which contain human data lacking explicit consent ("unconsented")
+
+
+
+
+
+        Args:
+            paths:
+            mlwh_session:
+            include_controls:
+
+        Returns:
+
+        """
         num_input, num_updated, num_errors = 0, 0, 0
 
         log.debug("Updating iRODS paths", n=len(paths))
@@ -72,7 +116,7 @@ class MetadataUpdate:
                     log.debug(
                         "Not multiplexed" if c.tag_index is None else "Multiplexed",
                         path=item,
-                        run=c.run_id,
+                        run=c.suid,
                         pos=c.position,
                         tag=c.tag_index,
                     )
@@ -80,13 +124,13 @@ class MetadataUpdate:
                     for fc in find_flowcells_by_component(
                         mlwh_session, c, include_controls=include_controls
                     ):
-                        log.error(f"@@@@@@@ {fc} {fc.sample}")
                         secondary_metadata.extend(make_sample_metadata(fc.sample))
                         secondary_metadata.extend(make_study_metadata(fc.study))
                         acl.extend(make_sample_acl(fc.sample, fc.study))
 
-                    item.supersede_metadata(*secondary_metadata, history=True)
-                    item.supersede_permissions(*acl)
+                item.supersede_metadata(*secondary_metadata, history=True)
+                keep = [ac for ac in item.acl() if is_managed_access(ac)]
+                item.supersede_permissions(*keep, *acl)
 
                 num_updated += 1
 
@@ -109,23 +153,27 @@ def find_flowcells_by_component(
         sess.query(IseqFlowcell)
         .distinct()
         .join(IseqFlowcell.iseq_product_metrics)
-        .filter(IseqProductMetrics.id_run == component.run_id)
+        .filter(IseqProductMetrics.id_run == int(component.suid))
     )
 
     if component.position is not None:
         query = query.filter(IseqProductMetrics.position == component.position)
 
-    if component.tag_index is not None:
-        match component.tag_index:
-            case TagIndex.BIN.value:
-                pass  # This is a bin, so potentially contains all tags
-            case TagIndex.CONTROL.value if include_controls:
-                query = query.filter(
-                    IseqProductMetrics.tag_index == component.tag_index
-                )
-            case _:
-                query = query.filter(
-                    IseqProductMetrics.tag_index == component.tag_index
-                )
+    match component.tag_index:
+        case TagIndex.CONTROL_198.value | TagIndex.CONTROL_888.value if include_controls:
+            query = query.filter(IseqProductMetrics.tag_index == component.tag_index)
+        case TagIndex.CONTROL_198.value | TagIndex.CONTROL_888.value:
+            raise ValueError(
+                "Attempted to exclude controls for a query specifically requesting "
+                f"control tag index {component.tag_index}"
+            )
+        case TagIndex.BIN.value:
+            query = query.filter(IseqProductMetrics.tag_index.is_not(None))
+        case int():
+            query = query.filter(IseqProductMetrics.tag_index == component.tag_index)
+        case None:
+            query = query.filter(IseqProductMetrics.tag_index.is_(None))
+        case _:
+            raise ValueError(f"Invalid tag index {component.tag_index}")
 
     return query.order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp)).all()

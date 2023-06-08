@@ -16,8 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
+
 import pytest
-from partisan.irods import AVU, DataObject
+from partisan.irods import AC, AVU, DataObject, Permission
 from pytest import mark as m
 
 from conftest import history_in_meta
@@ -28,14 +29,19 @@ from npg_irods.metadata.lims import TrackedSample, TrackedStudy
 class TestMetadataUpdateZZZ(object):
     @m.context("When the data are not multiplexed")
     @m.context("When the metadata are absent")
-    @m.it("Adds sample- and study-specific metadata")
+    @m.it("Adds sample-specific and study-specific metadata")
     def test_updates_absent_metadata(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345.cram"
         obj = DataObject(path)
-        assert AVU(TrackedSample.NAME, "sample 1") not in obj.metadata()
-        assert AVU(TrackedStudy.ID, "3000") not in obj.metadata()
+        expected_avus = [
+            AVU(TrackedSample.NAME, "sample 1"),
+            AVU(TrackedStudy.ID, "3000"),
+        ]
+
+        for avu in expected_avus:
+            assert avu not in obj.metadata()
 
         num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
             [path], mlwh_session=illumina_synthetic_mlwh
@@ -43,8 +49,9 @@ class TestMetadataUpdateZZZ(object):
         assert num_input == 1
         assert num_updated == 1
         assert num_errors == 0
-        assert AVU(TrackedSample.NAME, "sample 1") in obj.metadata()
-        assert AVU(TrackedStudy.ID, "3000") in obj.metadata()
+
+        for avu in expected_avus:
+            assert avu in obj.metadata()
 
     @m.context("When the data are not multiplexed")
     @m.context("When correct metadata are already present")
@@ -54,9 +61,14 @@ class TestMetadataUpdateZZZ(object):
     ):
         path = illumina_synthetic_irods / "12345/12345.cram"
         obj = DataObject(path)
-        obj.add_metadata(
-            AVU(TrackedSample.NAME, "sample 1"), AVU(TrackedStudy.ID, "3000")
-        )
+        expected_avus = [
+            AVU(TrackedSample.NAME, "sample 1"),
+            AVU(TrackedStudy.ID, "3000"),
+        ]
+        obj.add_metadata(*expected_avus)
+
+        for avu in expected_avus:
+            assert avu in obj.metadata()
 
         num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
             [path], mlwh_session=illumina_synthetic_mlwh
@@ -64,8 +76,8 @@ class TestMetadataUpdateZZZ(object):
         assert num_input == 1
         assert num_updated == 1
         assert num_errors == 0
-        assert AVU(TrackedSample.NAME, "sample 1") in obj.metadata()
-        assert AVU(TrackedStudy.ID, "3000") in obj.metadata()
+        for avu in expected_avus:
+            assert avu in obj.metadata()
 
     @m.context("When the data are not multiplexed")
     @m.context("When incorrect metadata are present")
@@ -75,9 +87,16 @@ class TestMetadataUpdateZZZ(object):
     ):
         path = illumina_synthetic_irods / "12345/12345.cram"
         obj = DataObject(path)
-        obj.add_metadata(
-            AVU(TrackedSample.NAME, "sample 99"), AVU(TrackedStudy.ID, "9999")
-        )
+        old_avus = [AVU(TrackedSample.NAME, "sample 99"), AVU(TrackedStudy.ID, "9999")]
+        obj.add_metadata(*old_avus)
+
+        for avu in old_avus:
+            assert avu in obj.metadata()
+
+        expected_avus = [
+            AVU(TrackedSample.NAME, "sample 1"),
+            AVU(TrackedStudy.ID, "3000"),
+        ]
 
         num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
             [path], mlwh_session=illumina_synthetic_mlwh
@@ -85,13 +104,13 @@ class TestMetadataUpdateZZZ(object):
         assert num_input == 1
         assert num_updated == 1
         assert num_errors == 0
-        assert AVU(TrackedSample.NAME, "sample 1") in obj.metadata()
-        assert AVU(TrackedStudy.ID, "3000") in obj.metadata()
-        assert AVU(TrackedSample.NAME, "sample 99") not in obj.metadata()
-        assert AVU(TrackedStudy.ID, "9999") not in obj.metadata()
 
-        history = AVU.history(AVU(TrackedSample.NAME, "sample 99"))
-        assert history_in_meta(history, obj.metadata())
+        for avu in old_avus:
+            assert avu not in obj.metadata()
+            assert history_in_meta(AVU.history(avu), obj.metadata())
+
+        for avu in expected_avus:
+            assert avu in obj.metadata()
 
     @m.context("When the data are not multiplexed")
     @m.context("When an attribute has multiple incorrect values")
@@ -109,12 +128,16 @@ class TestMetadataUpdateZZZ(object):
         ]
         obj.add_metadata(*old_avus)
 
+        for avu in old_avus:
+            assert avu in obj.metadata()
+
         num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
             [path], mlwh_session=illumina_synthetic_mlwh
         )
         assert num_input == 1
         assert num_updated == 1
         assert num_errors == 0
+
         for avu in old_avus:
             assert avu not in obj.metadata()
 
@@ -123,14 +146,20 @@ class TestMetadataUpdateZZZ(object):
 
     @m.context("When the data are multiplexed")
     @m.context("When the metadata are absent")
-    @m.it("Adds sample- and study-specific metadata")
+    @m.it("Adds sample-specific and study-specific metadata")
     def test_updates_absent_metadata_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345#1.cram"
         obj = DataObject(path)
-        assert AVU(TrackedSample.NAME, "sample 1") not in obj.metadata()
-        assert AVU(TrackedStudy.ID, "3000") not in obj.metadata()
+
+        expected_avus = [
+            AVU(TrackedSample.NAME, "sample 1"),
+            AVU(TrackedStudy.ID, "3000"),
+        ]
+
+        for avu in expected_avus:
+            assert avu not in obj.metadata()
 
         num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
             [path], mlwh_session=illumina_synthetic_mlwh
@@ -138,10 +167,26 @@ class TestMetadataUpdateZZZ(object):
         assert num_input == 1
         assert num_updated == 1
         assert num_errors == 0
-        # The data are two plexes of single sample (from different flowcell positions)
+
+        # The data are two plexes of a single sample (from different flowcell positions)
         # that have been merged.
-        assert AVU(TrackedSample.NAME, "sample 1") in obj.metadata()
-        assert AVU(TrackedStudy.ID, "3000") in obj.metadata()
+        for avu in expected_avus:
+            assert avu in obj.metadata()
+
+    @m.context("When the data are multiplexed")
+    @m.context(
+        "When spike-in controls are excluded, but the tag index is for a control"
+    )
+    @m.it("Raises an exception")
+    def test_updates_control_metadata_mx(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345#888.cram"
+
+        with pytest.raises(ValueError):
+            MetadataUpdate().update_secondary_metadata(
+                [path], mlwh_session=illumina_synthetic_mlwh, include_controls=False
+            )
 
     @m.context("When the data are multiplexed")
     @m.context("When the data are associated with the computationally created tag 0")
@@ -154,6 +199,7 @@ class TestMetadataUpdateZZZ(object):
         obj = DataObject(path)
         expected_avus = [
             AVU(TrackedStudy.ID, "3000"),
+            AVU(TrackedStudy.NAME, "Study A"),
             AVU(TrackedSample.DONOR_ID, "donor1"),
             AVU(TrackedSample.DONOR_ID, "donor2"),
             AVU(TrackedSample.ID, "sanger_sample1"),
@@ -163,6 +209,7 @@ class TestMetadataUpdateZZZ(object):
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name2"),
         ]
+
         for avu in expected_avus:
             assert avu not in obj.metadata()
 
@@ -172,6 +219,90 @@ class TestMetadataUpdateZZZ(object):
         assert num_input == 1
         assert num_updated == 1
         assert num_errors == 0
+
         for avu in expected_avus:
             assert avu in obj.metadata()
-        pytest.fail()
+
+    @m.context("When the data are multiplexed")
+    @m.context("When the data are associated with the computationally created tag 0")
+    @m.context("When spike-in controls are requested")
+    @m.it("Adds extra spike-in control metadata")
+    def test_updates_control_metadata_mx_tag0(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345#0.cram"
+        obj = DataObject(path)
+        expected_avus = [
+            AVU(TrackedStudy.ID, "3000"),
+            AVU(TrackedStudy.ID, "888"),
+            AVU(TrackedStudy.NAME, "Study A"),
+            AVU(TrackedStudy.NAME, "Control Study"),
+            AVU(TrackedSample.DONOR_ID, "donor1"),
+            AVU(TrackedSample.DONOR_ID, "donor2"),
+            AVU(TrackedSample.ID, "sanger_sample1"),
+            AVU(TrackedSample.ID, "sanger_sample2"),
+            AVU(TrackedSample.NAME, "sample 1"),
+            AVU(TrackedSample.NAME, "sample 2"),
+            AVU(TrackedSample.NAME, "Phi X"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name2"),
+        ]
+
+        for avu in expected_avus:
+            assert avu not in obj.metadata()
+
+        num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
+            [path], mlwh_session=illumina_synthetic_mlwh, include_controls=True
+        )
+        assert num_input == 1
+        assert num_updated == 1
+        assert num_errors == 0
+
+        for avu in expected_avus:
+            assert avu in obj.metadata()
+
+
+class TestPermissionsUpdate:
+    def test_updates_absent_study_permissions(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345.cram"
+        obj = DataObject(path)
+
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone="testZone")]
+
+        num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
+            [path], mlwh_session=illumina_synthetic_mlwh
+        )
+        assert num_input == 1
+        assert num_updated == 1
+        assert num_errors == 0
+
+        assert obj.permissions() == [
+            AC("irods", perm=Permission.OWN, zone="testZone"),
+            AC("ss_3000", perm=Permission.READ, zone="testZone"),
+        ]
+
+    def test_updates_changed_study_permissions(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345.cram"
+        obj = DataObject(path)
+        obj.add_permissions(AC("ss_1000", Permission.READ, zone="testZone"))
+
+        assert obj.permissions() == [
+            AC("irods", perm=Permission.OWN, zone="testZone"),
+            AC("ss_1000", Permission.READ, zone="testZone"),
+        ]
+
+        num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
+            [path], mlwh_session=illumina_synthetic_mlwh
+        )
+        assert num_input == 1
+        assert num_updated == 1
+        assert num_errors == 0
+
+        assert obj.permissions() == [
+            AC("irods", perm=Permission.OWN, zone="testZone"),
+            AC("ss_3000", perm=Permission.READ, zone="testZone"),
+        ]

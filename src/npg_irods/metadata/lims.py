@@ -28,7 +28,12 @@ from partisan.metadata import AsValueEnum
 from structlog import get_logger
 
 from npg_irods.db.mlwh import Sample, Study
-from npg_irods.metadata.common import _ensure_avus_present, avu_if_value
+from npg_irods.metadata.common import (
+    SeqConcept,
+    SeqSubset,
+    _ensure_avus_present,
+    avu_if_value,
+)
 
 STUDY_IDENTIFIER_GROUP = "study_id"
 STUDY_IDENTIFIER_REGEX = re.compile(r"^ss_(?P<study_id>\d+)$")
@@ -61,18 +66,6 @@ class TrackedStudy(AsValueEnum):
     ID = "study_id"
     NAME = "study"
     TITLE = "study_title"
-
-
-@unique
-class SeqConcept(AsValueEnum):
-    """Sequencing terminology."""
-
-    ALT_PROCESS = "alt_process"
-    COMPONENT = "component"
-    ID_PRODUCT = "id_product"
-    REFERENCE = "reference"
-    SUBSET = "subset"
-    TAG_INDEX = "tag_index"
 
 
 def make_sample_metadata(sample: Sample) -> list[AVU]:
@@ -130,14 +123,36 @@ def make_study_metadata(study: Study) -> list[AVU]:
     return list(filter(lambda avu: avu is not None, starmap(avu_if_value, av)))
 
 
+def is_nonconsented_human_data(subset: SeqSubset):
+    match subset:
+        case SeqSubset.HUMAN:
+            return True
+        case SeqSubset.XAHUMAN:
+            return True
+        case SeqSubset.YHUMAN:
+            return False
+        case _:
+            return False
+
+
 def make_sample_acl(sample: Sample, study: Study) -> list[AC]:
     """Returns an ACL for a given Sample in a Study.
 
-    Note that this function doe not check that the sample is in the study.
+    This method takes into account all factors influencing access control, which are:
+
+    From the Sample:
+
+        - The statue of the per-sample consent withdrawn flag.
+
+    From the subset:
+
+        - The NPG business logic for how each subset of reads should be treated.
+
+    Note that this function does not check that the sample is in the study.
 
     Args:
         sample: A sample, which will be used to confirm consent, which modifies the
-            ACL.
+                ACL.
         study: A study, which will provide permissions for the ACL.
 
     Returns:
@@ -301,4 +316,4 @@ def has_id_product_metadata(obj: DataObject):
     Returns:
         True if the object has id product metadata, False otherwise.
     """
-    return any(avu.attribute == SeqConcept.ID_PRODUCT.value for avu in obj.metadata())
+    return len(obj.metadata(SeqConcept.ID_PRODUCT.value)) > 0

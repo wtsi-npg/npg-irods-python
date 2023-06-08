@@ -78,6 +78,8 @@ class Study(Base):
     description = mapped_column(Text)
     contains_human_dna = mapped_column(Integer, default=0)
     contaminated_human_dna = mapped_column(Integer, default=0)
+    remove_x_and_autosomes = mapped_column(Integer, default=0)
+    separate_y_chrmomosome_data = mapped_column(Integer, default=0)
     ena_project_id = mapped_column(String(255))
     study_title = mapped_column(String(255))
     study_visibility = mapped_column(String(255))
@@ -154,6 +156,10 @@ class IseqProductMetrics(Base):
             f"id_run={self.id_run} position={self.position} "
             f"tag_index={self.tag_index} flowcell={self.iseq_flowcell}>"
         )
+
+
+# class IseqProductComponents(Base):
+#     __tablename__ = "iseq_product_components"
 
 
 class OseqFlowcell(Base):

@@ -21,17 +21,21 @@
 
 import json
 import re
-from collections import defaultdict
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum, unique
+from typing import Any
 
-from partisan.irods import AVU, RodsItem
+from partisan.irods import AC, AVU, Permission, RodsItem
 
+from npg_irods.db.mlwh import Sample, Study
 from npg_irods.metadata import illumina
-from npg_irods.metadata.lims import SeqConcept
+from npg_irods.metadata.common import SeqConcept, SeqSubset
+from npg_irods.metadata.lims import make_sample_acl
 
 
 @unique
-class Organisation(Enum):
+class Platform(Enum):
     BIONANO = 1
     FLUIDIGM = 2
     GENOMICS_10x = 3
@@ -53,19 +57,45 @@ class AnalysisType(Enum):
 class Component:
     @classmethod
     def from_avu(cls, avu: AVU):
-        if avu.attribute != SeqConcept.COMPONENT.value:
-            raise ValueError(
-                f"Cannot create a Component from metadata {avu}; "
-                f"invalid attribute {avu.attribute}"
-            )
         try:
-            compval = json.loads(avu.value)
+            if avu.attribute != SeqConcept.COMPONENT.value:
+                raise ValueError(
+                    f"Cannot create a Component from metadata {avu}; "
+                    f"invalid attribute {avu.attribute}"
+                )
+
+            avu_value = json.loads(avu.value)
+
+            if illumina.Instrument.RUN.value not in avu_value:
+                raise ValueError(
+                    f"Cannot create a Component from metadata {avu}; "
+                    "only Illumina metadata is supported in iRODS AVUs"
+                )
+
+            subset_name = avu_value.get(SeqConcept.SUBSET.value, None)
+            match subset_name:
+                case "human":
+                    subset = SeqSubset.HUMAN
+                case "xahuman":
+                    subset = SeqSubset.XAHUMAN
+                case "yhuman":
+                    subset = SeqSubset.YHUMAN
+                case "phix":
+                    subset = SeqSubset.PHIX
+                case None:
+                    subset = None
+                case _:
+                    raise ValueError(
+                        f"Cannot create a Component from metadata {avu}; "
+                        f"invalid subset '{subset_name}'"
+                    )
 
             return Component(
-                compval[illumina.Instrument.RUN.value],
-                compval[illumina.Instrument.LANE.value],
-                subset=compval.get(SeqConcept.SUBSET.value, None),
-                tag_index=compval.get(SeqConcept.TAG_INDEX.value, None),
+                avu_value[illumina.Instrument.RUN.value],
+                avu_value[illumina.Instrument.LANE.value],
+                subset=subset,
+                tag_index=avu_value.get(SeqConcept.TAG_INDEX.value, None),
+                platform=Platform.ILLUMINA,
             )
         except Exception as e:
             raise ValueError(
@@ -73,16 +103,22 @@ class Component:
             ) from e
 
     def __init__(
-        self, run_id: int, position: int, subset: str = None, tag_index: int = None
+        self,
+        suid: Any,
+        position: int,
+        subset: str = None,
+        tag_index: int = None,
+        platform: Platform = None,
     ):
-        self.run_id = run_id
+        self.suid = suid
         self.position = position
         self.subset = subset
         self.tag_index = tag_index
+        self.platform = platform
 
     def __hash__(self):
         return (
-            hash(self.run_id)
+            hash(self.suid)
             + hash(self.position)
             + hash(self.tag_index)
             + hash(self.subset)
@@ -93,7 +129,7 @@ class Component:
             return False
 
         return (
-            self.run_id == other.run_id
+            self.suid == other.suid
             and self.position == other.position
             and (
                 (self.tag_index is None and other.tag_index is None)
@@ -114,16 +150,84 @@ class Component:
         )
 
     def __repr__(self):
-        c = {
-            illumina.Instrument.RUN.value: self.run_id,
-            illumina.Instrument.LANE.value: self.position,
-        }
+        match self.platform:
+            case Platform.ILLUMINA:
+                c = {
+                    illumina.Instrument.RUN.value: self.suid,
+                    illumina.Instrument.LANE.value: self.position,
+                }
+            case _:
+                c = {"suid": self.suid, "position": self.position}
+
         if self.tag_index is not None:
             c[SeqConcept.TAG_INDEX.value] = self.tag_index
         if self.subset is not None:
             c[SeqConcept.SUBSET.value] = self.subset
 
         return json.dumps(c)
+
+
+# Access could be decided for a set of samples, set of studies, each sample's data
+# having its own subset information
+#
+# Components can source all the above info, but they need to do the MLWH queries
+# Making secondary metadata need to do the same MLWH queries
+
+
+@dataclass
+class SeqUnit:
+    sample: Sample
+    study: Study
+    component: Component
+
+
+class AccessPolicy(ABC):
+    @abstractmethod
+    def acl(self):
+        pass
+
+
+class IlluminaAccessPolicy(AccessPolicy):
+    def acl(self, *seq_units: SeqUnit) -> list[AC]:
+        def revoke(ac: AC):
+            ac.perm = Permission.NULL
+
+        non_consented_human = False
+
+        acl = []
+        for su in seq_units:
+            sample_acl = make_sample_acl(su.sample, su.study)
+            match su.component.subset:
+                case SeqSubset.HUMAN | SeqSubset.XAHUMAN:
+                    non_consented_human = True
+                case SeqSubset.YHUMAN:
+                    pass
+                case SeqSubset.PHIX:
+                    pass
+                case _:
+                    raise ValueError(f"Invalid subset in component of {su}")
+            acl.extend(sample_acl)
+
+        if non_consented_human or any([ac.perm == Permission.NULL for ac in acl]):
+            map(revoke, acl)
+
+        return acl
+
+
+class ONTAccessPolicy(AccessPolicy):
+    def acl(self, *seq_units: SeqUnit) -> list[AC]:
+        studies = {su.study for su in seq_units}
+        if len(studies) > 1:
+            raise ValueError(
+                "Invalid sequence units; more than one study is "
+                f"represented: {studies}"
+            )
+
+        acl = []
+        for su in seq_units:
+            acl.extend(make_sample_acl(su.sample, su.study))
+
+        return acl
 
 
 # There are further tests we can do, aside from inspecting the path, such as looking
@@ -172,23 +276,23 @@ def is_ultima_genomics(path: RodsItem) -> bool:
 
 def infer_data_source(path: RodsItem):
     if is_bionano(path):
-        return Organisation.BIONANO, AnalysisType.OPTICAL_MAPPING
+        return Platform.BIONANO, AnalysisType.OPTICAL_MAPPING
     if is_fluidigm(path):
-        return Organisation.FLUIDIGM, AnalysisType.GENOTYPING
+        return Platform.FLUIDIGM, AnalysisType.GENOTYPING
     if is_10x(path):
-        return Organisation.GENOMICS_10x, AnalysisType.GENE_EXPRESSION
+        return Platform.GENOMICS_10x, AnalysisType.GENE_EXPRESSION
     if is_illumina(path):
-        return Organisation.ILLUMINA, AnalysisType.NUCLEIC_ACID_SEQUENCING
+        return Platform.ILLUMINA, AnalysisType.NUCLEIC_ACID_SEQUENCING
     if is_oxford_nanopore(path):
         return (
-            Organisation.OXFORD_NANOPORE_TECHNOLOGIES,
+            Platform.OXFORD_NANOPORE_TECHNOLOGIES,
             AnalysisType.NUCLEIC_ACID_SEQUENCING,
         )
     if is_pacbio(path):
-        return Organisation.PACBIO, AnalysisType.NUCLEIC_ACID_SEQUENCING
+        return Platform.PACBIO, AnalysisType.NUCLEIC_ACID_SEQUENCING
     if is_sequenom(path):
-        return Organisation.SEQUENOM, AnalysisType.GENOTYPING
+        return Platform.SEQUENOM, AnalysisType.GENOTYPING
     if is_ultima_genomics(path):
-        return Organisation.ULTIMA_GENOMICS, AnalysisType.NUCLEIC_ACID_SEQUENCING
+        return Platform.ULTIMA_GENOMICS, AnalysisType.NUCLEIC_ACID_SEQUENCING
 
     raise ValueError(f"Failed to infer a data source for iRODS path '{path}'")
