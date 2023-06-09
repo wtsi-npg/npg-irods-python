@@ -148,6 +148,15 @@ def make_sample_acl(sample: Sample, study: Study) -> list[AC]:
     return [AC(irods_group, perm)]
 
 
+def make_public_read_acl() -> list[AC]:
+    """Returns an ACL allowing public reads
+
+    Returns:
+        An ACL
+    """
+    return [AC("public", Permission.READ)]
+
+
 def has_consent_withdrawn_metadata(obj: DataObject) -> bool:
     """Return True if the data object is annotated in iRODS as having donor consent
     withdrawn.

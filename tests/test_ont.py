@@ -17,7 +17,7 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-from partisan.irods import AC, AVU, Collection, Permission, format_timestamp
+from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
 from pytest import mark as m
 
 from datetime import datetime
@@ -111,6 +111,24 @@ class TestONT(object):
                 assert bc_coll.acl() == expected_acl
                 for item in bc_coll.contents():
                     assert item.acl() == expected_acl
+
+    @tests_have_admin
+    @m.it("Makes report files publicly readable")
+    def test_public_read_reports(self, ont_synthetic, mlwh_session):
+        expt = "multiplexed_experiment_001"
+        slot = 1
+
+        path = ont_synthetic / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+
+        annotate_results_collection(
+            path, experiment_name=expt, instrument_slot=slot, mlwh_session=mlwh_session
+        )
+
+        for ext in ["html", "md", "json.gz"]:
+            assert (
+                AC("public", Permission.READ, zone="testZone")
+                in DataObject(path / f"report_multiplexed_synthetic.{ext}").acl()
+            )
 
 
 class TestMetadataUpdate(object):
