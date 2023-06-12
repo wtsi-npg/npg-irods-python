@@ -25,7 +25,7 @@ from os import PathLike
 from typing import Type, Union
 
 from partisan.exception import RodsError
-from partisan.irods import AVU, Collection, query_metadata, current_user
+from partisan.irods import AVU, Collection, query_metadata, DataObject
 from sqlalchemy import asc, distinct
 from sqlalchemy.orm import Session
 from structlog import get_logger
@@ -37,6 +37,7 @@ from npg_irods.metadata.lims import (
     make_sample_acl,
     make_sample_metadata,
     make_study_metadata,
+    make_public_read_acl,
 )
 from npg_irods.metadata.ont import Instrument
 
@@ -284,6 +285,37 @@ def annotate_results_collection(
         return True
 
     log.info("Found multiplexed", expt_name=experiment_name, slot=instrument_slot)
+    num_errors = 0
+
+    # Since the run report files are outside the 'root' collection for
+    # multiplexed runs, their permissions must be set explicitly
+    reports = [
+        obj
+        for obj in coll.contents()
+        if "report" in str(obj.path) and obj.rods_type == DataObject
+    ]
+    for report in reports:
+        try:
+            if report.exists():
+                log.info(
+                    "Updating run report permissions",
+                    path=report.path,
+                    expt_name=experiment_name,
+                    slot=instrument_slot,
+                )
+                keep = [ac for ac in report.permissions() if not is_managed_access(ac)]
+                report.supersede_permissions(*keep, *make_public_read_acl())
+            else:
+                log.warn(
+                    "Run report missing",
+                    path=report.path,
+                    expt_name=experiment_name,
+                    slot=instrument_slot,
+                )
+        except RodsError as e:
+            log.error(e.message, code=e.code)
+            num_errors += 1
+
     sub_colls = [c for c in coll.contents() if c.rods_type == Collection]
 
     # This expects the barcode directory naming style created by current ONT's
@@ -291,7 +323,6 @@ def annotate_results_collection(
     # "fast_fail". Each of these subdirectories contains another directory for each
     # barcode, plus miscellaneous directories such as "mixed" and "unclassified".
 
-    num_errors = 0
     for sc in sub_colls:  # fast5_fail, fast5_pass etc
         # These are some known special cases that don't have barcode directories
         if sc.path.name in IGNORED_DIRECTORIES:
