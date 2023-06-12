@@ -303,7 +303,8 @@ def annotate_results_collection(
                     expt_name=experiment_name,
                     slot=instrument_slot,
                 )
-                report.supersede_permissions(*make_public_read_acl())
+                keep = [ac for ac in report.permissions() if not is_managed_access(ac)]
+                report.supersede_permissions(*keep, *make_public_read_acl())
             else:
                 log.warn(
                     "Run report missing",

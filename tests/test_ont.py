@@ -123,11 +123,15 @@ class TestONT(object):
         annotate_results_collection(
             path, experiment_name=expt, instrument_slot=slot, mlwh_session=mlwh_session
         )
+        expected_acl = [
+            AC("irods", Permission.OWN, zone="testZone"),
+            AC("public", Permission.READ, zone="testZone"),
+        ]
 
         for ext in ["html", "md", "json.gz"]:
             assert (
-                AC("public", Permission.READ, zone="testZone")
-                in DataObject(path / f"report_multiplexed_synthetic.{ext}").acl()
+                DataObject(path / f"report_multiplexed_synthetic.{ext}").acl()
+                == expected_acl
             )
 
 
