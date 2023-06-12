@@ -22,7 +22,7 @@ import argparse
 import logging
 import structlog
 
-from npg_irods.cli import configure_logging
+from npg_irods.cli import configure_logging, add_logging_arguments
 from npg_irods.metadata.pacbio import backfill_id_products
 from npg_irods.version import version
 
@@ -38,6 +38,7 @@ add_logging_arguments(parser)
 parser.add_argument(
     "paths",
     help="The paths in which to find objects that need id_product metadata added.",
+    nargs="+",
     type=str,
 )
 parser.add_argument(
@@ -61,6 +62,12 @@ parser.add_argument(
     type=int,
     default=4,
 )
+parser.add_argument(
+    "--overwrite",
+    help="Overwrite previous id_product_metadata if present",
+    action="store_true",
+)
+parser.add_argument("--version", help="Version of the module", action="store_true")
 
 args = parser.parse_args()
 configure_logging(
@@ -107,6 +114,14 @@ def main():
         exit(0)
 
     if not backfill_id_products(
-        args.paths, args.out, num_clients=args.clients, num_threads=args.threads
+        args.paths,
+        args.out,
+        num_clients=args.clients,
+        num_threads=args.threads,
+        overwrite=args.overwrite,
     ):
         exit(1)
+
+
+if __name__ == "__main__":
+    main()
