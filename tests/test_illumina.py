@@ -26,7 +26,7 @@ from npg_irods.illumina import MetadataUpdate
 from npg_irods.metadata.lims import TrackedSample, TrackedStudy
 
 
-class TestMetadataUpdateZZZ(object):
+class TestIlluminaMetadataUpdate(object):
     @m.context("When the data are not multiplexed")
     @m.context("When the metadata are absent")
     @m.it("Adds sample-specific and study-specific metadata")
@@ -37,7 +37,7 @@ class TestMetadataUpdateZZZ(object):
         obj = DataObject(path)
         expected_avus = [
             AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedStudy.ID, "3000"),
+            AVU(TrackedStudy.ID, "4000"),
         ]
 
         for avu in expected_avus:
@@ -63,7 +63,7 @@ class TestMetadataUpdateZZZ(object):
         obj = DataObject(path)
         expected_avus = [
             AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedStudy.ID, "3000"),
+            AVU(TrackedStudy.ID, "4000"),
         ]
         obj.add_metadata(*expected_avus)
 
@@ -95,7 +95,7 @@ class TestMetadataUpdateZZZ(object):
 
         expected_avus = [
             AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedStudy.ID, "3000"),
+            AVU(TrackedStudy.ID, "4000"),
         ]
 
         num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
@@ -155,7 +155,7 @@ class TestMetadataUpdateZZZ(object):
 
         expected_avus = [
             AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedStudy.ID, "3000"),
+            AVU(TrackedStudy.ID, "4000"),
         ]
 
         for avu in expected_avus:
@@ -198,7 +198,7 @@ class TestMetadataUpdateZZZ(object):
         path = illumina_synthetic_irods / "12345/12345#0.cram"
         obj = DataObject(path)
         expected_avus = [
-            AVU(TrackedStudy.ID, "3000"),
+            AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.NAME, "Study A"),
             AVU(TrackedSample.DONOR_ID, "donor1"),
             AVU(TrackedSample.DONOR_ID, "donor2"),
@@ -233,7 +233,7 @@ class TestMetadataUpdateZZZ(object):
         path = illumina_synthetic_irods / "12345/12345#0.cram"
         obj = DataObject(path)
         expected_avus = [
-            AVU(TrackedStudy.ID, "3000"),
+            AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.ID, "888"),
             AVU(TrackedStudy.NAME, "Study A"),
             AVU(TrackedStudy.NAME, "Control Study"),
@@ -262,7 +262,10 @@ class TestMetadataUpdateZZZ(object):
             assert avu in obj.metadata()
 
 
-class TestPermissionsUpdate:
+class TestIlluminaPermissionsUpdate:
+    @m.context("When data are not multiplexed")
+    @m.context("When the permissions are absent")
+    @m.it("Adds study-specific permissions")
     def test_updates_absent_study_permissions(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
@@ -280,19 +283,76 @@ class TestPermissionsUpdate:
 
         assert obj.permissions() == [
             AC("irods", perm=Permission.OWN, zone="testZone"),
-            AC("ss_3000", perm=Permission.READ, zone="testZone"),
+            AC("ss_4000", perm=Permission.READ, zone="testZone"),
         ]
 
+    @m.context("When data are not multiplexed")
+    @m.context("When the permissions are already present")
+    @m.it("Leaves the permissions unchanged")
+    def test_updates_present_study_permissions(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345.cram"
+        obj = DataObject(path)
+        obj.add_permissions(AC("ss_4000", perm=Permission.READ, zone="testZone"))
+        expected_permissions = [
+            AC("irods", perm=Permission.OWN, zone="testZone"),
+            AC("ss_4000", perm=Permission.READ, zone="testZone"),
+        ]
+
+        assert obj.permissions() == expected_permissions
+
+        num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
+            [path], mlwh_session=illumina_synthetic_mlwh
+        )
+        assert num_input == 1
+        assert num_updated == 1
+        assert num_errors == 0
+
+        assert obj.permissions() == expected_permissions
+
+    @m.context("When data are not multiplexed")
+    @m.context("When incorrect permissions are present")
+    @m.it("Updated the permissions")
     def test_updates_changed_study_permissions(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345.cram"
         obj = DataObject(path)
         obj.add_permissions(AC("ss_1000", Permission.READ, zone="testZone"))
+        old_permissions = [
+            AC("irods", perm=Permission.OWN, zone="testZone"),
+            AC("ss_1000", Permission.READ, zone="testZone"),
+        ]
+
+        assert obj.permissions() == old_permissions
+
+        num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
+            [path], mlwh_session=illumina_synthetic_mlwh
+        )
+        assert num_input == 1
+        assert num_updated == 1
+        assert num_errors == 0
+
+        new_permissions = [
+            AC("irods", perm=Permission.OWN, zone="testZone"),
+            AC("ss_4000", perm=Permission.READ, zone="testZone"),
+        ]
+        assert obj.permissions() == new_permissions
+
+    @m.context("When data are multiplexed")
+    @m.context("When data contain a human subset")
+    @m.it("Removes managed access permissions")
+    def test_updates_human_permissions(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345#1_human.cram"
+        obj = DataObject(path)
+        obj.add_permissions(AC("ss_4000", Permission.READ, zone="testZone"))
 
         assert obj.permissions() == [
             AC("irods", perm=Permission.OWN, zone="testZone"),
-            AC("ss_1000", Permission.READ, zone="testZone"),
+            AC("ss_4000", perm=Permission.READ, zone="testZone"),
         ]
 
         num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
@@ -302,7 +362,51 @@ class TestPermissionsUpdate:
         assert num_updated == 1
         assert num_errors == 0
 
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone="testZone")]
+
+    @m.context("When data are multiplexed")
+    @m.context("When data contain a human X chromosome/autosome subset")
+    @m.it("Removes managed access permissions")
+    def test_updates_xahuman_permissions(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345#1_xahuman.cram"
+        obj = DataObject(path)
+        obj.add_permissions(AC("ss_4000", Permission.READ, zone="testZone"))
+
         assert obj.permissions() == [
             AC("irods", perm=Permission.OWN, zone="testZone"),
-            AC("ss_3000", perm=Permission.READ, zone="testZone"),
+            AC("ss_4000", perm=Permission.READ, zone="testZone"),
         ]
+
+        num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
+            [path], mlwh_session=illumina_synthetic_mlwh
+        )
+        assert num_input == 1
+        assert num_updated == 1
+        assert num_errors == 0
+
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone="testZone")]
+
+    @m.context("When data are multiplexed")
+    @m.context("When data are from multiple studies")
+    @m.it("Removes managed access permissions")
+    def test_multiple_study_permissions(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345#2.cram"
+        obj = DataObject(path)
+
+        obj.add_permissions(
+            AC("ss_4000", Permission.READ, zone="testZone"),
+            AC("ss_5000", Permission.READ, zone="testZone"),
+        )
+
+        num_input, num_updated, num_errors = MetadataUpdate().update_secondary_metadata(
+            [path], mlwh_session=illumina_synthetic_mlwh
+        )
+        assert num_input == 1
+        assert num_updated == 1
+        assert num_errors == 0
+
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone="testZone")]

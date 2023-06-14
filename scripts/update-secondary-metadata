@@ -19,12 +19,14 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import argparse
+import sys
 
 import sqlalchemy
 import structlog
 from sqlalchemy.orm import Session
 
 from npg_irods.cli import add_logging_arguments, configure_logging
+from npg_irods.common import update_secondary_metadata
 from npg_irods.db import DBConfig
 from npg_irods.version import version
 
@@ -38,19 +40,63 @@ parser = argparse.ArgumentParser(
 add_logging_arguments(parser)
 
 parser.add_argument(
-    "--zone",
-    help="Specify a federated iRODS zone in which to find "
-    "collections to update. This is not required if the target "
-    "collections are in the local zone.",
-    type=str,
-)
-parser.add_argument(
     "--database-config",
     "--database_config",
     help="Configuration file for database connection.",
     type=argparse.FileType("r"),
     required=True,
 )
+parser.add_argument(
+    "-i",
+    "--input",
+    help="Input filename.",
+    type=argparse.FileType("r"),
+    default=sys.stdin,
+)
+parser.add_argument(
+    "-o",
+    "--output",
+    help="Output filename.",
+    type=argparse.FileType("w"),
+    default=sys.stdout,
+)
+parser.add_argument(
+    "--print-update",
+    help="Print to output those paths that were updated. Defaults to True.",
+    action="store_true",
+)
+parser.add_argument(
+    "--print-fail",
+    help="Print to output those paths that require updating, where the update failed. "
+    "Defaults to False.",
+    action="store_true",
+)
+parser.add_argument(
+    "-c",
+    "--clients",
+    help="Number of baton clients to use. Defaults to 4.",
+    type=int,
+    default=4,
+)
+parser.add_argument(
+    "-t",
+    "--threads",
+    help="Number of threads to use. Defaults to 4.",
+    type=int,
+    default=4,
+)
+parser.add_argument(
+    "--version", help="Print the version and exit.", action="store_true"
+)
+
+parser.add_argument(
+    "--zone",
+    help="Specify a federated iRODS zone in which to find "
+    "collections to update. This is not required if the target "
+    "collections are in the local zone.",
+    type=str,
+)
+
 
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
 
@@ -74,7 +120,14 @@ def main():
 
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
-        num_processed, num_updated, num_errors = 0, 0, 0
+        num_processed, num_updated, num_errors = update_secondary_metadata(
+            args.input,
+            args.output,
+            print_update=args.print_update,
+            print_fail=args.print_fail,
+            num_clients=args.clients,
+            num_threads=args.threads,
+        )
 
         if num_errors:
             log.error(

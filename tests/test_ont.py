@@ -28,7 +28,7 @@ from npg_irods.metadata.common import SeqConcept
 from npg_irods.ont import MetadataUpdate, annotate_results_collection
 
 
-class TestONT(object):
+class TestONTMetadataCreation(object):
     @tests_have_admin
     @m.context("When an ONT experiment collection is annotated")
     @m.context("When the experiment is single-sample")
@@ -125,7 +125,7 @@ class TestONT(object):
                     assert item.acl() == expected_acl
 
 
-class TestMetadataUpdate(object):
+class TestONTMetadataUpdate(object):
     @tests_have_admin
     @m.context("When an ONT metadata update is requested")
     @m.context("When no experiment name is specified")

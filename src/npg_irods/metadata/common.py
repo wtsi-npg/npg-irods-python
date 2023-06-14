@@ -89,8 +89,8 @@ class SeqConcept(AsValueEnum):
     ALT_PROCESS = "alt_process"
     COMPONENT = "component"
     ID_PRODUCT = "id_product"
-    REFERENCE = "reference"
     POSITION = "position"
+    REFERENCE = "reference"
     SUBSET = "subset"
     TAG_INDEX = "tag_index"
 
@@ -102,12 +102,15 @@ class SeqSubset(AsValueEnum):
 
     HUMAN = "human"
     """Human DNA."""
-    XAHUMAN = "xahuman"
-    """Human X chromosome and autosome reads."""
-    YHUMAN = "yhuman"
-    """Human Y chromosome reads separated from X and autosomal data."""
+
     PHIX = "phix"
     """Phi X control reads."""
+
+    XAHUMAN = "xahuman"
+    """Human X chromosome and autosome reads."""
+
+    YHUMAN = "yhuman"
+    """Human Y chromosome reads separated from X and autosomal data."""
 
 
 @unique

@@ -76,7 +76,7 @@ tests_have_admin = pytest.mark.skipif(
 TEST_INI = os.path.join(os.path.dirname(__file__), "testdb.ini")
 INI_SECTION = "dev"
 
-TEST_GROUPS = ["ss_1000", "ss_2000", "ss_3000", "ss_888"]
+TEST_GROUPS = ["ss_1000", "ss_2000", "ss_3000", "ss_4000", "ss_5000", "ss_888"]
 
 TEST_SQL_STALE_REPLICATE = "setObjectReplStale"
 TEST_SQL_INVALID_CHECKSUM = "setObjectChecksumInvalid"
@@ -335,7 +335,10 @@ def initialize_mlwh_illumina_synthetic(session: Session):
     default_run = 12345
 
     study_a = Study(
-        id_lims="LIMS_01", id_study_lims="3000", name="Study A", **default_timestamps
+        id_lims="LIMS_01", id_study_lims="4000", name="Study A", **default_timestamps
+    )
+    study_b = Study(
+        id_lims="LIMS_01", id_study_lims="5000", name="Study B", **default_timestamps
     )
     control_study = Study(
         id_lims="LIMS_888",
@@ -343,7 +346,7 @@ def initialize_mlwh_illumina_synthetic(session: Session):
         name="Control Study",
         **default_timestamps,
     )
-    session.add_all([study_a, control_study])
+    session.add_all([study_a, study_b, control_study])
     session.flush()
 
     sample1 = Sample(
@@ -364,6 +367,16 @@ def initialize_mlwh_illumina_synthetic(session: Session):
         supplier_name="supplier_name2",
         **default_timestamps,
     )
+    sample3 = Sample(
+        donor_id="donor3",
+        id_lims="LIMS_01",
+        id_sample_lims="sample3",
+        name="sample 3",
+        sanger_sample_id="sanger_sample3",
+        supplier_name="supplier_name3",
+        **default_timestamps,
+    )
+
     control_sample = Sample(
         id_lims="LIMS_888", id_sample_lims="phix", name="Phi X", **default_timestamps
     )
@@ -371,28 +384,29 @@ def initialize_mlwh_illumina_synthetic(session: Session):
     session.flush()
 
     sample_info = [
-        {
-            "study": study_a,
-            "sample": sample1,
-            "position": 1,
-            "tag_index": None,
-        },  # Not multiplexed
+        # Not multiplexed
+        {"study": study_a, "sample": sample1, "position": 1, "tag_index": None},
+        # Multiplexed, samples from the same study
         {"study": study_a, "sample": sample1, "position": 1, "tag_index": 1},
         {"study": study_a, "sample": sample2, "position": 1, "tag_index": 2},
         {"study": study_a, "sample": sample1, "position": 2, "tag_index": 1},
         {"study": study_a, "sample": sample2, "position": 2, "tag_index": 2},
+        # Multiplexed, samples from different studies
+        {"study": study_a, "sample": sample1, "position": 2, "tag_index": 1},
+        {"study": study_b, "sample": sample3, "position": 2, "tag_index": 2},
+        # Phi X
         {
             "study": control_study,
             "sample": control_sample,
             "position": 1,
             "tag_index": 888,
-        },  # PhiX
+        },
         {
             "study": control_study,
             "sample": control_sample,
             "position": 2,
             "tag_index": 888,
-        },  # PhiX
+        },
     ]
 
     flowcells = [
@@ -624,7 +638,7 @@ def sql_test_utilities():
 def mlwh_session() -> Session:
     """Create an empty ML warehouse database fixture."""
     dbconfig = DBConfig.from_file(TEST_INI, INI_SECTION)
-    engine = create_engine(dbconfig.url, echo=True)
+    engine = create_engine(dbconfig.url, echo=False)
 
     if database_exists(engine.url):
         drop_database(engine.url)
@@ -935,6 +949,15 @@ def illumina_synthetic_irods(tmp_path):
             AVU(pos, 2),
             AVU(tag, 1),
         ),
+        "12345/12345#1_human.cram": (
+            AVU(idp, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+            AVU(cmp, '{"id_run":12345, "position":1, "tag_index":1, "subset":"human"}'),
+            AVU(cmp, '{"id_run":12345, "position":2, "tag_index":1, "subset":"human"}'),
+            AVU(run, 12345),
+            AVU(pos, 1),
+            AVU(pos, 2),
+            AVU(tag, 1),
+        ),
         "12345/12345#2.cram": (
             AVU(idp, "0b3bd00f1d186247f381aa87e213940b8c7ab7e5"),
             AVU(cmp, '{"id_run":12345, "position":1, "tag_index":2}'),
@@ -944,8 +967,8 @@ def illumina_synthetic_irods(tmp_path):
         ),
         "12345/12345#1_phix.cram": (
             AVU(idp, "31a3d460bb3c7d98845187c716a30db81c44b615"),
-            AVU(cmp, '{"id_run":12345, "position":1, "subset":"phix", tag_index":1}'),
-            AVU(cmp, '{"id_run":12345, "position":2, "subset":"phix", tag_index":1}'),
+            AVU(cmp, '{"id_run":12345, "position":1, "subset":"phix", "tag_index":1}'),
+            AVU(cmp, '{"id_run":12345, "position":2, "subset":"phix", "tag_index":1}'),
             AVU(tag, 1),
         ),
         "12345/12345#888.cram": (

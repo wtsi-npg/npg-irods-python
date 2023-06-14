@@ -23,7 +23,16 @@ import re
 from enum import unique
 from itertools import starmap
 
-from partisan.irods import AC, AVU, DataObject, Permission, current_user, rods_user
+from partisan.irods import (
+    AC,
+    AVU,
+    Collection,
+    DataObject,
+    Permission,
+    RodsItem,
+    current_user,
+    rods_user,
+)
 from partisan.metadata import AsValueEnum
 from structlog import get_logger
 
@@ -164,9 +173,9 @@ def make_sample_acl(sample: Sample, study: Study) -> list[AC]:
     return [AC(irods_group, perm)]
 
 
-def has_consent_withdrawn_metadata(obj: DataObject) -> bool:
-    """Return True if the data object is annotated in iRODS as having donor consent
-    withdrawn.
+def has_consent_withdrawn_metadata(item: Collection | DataObject) -> bool:
+    """Return True if the collection or data object is annotated in iRODS as having
+    donor consent withdrawn.
 
     This is defined as having either of these AVUs:
 
@@ -174,18 +183,19 @@ def has_consent_withdrawn_metadata(obj: DataObject) -> bool:
         - sample_consent_withdrawn = 1 (data managed by the NPG codebase)
 
     The GAPI codebase has additional behaviour where consent is denoted by the AVU
-    sample_consent = 1 and a data object missing the sample_consent AVU is considered
-    as not consented. The AVU should be present, but given that iRODS does not guarantee
-    AVU integrity, this behaviour means that if the AVU is missing, the data
-    "fails closed" (unreadable), rather than "fails open" (readable).
+    sample_consent = 1 and a collection or data object missing the sample_consent AVU is
+    considered as not consented. The AVU should be present, but given that iRODS does
+    not guarantee AVU integrity, this behaviour means that if the AVU is missing,
+    the collection or data object "fails closed" (unreadable), rather than "fails open"
+    (readable).
 
     Args:
-        obj: The data object to check.
+        item: The collection or data object to check.
 
     Returns:
         True if consent was withdrawn.
     """
-    meta = obj.metadata()
+    meta = item.metadata()
 
     return (
         AVU(TrackedSample.CONSENT, 0) in meta
@@ -193,24 +203,24 @@ def has_consent_withdrawn_metadata(obj: DataObject) -> bool:
     )
 
 
-def ensure_consent_withdrawn_metadata(obj: DataObject) -> bool:
-    """Ensure that consent withdrawn metadata are on the data object.
+def ensure_consent_withdrawn_metadata(item: Collection | DataObject) -> bool:
+    """Ensure that consent withdrawn metadata are on the collection or data object.
 
     Args:
-        obj: The data object to check.
+        item: The collection or data object to check.
 
     Returns:
         True if metadata were added.
     """
-    return _ensure_avus_present(obj, AVU(TrackedSample.CONSENT_WITHDRAWN, 1))
+    return _ensure_avus_present(item, AVU(TrackedSample.CONSENT_WITHDRAWN, 1))
 
 
 def is_managed_access(ac: AC):
-    """Return True if the access control is managed by this API and can safely be added or
-    removed.
+    """Return True if the access control is managed by this API and can safely be added
+    or removed.
 
     Args:
-        ac: The access control to test
+        ac: The access control to test.
 
     Returns:
         True if managed by this API.
@@ -218,12 +228,28 @@ def is_managed_access(ac: AC):
     return STUDY_IDENTIFIER_REGEX.match(ac.user)
 
 
-def has_consent_withdrawn_permissions(obj: DataObject) -> bool:
-    """Return True if the object has permissions expected for data with consent
-    withdrawn.
+def has_mixed_ownership(acl: list[AC]):
+    """Return True if the ACL has managed access controls for more than one iRODS user
+    or iRODS group. An example of this is where data belong to more than one study. As
+    access controls are managed per study, this indicates possibly conflicting iRODS
+    permissions (it isn't possible to open the data to the owners of one study
+    while simultaneously denying access to the owners of the other).
 
     Args:
-        obj: The data object to check.
+        acl: An access control list.
+
+    Returns:
+        True if mixed ownership.
+    """
+    return len({ac.user for ac in acl if is_managed_access(ac)}) > 1
+
+
+def has_consent_withdrawn_permissions(item: Collection | DataObject) -> bool:
+    """Return True if the collection or data object has permissions expected for data
+    with consent withdrawn.
+
+    Args:
+        item: The collection or data object to check.
 
     Returns:
         True if the permissions were as expected.
@@ -231,27 +257,27 @@ def has_consent_withdrawn_permissions(obj: DataObject) -> bool:
     # Alternatively, we could keep a list of rodsadmin users who should have continued
     # access e.g. in order to redact the data, and check that no other users are in the
     # ACL. Using a list of rodsadmins would mean we don't need to use regex.
-    study_acl = [ac for ac in obj.permissions() if is_managed_access(ac)]
+    study_acl = [ac for ac in item.permissions() if is_managed_access(ac)]
 
     return not study_acl
 
 
-def has_consent_withdrawn(obj: DataObject) -> bool:
+def has_consent_withdrawn(item: Collection | DataObject) -> bool:
     """Return True if the data object has metadata and permissions for data with consent
     withdrawn.
 
     Args:
-        obj: The data object to check.
+        item: The collection or data object to check.
 
     Returns:
         True if the metadata and permissions were as expected.
     """
-    return has_consent_withdrawn_metadata(obj) and has_consent_withdrawn_permissions(
-        obj
+    return has_consent_withdrawn_metadata(item) and has_consent_withdrawn_permissions(
+        item
     )
 
 
-def ensure_consent_withdrawn(obj: DataObject) -> bool:
+def ensure_consent_withdrawn(item: Collection | DataObject) -> bool:
     """Ensure that a data object has its metadata and permissions in the correct state
     for having consent withdrawn. All read permissions are withdrawn except for:
 
@@ -259,50 +285,50 @@ def ensure_consent_withdrawn(obj: DataObject) -> bool:
     - Any rodsadmin.
 
     Args:
-        obj: The data object to check.
+        item: The collection or data object to check.
 
     Returns:
         True if the metadata and/or permissions were updated.
     """
-    if has_consent_withdrawn(obj):
+    if has_consent_withdrawn(item):
         return False
 
-    if ensure_consent_withdrawn_metadata(obj):
+    if ensure_consent_withdrawn_metadata(item):
         log.info(
             "Updated metadata",
-            path=obj,
-            has_withdrawn_meta=has_consent_withdrawn_metadata(obj),
+            path=item,
+            has_withdrawn_meta=has_consent_withdrawn_metadata(item),
         )
 
     to_remove = []
     curr_user = current_user()
-    for ac in obj.permissions():
+    for ac in item.permissions():
         u = rods_user(ac.user)
 
         if u is None:
-            log.info("Removing permissions (non-local user)", path=obj, ac=ac)
+            log.info("Removing permissions (non-local user)", path=item, ac=ac)
             to_remove.append(ac)
             continue
 
         if u == curr_user:
-            log.info("Not removing permissions for self", path=obj, user=str(u), ac=ac)
+            log.info("Not removing permissions for self", path=item, user=str(u), ac=ac)
             continue
 
         if u.is_rodsadmin():
             log.info(
-                "Not removing permissions for rodsadmin", path=obj, user=str(u), ac=ac
+                "Not removing permissions for rodsadmin", path=item, user=str(u), ac=ac
             )
             continue
 
-        log.info("Removing permissions", path=obj, user=str(u), ac=ac)
+        log.info("Removing permissions", path=item, user=str(u), ac=ac)
         to_remove.append(ac)
 
-    num_removed = obj.remove_permissions(*to_remove)
+    num_removed = item.remove_permissions(*to_remove)
     log.info(
         "Removed permissions",
-        path=obj,
+        path=item,
         num_removed=num_removed,
-        has_withdrawn_perm=has_consent_withdrawn_permissions(obj),
+        has_withdrawn_perm=has_consent_withdrawn_permissions(item),
     )
     return True
 

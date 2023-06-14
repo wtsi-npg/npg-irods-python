@@ -16,12 +16,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
+
 import argparse
+import json as json_parser
 import logging
 import logging.config
-import json as json_parser
-import re
-
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime
 
