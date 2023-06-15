@@ -20,6 +20,7 @@
 import json
 from dataclasses import dataclass
 from enum import Enum, unique
+from pathlib import PurePath
 from typing import Optional, Type
 
 from partisan.irods import AVU, Collection, DataObject, Permission
@@ -178,6 +179,11 @@ def ensure_secondary_metadata_updated(
     Returns:
        True if updated.
     """
+    if zone is None:
+        parts = PurePath(item).parts
+        if len(parts) < 2:
+            raise ValueError(f"Invalid iRODS path {item}; no zone component")
+        zone = parts[1]
 
     updated = False
     secondary_metadata, acl = [], []

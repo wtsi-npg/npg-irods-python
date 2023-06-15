@@ -588,7 +588,7 @@ def repair_common_metadata(
 
 
 def update_secondary_metadata(
-    reader, writer, mlwh_session, print_update=True, print_fail=False
+    reader, writer, mlwh_session, print_update=True, print_fail=False, zone=None
 ) -> (int, int, int):
     num_processed, num_updated, num_errors = 0, 0, 0
 
@@ -599,8 +599,8 @@ def update_secondary_metadata(
             match infer_data_source(p):
                 case Platform.ILLUMINA, AnalysisType.NUCLEIC_ACID_SEQUENCING:
                     item = make_rods_item(p)
-                    log.info("Illumina", item=i, path=p)
-                    if ensure_secondary_metadata_updated(item, mlwh_session):
+                    log.info("Illumina", item=i, path=p, zone=zone)
+                    if ensure_secondary_metadata_updated(item, mlwh_session, zone=zone):
                         num_updated += 1
                         if print_update:
                             _print(p, writer)
