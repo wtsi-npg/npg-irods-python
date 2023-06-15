@@ -65,8 +65,8 @@ parser.add_argument("--version", help="Print the version and exit", action="stor
 subparsers = parser.add_subparsers(title="queries", help="Data object location queries")
 
 
-def consent_withdrawn(args):
-    dbconfig = DBConfig.from_file(args.database_config.name, "mlwh_ro")
+def consent_withdrawn(cli_args):
+    dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
         num_processed, num_errors = 0, 0
@@ -83,7 +83,7 @@ def consent_withdrawn(args):
                 AVU(TrackedSample.ID, s.id_sample_lims),
                 data_object=True,
                 collection=False,
-                zone=args.zone,
+                zone=cli_args.zone,
             ):
                 print(obj)
 
@@ -100,7 +100,7 @@ cwdr_parser = subparsers.add_parser(
 cwdr_parser.set_defaults(func=consent_withdrawn)
 
 ilup_parser = subparsers.add_parser(
-    "illumina_updates",
+    "illumina-updates",
     help="Find data objects related to the Illumina sequencing platforms",
 )
 ilup_parser.add_argument(
@@ -115,13 +115,11 @@ ilup_parser.add_argument(
 )
 
 
-def illumina_updates(args):
-    print(f"{args.begin_date}")
-    dbconfig = DBConfig.from_file(args.database_config.name, "mlwh_ro")
+def illumina_updates(cli_args):
+    dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
-        num_processed, num_errors = 0, 0
-        for s in illumina.recently_changed(session, start_time=args.begin_date):
+        for s in illumina.recently_changed(session, start_time=cli_args.begin_date):
             print(s)
 
 
