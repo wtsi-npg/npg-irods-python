@@ -57,39 +57,39 @@ class AnalysisType(Enum):
 def is_illumina(path: PathLike | str) -> bool:
     illumina_legacy_patt = r"/seq/\d+\b"
     illumina_patt = r"/seq/illumina/runs/\d+\b"
-
+    p = str(path)
     return (
-        re.match(illumina_legacy_patt, path) is not None
-        or re.match(illumina_patt, path) is not None
+        re.match(illumina_legacy_patt, p) is not None
+        or re.match(illumina_patt, p) is not None
     )
 
 
 def is_bionano(path: PathLike | str) -> bool:
-    return re.match(r"/seq/bionano\b", path) is not None
+    return re.match(r"/seq/bionano\b", str(path)) is not None
 
 
 def is_fluidigm(path: PathLike | str) -> bool:
-    return re.match(r"/seq/fluidigm\b", path) is not None
+    return re.match(r"/seq/fluidigm\b", str(path)) is not None
 
 
 def is_10x(path: PathLike | str) -> bool:
-    return re.match(r"/seq/illumina/(cell|long|space)ranger", path) is not None
+    return re.match(r"/seq/illumina/(cell|long|space)ranger", str(path)) is not None
 
 
 def is_oxford_nanopore(path: PathLike | str) -> bool:
-    return re.match(r"/seq/ont\b", path) is not None
+    return re.match(r"/seq/ont\b", str(path)) is not None
 
 
 def is_pacbio(path: PathLike | str) -> bool:
-    return re.match(r"/seq/pacbio\b", path) is not None
+    return re.match(r"/seq/pacbio\b", str(path)) is not None
 
 
 def is_sequenom(path: PathLike | str) -> bool:
-    return re.match(r"/seq/sequenom\b", path) is not None
+    return re.match(r"/seq/sequenom\b", str(path)) is not None
 
 
 def is_ultima_genomics(path: PathLike | str) -> bool:
-    return re.match(r"/seq/ug\b", path) is not None
+    return re.match(r"/seq/ug\b", str(path)) is not None
 
 
 def infer_data_source(path: PathLike | str):

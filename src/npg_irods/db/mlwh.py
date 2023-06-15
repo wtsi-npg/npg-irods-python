@@ -79,7 +79,7 @@ class Study(Base):
     contains_human_dna = mapped_column(Integer, default=0)
     contaminated_human_dna = mapped_column(Integer, default=0)
     remove_x_and_autosomes = mapped_column(Integer, default=0)
-    separate_y_chrmomosome_data = mapped_column(Integer, default=0)
+    separate_y_chromosome_data = mapped_column(Integer, default=0)
     ena_project_id = mapped_column(String(255))
     study_title = mapped_column(String(255))
     study_visibility = mapped_column(String(255))
