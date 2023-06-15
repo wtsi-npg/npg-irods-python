@@ -194,8 +194,8 @@ def ensure_secondary_metadata_updated(
             secondary_metadata.extend(make_study_metadata(fc.study))
             acl.extend(make_sample_acl(fc.sample, fc.study, zone=zone))
 
+    log.info("Updating metadata", path=item, meta=secondary_metadata)
     num_removed, num_added = item.supersede_metadata(*secondary_metadata, history=True)
-
     log.info(
         "Updated metadata",
         path=item,
@@ -217,6 +217,7 @@ def ensure_secondary_metadata_updated(
 
         keep = [ac for ac in item.permissions() if not is_managed_access(ac)]
 
+        log.info("Updating permissions", path=item, keep=keep, acl=acl)
         num_removed, num_added = item.supersede_permissions(*keep, *acl)
         log.info(
             "Updated permissions",
