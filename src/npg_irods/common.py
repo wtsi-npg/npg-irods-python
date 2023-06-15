@@ -22,8 +22,8 @@
 import re
 from enum import Enum, unique
 from os import PathLike
+from typing import Tuple
 
-from partisan.irods import Collection, DataObject
 from structlog import get_logger
 
 log = get_logger(__package__)
@@ -31,6 +31,9 @@ log = get_logger(__package__)
 
 @unique
 class Platform(Enum):
+    """An analysis platform (instrument or analysis technology), named by manufacturing
+    company."""
+
     BIONANO = 1
     FLUIDIGM = 2
     GENOMICS_10x = 3
@@ -43,6 +46,8 @@ class Platform(Enum):
 
 @unique
 class AnalysisType(Enum):
+    """A crude classification of bioinformatic analysis types."""
+
     GENE_EXPRESSION = 1
     GENOTYPING = 2
     NUCLEIC_ACID_SEQUENCING = 3
@@ -55,6 +60,14 @@ class AnalysisType(Enum):
 
 
 def is_illumina(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from an Illumina instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if Illumina data.
+    """
     illumina_legacy_patt = r"/seq/\d+\b"
     illumina_patt = r"/seq/illumina/runs/\d+\b"
     p = str(path)
@@ -65,34 +78,101 @@ def is_illumina(path: PathLike | str) -> bool:
 
 
 def is_bionano(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from a BioNano instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if BioNano data.
+    """
     return re.match(r"/seq/bionano\b", str(path)) is not None
 
 
 def is_fluidigm(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from a Fluidigm instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if Fluidigm data.
+    """
     return re.match(r"/seq/fluidigm\b", str(path)) is not None
 
 
 def is_10x(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from a 10x Genomics analysis.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if 10x data.
+    """
     return re.match(r"/seq/illumina/(cell|long|space)ranger", str(path)) is not None
 
 
 def is_oxford_nanopore(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from an Oxford Nanopore
+    Technologies instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if ONT data.
+    """
     return re.match(r"/seq/ont\b", str(path)) is not None
 
 
 def is_pacbio(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from a PacBio instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if PacBio data.
+    """
     return re.match(r"/seq/pacbio\b", str(path)) is not None
 
 
 def is_sequenom(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from a Sequenom (Agena)
+    instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if Sequenom data.
+    """
     return re.match(r"/seq/sequenom\b", str(path)) is not None
 
 
 def is_ultima_genomics(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from an Ultima Genomics
+    instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if Ultime data.
+    """
     return re.match(r"/seq/ug\b", str(path)) is not None
 
 
-def infer_data_source(path: PathLike | str):
+def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
+    """Infer the analysis platform and analysis type of data, given its iRODS path.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        A tuple of platform and analysis type.
+    """
     if is_bionano(path):
         return Platform.BIONANO, AnalysisType.OPTICAL_MAPPING
     if is_fluidigm(path):

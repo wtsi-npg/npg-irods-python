@@ -22,8 +22,7 @@ from dataclasses import dataclass
 from enum import Enum, unique
 from typing import Optional, Type
 
-from partisan.exception import RodsError
-from partisan.irods import AVU, Collection, DataObject, Permission, make_rods_item
+from partisan.irods import AVU, Collection, DataObject, Permission
 from sqlalchemy import asc
 from sqlalchemy.orm import Session
 from structlog import get_logger
@@ -132,33 +131,38 @@ class Component:
 def ensure_secondary_metadata_updated(
     item: Collection | DataObject, mlwh_session, include_controls=False, zone=None
 ) -> bool:
-    """Update iRODS secondary metadata and permissions on Illumina run data objects.
+    """Update iRODS secondary metadata and permissions on Illumina run collections
+    and data objects.
 
-    - A data object relating to a single sample instance e.g. a cram file for a
-    single plex from a pool that has been de-multiplexed by identifying its indexing
-    tag(s), will get sample metadata appropriate for that single sample. It will get
-    study metadata (which includes appropriate opening of access controls) for the
+    Prerequisites:
+      - The instance has `component` metadata (used to identify the constituent
+    run / position / tag index components of the data).
+
+    - Instances relating to a single sample instance e.g. a cram file for a single
+    plex from a pool that has been de-multiplexed by identifying its indexing tag(s),
+    will get sample metadata appropriate for that single sample. They will get study
+    metadata (which includes appropriate opening of access controls) for the
     single study that sample is a member of.
 
-    - A data objects relating to multiple samples that were sequenced separately and
+    - Instances relating to multiple samples that were sequenced separately and
     then had their sequence data merged will get sample metadata appropriate to all
     the constituent samples. They will get study metadata (which includes
     appropriate opening of access controls) only if all the samples are from the
     same study. A data object with mixed-study data will not be made accessible.
 
-    - Data objects which contain control data from spiked-in controls e.g. Phi X
+    - Instances which contain control data from spiked-in controls e.g. Phi X
     where the control was not added as a member of a pool are treated as any other
     data object derived from the sample they were mixed with. They get no special
     treatment for metadata or permissions and are not considered members of any
     control study.
 
-    - Data objects which contain control data from spiked-in controls e.g. Phi X
+    - Instances which contain control data from spiked-in controls e.g. Phi X
     where the control was added as a member of a pool (typically with tag index 198
     or 888) are treated as any other member of a pool and have their own identity as
     samples in LIMS. They get no special treatment for metadata or permissions and
     are considered members the appropriate control study.
 
-    - Data objects which contain human data lacking explicit consent ("unconsented")
+    - Instances which contain human data lacking explicit consent ("unconsented")
     are treated the same way as human samples with consent withdrawn with respect to
     permissions i.e. all access permissions are removed, leaving only permissions
     for the current user (who is making these changes) and for any rodsadmin users
@@ -191,6 +195,7 @@ def ensure_secondary_metadata_updated(
             acl.extend(make_sample_acl(fc.sample, fc.study, zone=zone))
 
     num_removed, num_added = item.supersede_metadata(*secondary_metadata, history=True)
+
     log.info(
         "Updated metadata",
         path=item,
@@ -230,6 +235,17 @@ def ensure_secondary_metadata_updated(
 def find_flowcells_by_component(
     sess: Session, component: Component, include_controls=False
 ) -> list[Type[IseqFlowcell]]:
+    """Query the ML warehouse for flowcell information for the given component.
+
+    Args:
+        sess: An open SQL session.
+        component: A component
+        include_controls: If True, add parameters to the query to include spiked-in
+        controls in the result.
+
+    Returns:
+        The associated flowcells.
+    """
     query = (
         sess.query(IseqFlowcell)
         .distinct()
