@@ -38,7 +38,9 @@ from partisan.irods import (
 )
 from structlog import get_logger
 
+from npg_irods.common import AnalysisType, Platform, infer_data_source
 from npg_irods.exception import ChecksumError
+from npg_irods.illumina import ensure_secondary_metadata_updated
 from npg_irods.metadata.common import (
     DataFile,
     ensure_common_metadata,
@@ -583,6 +585,40 @@ def repair_common_metadata(
             results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
 
         return len(results), repaired.count(True), results.count(False)
+
+
+def update_secondary_metadata(
+    reader, writer, mlwh_session, print_update=True, print_fail=False
+) -> (int, int, int):
+    num_processed, num_updated, num_errors = 0, 0, 0
+
+    for i, path in enumerate(reader):
+        num_processed += 1
+        try:
+            p = path.strip()
+            match infer_data_source(p):
+                case Platform.ILLUMINA, AnalysisType.NUCLEIC_ACID_SEQUENCING:
+                    item = make_rods_item(p)
+                    log.info("Illumina", item=i, path=p)
+                    if ensure_secondary_metadata_updated(item, mlwh_session):
+                        num_updated += 1
+                        if print_update:
+                            _print(p, writer)
+                case _, _:
+                    log.warn("Unsupported", path=p)
+
+        except RodsError as re:
+            num_errors += 1
+            log.error(re.message, item=i, code=re.code)
+            if print_fail:
+                _print(path, writer)
+        except Exception as e:
+            num_errors += 1
+            log.error(e, item=i)
+            if print_fail:
+                _print(path, writer)
+
+    return num_processed, num_updated, num_errors
 
 
 def check_consent_withdrawn(

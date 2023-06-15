@@ -114,14 +114,3 @@ def infer_data_source(path: PathLike | str):
         return Platform.ULTIMA_GENOMICS, AnalysisType.NUCLEIC_ACID_SEQUENCING
 
     raise ValueError(f"Failed to infer a data source for iRODS path '{path}'")
-
-
-def update_secondary_metadata(
-    reader, writer, num_threads=1, num_clients=1, print_update=True, print_fail=False
-) -> (int, int, int):
-    for i, path in enumerate(reader):
-        match infer_data_source(path):
-            case Platform.ILLUMINA, AnalysisType.NUCLEIC_ACID_SEQUENCING:
-                log.info("Illumina", path=path)
-            case _, _:
-                log.warn("Unsupported", path=path)

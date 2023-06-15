@@ -144,7 +144,7 @@ def is_nonconsented_human_data(subset: SeqSubset):
             return False
 
 
-def make_sample_acl(sample: Sample, study: Study) -> list[AC]:
+def make_sample_acl(sample: Sample, study: Study, zone=None) -> list[AC]:
     """Returns an ACL for a given Sample in a Study.
 
     This method takes into account all factors influencing access control, which are:
@@ -163,6 +163,7 @@ def make_sample_acl(sample: Sample, study: Study) -> list[AC]:
         sample: A sample, which will be used to confirm consent, which modifies the
                 ACL.
         study: A study, which will provide permissions for the ACL.
+        zone: The iRODS zone.
 
     Returns:
         An ACL
@@ -170,7 +171,7 @@ def make_sample_acl(sample: Sample, study: Study) -> list[AC]:
     irods_group = f"ss_{study.id_study_lims}"
     perm = Permission.NULL if sample.consent_withdrawn else Permission.READ
 
-    return [AC(irods_group, perm)]
+    return [AC(irods_group, perm, zone=zone)]
 
 
 def has_consent_withdrawn_metadata(item: Collection | DataObject) -> bool:

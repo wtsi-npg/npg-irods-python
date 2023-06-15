@@ -23,7 +23,7 @@ from enum import Enum, unique
 from typing import Optional, Type
 
 from partisan.exception import RodsError
-from partisan.irods import AVU, Permission, make_rods_item
+from partisan.irods import AVU, Collection, DataObject, Permission, make_rods_item
 from sqlalchemy import asc
 from sqlalchemy.orm import Session
 from structlog import get_logger
@@ -129,104 +129,102 @@ class Component:
         ]
 
 
-class MetadataUpdate:
-    def update_secondary_metadata(
-        self, paths, mlwh_session, include_controls=False
-    ) -> (int, int, int):
-        """Update iRODS secondary metadata and permissions on Illumina run data objects.
+def ensure_secondary_metadata_updated(
+    item: Collection | DataObject, mlwh_session, include_controls=False, zone=None
+) -> bool:
+    """Update iRODS secondary metadata and permissions on Illumina run data objects.
 
-        - A data object relating to a single sample instance e.g. a cram file for a
-        single plex from a pool that has been de-multiplexed by identifying its indexing
-        tag(s), will get sample metadata appropriate for that single sample. It will get
-        study metadata (which includes appropriate opening of access controls) for the
-        single study that sample is a member of.
+    - A data object relating to a single sample instance e.g. a cram file for a
+    single plex from a pool that has been de-multiplexed by identifying its indexing
+    tag(s), will get sample metadata appropriate for that single sample. It will get
+    study metadata (which includes appropriate opening of access controls) for the
+    single study that sample is a member of.
 
-        - A data objects relating to multiple samples that were sequenced separately and
-        then had their sequence data merged will get sample metadata appropriate to all
-        the constituent samples. They will get study metadata (which includes
-        appropriate opening of access controls) only if all the samples are from the
-        same study. A data object with mixed-study data will not be made accessible.
+    - A data objects relating to multiple samples that were sequenced separately and
+    then had their sequence data merged will get sample metadata appropriate to all
+    the constituent samples. They will get study metadata (which includes
+    appropriate opening of access controls) only if all the samples are from the
+    same study. A data object with mixed-study data will not be made accessible.
 
-        - Data objects which contain control data from spiked-in controls e.g. Phi X
-        where the control was not added as a member of a pool are treated as any other
-        data object derived from the sample they were mixed with. They get no special
-        treatment for metadata or permissions and are not considered members of any
-        control study.
+    - Data objects which contain control data from spiked-in controls e.g. Phi X
+    where the control was not added as a member of a pool are treated as any other
+    data object derived from the sample they were mixed with. They get no special
+    treatment for metadata or permissions and are not considered members of any
+    control study.
 
-        - Data objects which contain control data from spiked-in controls e.g. Phi X
-        where the control was added as a member of a pool (typically with tag index 198
-        or 888) are treated as any other member of a pool and have their own identity as
-        samples in LIMS. They get no special treatment for metadata or permissions and
-        are considered members the appropriate control study.
+    - Data objects which contain control data from spiked-in controls e.g. Phi X
+    where the control was added as a member of a pool (typically with tag index 198
+    or 888) are treated as any other member of a pool and have their own identity as
+    samples in LIMS. They get no special treatment for metadata or permissions and
+    are considered members the appropriate control study.
 
-        - Data objects which contain human data lacking explicit consent ("unconsented")
-        are treated the same way as human samples with consent withdrawn with respect to
-        permissions i.e. all access permissions are removed, leaving only permissions
-        for the current user (who is making these changes) and for any rodsadmin users
-        who currently have access.
+    - Data objects which contain human data lacking explicit consent ("unconsented")
+    are treated the same way as human samples with consent withdrawn with respect to
+    permissions i.e. all access permissions are removed, leaving only permissions
+    for the current user (who is making these changes) and for any rodsadmin users
+    who currently have access.
 
-        Args:
-            paths: A list of iRODS paths
-            mlwh_session: An open SQL session.
-            include_controls: If True, include any control samples in the metadata and
-            permissions.
+    Args:
+        item: A Collection or DataObject.
+        mlwh_session: An open SQL session.
+        include_controls: If True, include any control samples in the metadata and
+        permissions.
+        zone: The iRODS zone for any permissions created.
 
-        Returns:
-            A tuple of the number of paths, the number of paths whose metadata were
-            processed and the number of errors encountered.
-        """
-        num_input, num_updated, num_errors = 0, 0, 0
+    Returns:
+       True if updated.
+    """
 
-        log.debug("Updating iRODS paths", n=len(paths))
+    updated = False
+    secondary_metadata, acl = [], []
 
-        for path in paths:
-            num_input += 1
-            try:
-                item = make_rods_item(path)
-                secondary_metadata, acl = [], []
+    components = [
+        Component.from_avu(avu)
+        for avu in item.metadata(attr=SeqConcept.COMPONENT.value)
+    ]
+    for c in components:
+        for fc in find_flowcells_by_component(
+            mlwh_session, c, include_controls=include_controls
+        ):
+            secondary_metadata.extend(make_sample_metadata(fc.sample))
+            secondary_metadata.extend(make_study_metadata(fc.study))
+            acl.extend(make_sample_acl(fc.sample, fc.study, zone=zone))
 
-                components = [
-                    Component.from_avu(avu)
-                    for avu in item.metadata(attr=SeqConcept.COMPONENT.value)
-                ]
-                for c in components:
-                    for fc in find_flowcells_by_component(
-                        mlwh_session, c, include_controls=include_controls
-                    ):
-                        secondary_metadata.extend(make_sample_metadata(fc.sample))
-                        secondary_metadata.extend(make_study_metadata(fc.study))
-                        acl.extend(make_sample_acl(fc.sample, fc.study))
+    num_removed, num_added = item.supersede_metadata(*secondary_metadata, history=True)
+    log.info(
+        "Updated metadata",
+        path=item,
+        meta=secondary_metadata,
+        num_added=num_added,
+        num_removed=num_removed,
+    )
+    if num_removed or num_added:
+        updated = True
 
-                log.info("Update metadata", path=item, meta=secondary_metadata)
-                item.supersede_metadata(*secondary_metadata, history=True)
+    if any(c.contains_nonconsented_human() for c in components):
+        updated = True if ensure_consent_withdrawn(item) else updated
+    else:
+        if has_mixed_ownership(acl):
+            log.warn("Mixed-study data", path=item, acl=acl)
+            for ac in acl:
+                if is_managed_access(ac):
+                    ac.perm = Permission.NULL
 
-                if any(c.contains_nonconsented_human() for c in components):
-                    ensure_consent_withdrawn(item)
-                else:
-                    if has_mixed_ownership(acl):
-                        log.warn("Mixed-study data", path=item, acl=acl)
-                        for ac in acl:
-                            if is_managed_access(ac):
-                                ac.perm = Permission.NULL
+        keep = [ac for ac in item.permissions() if not is_managed_access(ac)]
 
-                    keep = [
-                        ac for ac in item.permissions() if not is_managed_access(ac)
-                    ]
-                    log.info("Update permissions", path=item, keep=keep, acl=acl)
-                    item.supersede_permissions(*keep, *acl)
+        num_removed, num_added = item.supersede_permissions(*keep, *acl)
+        log.info(
+            "Updated permissions",
+            path=item,
+            keep=keep,
+            acl=acl,
+            num_added=num_added,
+            num_removed=num_removed,
+        )
+        if num_removed or num_added:
+            updated = True
 
-                num_updated += 1
-
-            except RodsError as re:
-                log.error(re.message, code=re.code)
-                num_errors += 1
-                raise re
-            except Exception as e:
-                log.error(e, path=str(path))
-                num_errors += 1
-                raise e
-
-        return num_input, num_updated, num_errors
+    return updated
 
 
 def find_flowcells_by_component(

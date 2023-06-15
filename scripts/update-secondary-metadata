@@ -26,8 +26,8 @@ import structlog
 from sqlalchemy.orm import Session
 
 from npg_irods.cli import add_logging_arguments, configure_logging
-from npg_irods.common import update_secondary_metadata
 from npg_irods.db import DBConfig
+from npg_irods.utilities import update_secondary_metadata
 from npg_irods.version import version
 
 description = """
@@ -120,10 +120,9 @@ def main():
         num_processed, num_updated, num_errors = update_secondary_metadata(
             args.input,
             args.output,
+            session,
             print_update=args.print_update,
             print_fail=args.print_fail,
-            num_clients=args.clients,
-            num_threads=args.threads,
         )
 
         if num_errors:
