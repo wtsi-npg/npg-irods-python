@@ -139,7 +139,7 @@ class Component:
         if self.subset is not None:
             rep[SeqConcept.SUBSET.value] = self.subset
 
-        return json.dumps(rep, sort_keys=True)
+        return json.dumps(rep, sort_keys=True, separators=(",", ":"))
 
 
 def ensure_secondary_metadata_updated(
