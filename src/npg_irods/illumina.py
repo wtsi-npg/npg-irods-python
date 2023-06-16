@@ -30,8 +30,8 @@ from sqlalchemy.orm import Session
 from structlog import get_logger
 
 from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics, Sample, Study
-from npg_irods.metadata import illumina
 from npg_irods.metadata.common import SeqConcept, SeqSubset
+from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
     has_mixed_ownership,
@@ -91,8 +91,8 @@ class Component:
             subset = avu_value.get(SeqConcept.SUBSET.value, None)
 
             return Component(
-                avu_value[illumina.Instrument.RUN.value],
-                avu_value[illumina.Instrument.LANE.value],
+                avu_value[Instrument.RUN.value],
+                avu_value[Instrument.LANE.value],
                 tag_index=avu_value.get(SeqConcept.TAG_INDEX.value, None),
                 subset=subset,
             )
@@ -128,6 +128,18 @@ class Component:
             SeqSubset.HUMAN,
             SeqSubset.XAHUMAN,
         ]
+
+    def __repr__(self):
+        rep = {
+            Instrument.RUN.value: self.id_run,
+            SeqConcept.POSITION.value: self.position,
+        }
+        if self.tag_index is not None:
+            rep[SeqConcept.TAG_INDEX.value] = self.tag_index
+        if self.subset is not None:
+            rep[SeqConcept.SUBSET.value] = self.subset
+
+        return json.dumps(rep, sort_keys=True)
 
 
 def ensure_secondary_metadata_updated(
