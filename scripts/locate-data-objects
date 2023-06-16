@@ -19,7 +19,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import sqlalchemy
 import structlog
@@ -76,7 +76,7 @@ def consent_withdrawn(cli_args):
 
         for i, s in enumerate(find_consent_withdrawn_samples(session)):
             num_processed += 1
-            log.info("Finding data objects for", item=i, sample=s)
+            log.info("Finding data objects", item=i, sample=s)
 
             if s.id_sample_lims is None:
                 num_errors += 1
@@ -120,7 +120,7 @@ ilup_parser.add_argument(
     "The argument must be an ISO8601 UTC date or date and time e.g. 2022-01-30, "
     "2022-01-30T11:11:03Z",
     type=parse_iso_date,
-    default=datetime.now() - timedelta(days=14),
+    default=datetime.now(timezone.utc) - timedelta(days=14),
 )
 
 
@@ -129,17 +129,13 @@ def illumina_updates(cli_args):
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
         num_processed = num_errors = 0
+        iso_date = cli_args.begin_date.strftime("%Y-%m-%dT%H:%M:%SZ")
 
         for i, c in enumerate(
             illumina.find_components_changed(session, since=cli_args.begin_date)
         ):
             num_processed += 1
-            log.info(
-                "Finding data objects for",
-                item=i,
-                component=c,
-                since=cli_args.begin_date,
-            )
+            log.info("Finding data objects", item=i, component=c, since=iso_date)
 
             try:
                 for obj in query_metadata(
