@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, unique
 from pathlib import PurePath
-from typing import Optional, Type
+from typing import Iterator, Optional, Type
 
 from partisan.irods import AVU, Collection, DataObject, Permission
 from sqlalchemy import asc
@@ -296,8 +296,8 @@ def find_flowcells_by_component(
     return query.order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp)).all()
 
 
-def find_flowcells_recently_changed(sess: Session, start_time: datetime) -> list:
-    return (
+def find_components_changed(sess: Session, start_time: datetime) -> Iterator:
+    for rpt in (
         sess.query(
             IseqProductMetrics.id_run, IseqFlowcell.position, IseqFlowcell.tag_index
         )
@@ -312,5 +312,5 @@ def find_flowcells_recently_changed(sess: Session, start_time: datetime) -> list
             | (IseqProductMetrics.last_changed > start_time)
         )
         .order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp))
-        .all()
-    )
+    ):
+        yield Component(*rpt)
