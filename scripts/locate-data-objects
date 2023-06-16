@@ -31,6 +31,7 @@ from npg_irods.cli import add_logging_arguments, configure_logging, parse_iso_da
 from npg_irods.db import DBConfig
 from npg_irods.db.mlwh import find_consent_withdrawn_samples
 from npg_irods.metadata.common import SeqConcept
+from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import TrackedSample
 from npg_irods.version import version
 
@@ -139,7 +140,9 @@ def illumina_updates(cli_args):
 
             try:
                 for obj in query_metadata(
-                    AVU(SeqConcept.COMPONENT, c),
+                    AVU(Instrument.RUN, c.id_run),
+                    AVU(Instrument.LANE, c.position),
+                    AVU(SeqConcept.TAG_INDEX, c.tag_index),
                     data_object=True,
                     collection=False,
                     zone=cli_args.zone,

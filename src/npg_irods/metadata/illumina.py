@@ -34,7 +34,7 @@ class Instrument(AsValueEnum):
     """Illumina platform metadata"""
 
     RUN = "id_run"
-    LANE = "position"
+    LANE = "lane"
 
 
 column_to_attribute = {
