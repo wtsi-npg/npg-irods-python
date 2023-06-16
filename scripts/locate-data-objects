@@ -109,7 +109,7 @@ cwdr_parser.set_defaults(func=consent_withdrawn)
 
 ilup_parser = subparsers.add_parser(
     "illumina-updates",
-    help="Find data objects which are the components of Illumina runs, whose tracking"
+    help="Find data objects which are the components of Illumina runs, whose tracking "
     "metadata in the ML warehouse have changed since a specified time.",
 )
 ilup_parser.add_argument(
