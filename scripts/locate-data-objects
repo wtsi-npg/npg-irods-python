@@ -122,7 +122,7 @@ def illumina_updates(cli_args):
     dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
-        for rpt in illumina.find_flowcells_recently_changed(
+        for rpt in illumina.find_components_changed(
             session, start_time=cli_args.begin_date
         ):
             c = illumina.Component(*rpt)
