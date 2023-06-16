@@ -30,7 +30,6 @@ from npg_irods import illumina
 from npg_irods.cli import add_logging_arguments, configure_logging, parse_iso_date
 from npg_irods.db import DBConfig
 from npg_irods.db.mlwh import find_consent_withdrawn_samples
-from npg_irods.metadata import illumina
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.lims import TrackedSample
 from npg_irods.version import version
