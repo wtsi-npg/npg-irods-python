@@ -296,7 +296,21 @@ def find_flowcells_by_component(
     return query.order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp)).all()
 
 
-def find_components_changed(sess: Session, start_time: datetime) -> Iterator[Component]:
+def find_components_changed(sess: Session, since: datetime) -> Iterator[Component]:
+    """Find in the ML warehouse any Illumina sequence components whose tracking
+    metadata has been changed since a given time.
+
+    A change is defined as the "recorded_at" column (Sample, Study, IseqFlowcell) or
+    "last_changed" colum (IseqProductMetrics) having a timestamp more recent than the
+    given time.
+
+    Args:
+        sess: An open SQL session.
+        since: A datetime query argument.
+
+    Returns:
+        An iterator over Components whose tracking metadata have changed.
+    """
     for rpt in (
         sess.query(
             IseqProductMetrics.id_run, IseqFlowcell.position, IseqFlowcell.tag_index
@@ -306,10 +320,10 @@ def find_components_changed(sess: Session, start_time: datetime) -> Iterator[Com
         .join(IseqFlowcell.study)
         .join(IseqFlowcell.iseq_product_metrics)
         .filter(
-            (Sample.recorded_at > start_time)
-            | (Study.recorded_at > start_time)
-            | (IseqFlowcell.recorded_at > start_time)
-            | (IseqProductMetrics.last_changed > start_time)
+            (Sample.recorded_at > since)
+            | (Study.recorded_at > since)
+            | (IseqFlowcell.recorded_at > since)
+            | (IseqProductMetrics.last_changed > since)
         )
         .order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp))
     ):
