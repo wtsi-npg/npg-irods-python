@@ -92,7 +92,7 @@ class Component:
 
             return Component(
                 avu_value[Instrument.RUN.value],
-                avu_value[Instrument.LANE.value],
+                avu_value[SeqConcept.POSITION.value],
                 tag_index=avu_value.get(SeqConcept.TAG_INDEX.value, None),
                 subset=subset,
             )
