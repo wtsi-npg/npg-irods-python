@@ -19,6 +19,7 @@
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum, unique
 from pathlib import PurePath
 from typing import Optional, Type
@@ -28,7 +29,7 @@ from sqlalchemy import asc
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
-from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics
+from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics, Sample, Study
 from npg_irods.metadata import illumina
 from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.lims import (
@@ -281,3 +282,23 @@ def find_flowcells_by_component(
             raise ValueError(f"Invalid tag index {component.tag_index}")
 
     return query.order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp)).all()
+
+
+def find_flowcells_recently_changed(sess: Session, start_time: datetime) -> list:
+    return (
+        sess.query(
+            IseqProductMetrics.id_run, IseqFlowcell.position, IseqFlowcell.tag_index
+        )
+        .distinct()
+        .join(IseqFlowcell.sample)
+        .join(IseqFlowcell.study)
+        .join(IseqFlowcell.iseq_product_metrics)
+        .filter(
+            (Sample.recorded_at > start_time)
+            | (Study.recorded_at > start_time)
+            | (IseqFlowcell.recorded_at > start_time)
+            | (IseqProductMetrics.last_changed > start_time)
+        )
+        .order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp))
+        .all()
+    )

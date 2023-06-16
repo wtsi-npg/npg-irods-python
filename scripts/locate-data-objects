@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from npg_irods.cli import add_logging_arguments, configure_logging, parse_iso_date
 from npg_irods.db import DBConfig
 from npg_irods.db.mlwh import find_consent_withdrawn_samples
+from npg_irods.illumina import find_flowcells_recently_changed
 from npg_irods.metadata import illumina
 from npg_irods.metadata.lims import TrackedSample
 from npg_irods.version import version
@@ -119,8 +120,17 @@ def illumina_updates(cli_args):
     dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
-        for s in illumina.recently_changed(session, start_time=cli_args.begin_date):
-            print(s)
+        for fc in find_flowcells_recently_changed(
+            session, start_time=cli_args.begin_date
+        ):
+            print(fc)
+            # for obj in query_metadata(
+            #     AVU(TrackedSample.),
+            #     data_object=True,
+            #     collection=False,
+            #     zone=cli_args.zone,
+            # ):
+            #     print(obj)
 
 
 ilup_parser.set_defaults(func=illumina_updates)
