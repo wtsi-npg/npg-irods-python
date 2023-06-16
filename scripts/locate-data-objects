@@ -122,10 +122,9 @@ def illumina_updates(cli_args):
     dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
-        for rpt in illumina.find_components_changed(
+        for c in illumina.find_components_changed(
             session, start_time=cli_args.begin_date
         ):
-            c = illumina.Component(*rpt)
             print(c)
             for obj in query_metadata(
                 AVU(SeqConcept.COMPONENT, c),

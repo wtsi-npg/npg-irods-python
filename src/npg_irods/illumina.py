@@ -296,7 +296,7 @@ def find_flowcells_by_component(
     return query.order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp)).all()
 
 
-def find_components_changed(sess: Session, start_time: datetime) -> Iterator:
+def find_components_changed(sess: Session, start_time: datetime) -> Iterator[Component]:
     for rpt in (
         sess.query(
             IseqProductMetrics.id_run, IseqFlowcell.position, IseqFlowcell.tag_index
