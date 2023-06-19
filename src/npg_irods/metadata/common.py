@@ -24,7 +24,7 @@ from enum import unique
 from pathlib import PurePath
 from typing import List
 
-from partisan.irods import AVU, DataObject, RodsItem
+from partisan.irods import AVU, DataObject, Replica, RodsItem
 from partisan.metadata import AsValueEnum, DublinCore
 from structlog import get_logger
 
@@ -80,6 +80,37 @@ RECOGNISED_FILE_SUFFIXES = {
         "xml",
     ]
 }
+
+
+@unique
+class SeqConcept(AsValueEnum):
+    """Sequencing terminology."""
+
+    ALT_PROCESS = "alt_process"
+    COMPONENT = "component"
+    ID_PRODUCT = "id_product"
+    POSITION = "position"
+    REFERENCE = "reference"
+    SUBSET = "subset"
+    TAG_INDEX = "tag_index"
+
+
+@unique
+class SeqSubset(AsValueEnum):
+    """Categorised subsets of sequence reads which are separated from each other after
+    sequencing."""
+
+    HUMAN = "human"
+    """Human DNA."""
+
+    PHIX = "phix"
+    """Phi X control reads."""
+
+    XAHUMAN = "xahuman"
+    """Human X chromosome and autosome reads."""
+
+    YHUMAN = "yhuman"
+    """Human Y chromosome reads separated from X and autosomal data."""
 
 
 @unique
@@ -172,9 +203,7 @@ def has_matching_checksum_metadata(obj: DataObject) -> bool:
     # It's possible, technically, for there to be multiple checksum AVUs in an
     # object's metadata because iRODS is permissive on this. If we find more than
     # one, we consider that the checksum metadata do not match.
-    checksum_meta = [
-        avu for avu in obj.metadata() if avu.attribute == DataFile.MD5.value
-    ]
+    checksum_meta = obj.metadata(DataFile.MD5.value)
     if len(checksum_meta) > 1:
         return False
 
@@ -293,7 +322,7 @@ def has_complete_replicas(obj: DataObject, num_replicas=2) -> bool:
 
 def trimmable_replicas(
     obj: DataObject, num_replicas=2
-) -> (List[DataObject], List[DataObject]):
+) -> (List[Replica], List[Replica]):
     """Return tuple of lists of valid and invalid replicas that are trimmable.
 
     Trimmable replicas are any valid replicas in excess of the expected number
@@ -399,9 +428,13 @@ def ensure_creation_metadata(obj: DataObject, creator=None) -> bool:
     if not requires_creation_metadata(obj):
         return False
 
+    if has_creation_metadata(obj):
+        return False
+
     c = creator if creator is not None else WSI_CREATOR
     t = obj.timestamp()
-    return _ensure_avus_present(obj, *make_creation_metadata(c, t))
+
+    return ensure_avus_present(obj, *make_creation_metadata(c, t))
 
 
 def requires_modification_metadata(obj: DataObject) -> bool:
@@ -425,7 +458,7 @@ def has_modification_metadata(obj: DataObject) -> bool:
     Returns:
         True if the metadata are present, or False otherwise.
     """
-    return any(avu.attribute == DublinCore.MODIFIED.value for avu in obj.metadata())
+    return len(obj.metadata(str(DublinCore.MODIFIED))) > 0
 
 
 def make_modification_metadata(modified: datetime) -> list[AVU]:
@@ -463,7 +496,7 @@ def has_checksum_metadata(obj: DataObject) -> bool:
     Returns:
         True if the metadata are present, or False otherwise.
     """
-    return any(avu.attribute == DataFile.MD5.value for avu in obj.metadata())
+    return len(obj.metadata(DataFile.MD5.value)) > 0
 
 
 def make_checksum_metadata(checksum: str) -> list[AVU]:
@@ -496,7 +529,7 @@ def ensure_checksum_metadata(obj: DataObject) -> bool:
     if not c:
         raise ValueError(f"Empty checksum returned from iRODS for {obj}")
 
-    return _ensure_avus_present(obj, *make_checksum_metadata(c))
+    return ensure_avus_present(obj, *make_checksum_metadata(c))
 
 
 def requires_type_metadata(obj: DataObject) -> bool:
@@ -521,7 +554,7 @@ def has_type_metadata(obj: DataObject) -> bool:
     Returns:
         True if the metadata are present, or False otherwise.
     """
-    return any(avu.attribute == DataFile.TYPE.value for avu in obj.metadata())
+    return len(obj.metadata(DataFile.TYPE.value)) > 0
 
 
 def make_type_metadata(obj: DataObject) -> list[AVU]:
@@ -560,7 +593,7 @@ def ensure_type_metadata(obj: DataObject) -> bool:
     if not requires_type_metadata(obj):
         return False
 
-    return _ensure_avus_present(obj, *make_type_metadata(obj))
+    return ensure_avus_present(obj, *make_type_metadata(obj))
 
 
 def parse_object_type(obj: DataObject):
@@ -637,16 +670,11 @@ def avu_if_value(attribute, value):
     Returns:
         A new AVU instance.
     """
-    if value is not None:
-        return AVU(attribute, value)
+    return AVU(attribute, value) if value is not None else None
 
 
-def _ensure_avus_present(item: RodsItem, *avus: AVU) -> bool:
+def ensure_avus_present(item: RodsItem, *avus: AVU) -> bool:
     """Ensure that an item in iRODS has the specified metadata.
-
-    NB: this function is for cases where we only have a single AVU for each
-    attribute. Do not use it for cases where there are multiple AVUs sharing the same
-    attribute.
 
     Args:
         item: An item to update.
@@ -655,14 +683,11 @@ def _ensure_avus_present(item: RodsItem, *avus: AVU) -> bool:
     Returns:
         True if one or more AVUs required adding.
     """
-    missing = []
 
-    # Note: this uses the knowledge that we only have a single AVU for each attribute
-    meta = {avu.attribute: avu for avu in avus}
-    for attr, avu in meta.items():
-        if not any(a.attribute == attr for a in item.metadata()):
-            missing.append(avu)
+    current = set(item.metadata())
+    candidates = set(avus)
 
+    missing = candidates.difference(current)
     item.add_metadata(*missing)
 
     return True if missing else False
@@ -677,4 +702,4 @@ def has_target_metadata(obj: DataObject) -> bool:
     Returns:
         True if the object has 'target' metadata.
     """
-    return any(avu.attribute == DataFile.TARGET.value for avu in obj.metadata())
+    return len(obj.metadata(DataFile.TARGET.value)) > 0

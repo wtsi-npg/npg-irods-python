@@ -20,24 +20,25 @@
 """ONT-specific business logic API."""
 
 import re
+from dataclasses import dataclass
 from datetime import datetime
 from os import PathLike
-from typing import Type, Union
+from typing import Optional, Type
 
 from partisan.exception import RodsError
-from partisan.irods import AVU, Collection, query_metadata, DataObject
+from partisan.irods import AVU, Collection, DataObject, query_metadata
 from sqlalchemy import asc, distinct
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
 from npg_irods.db.mlwh import OseqFlowcell
+from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.lims import (
-    SeqConcept,
     is_managed_access,
+    make_public_read_acl,
     make_sample_acl,
     make_sample_metadata,
     make_study_metadata,
-    make_public_read_acl,
 )
 from npg_irods.metadata.ont import Instrument
 
@@ -51,6 +52,14 @@ TAG_IDENTIFIER_REGEX = re.compile(r"(?P<tag_id>\d+)$")
 # Directories ignored when searching the run folder for directories containing deplexed
 # data. Examples of sibling directories that are not ignored: fast5_fail, fast5_pass
 IGNORED_DIRECTORIES = ["other_reports"]
+
+
+@dataclass(order=True)
+class Component:
+    experiment_name: str
+    position: int
+    tag_index: Optional[int]
+    subset: Optional[SeqSubset]
 
 
 class MetadataUpdate:
@@ -211,7 +220,7 @@ def barcode_name_from_id(tag_identifier: str) -> str:
 
 
 def annotate_results_collection(
-    path: Union[str, PathLike],
+    path: PathLike | str,
     experiment_name: str,
     instrument_slot: int,
     mlwh_session: Session,
@@ -434,6 +443,23 @@ def find_flowcell_by_expt_slot(
         .filter(
             OseqFlowcell.experiment_name == experiment_name,
             OseqFlowcell.instrument_slot == instrument_slot,
+        )
+        .order_by(
+            asc(OseqFlowcell.experiment_name),
+            asc(OseqFlowcell.instrument_slot),
+            asc(OseqFlowcell.tag_identifier),
+            asc(OseqFlowcell.tag2_identifier),
+        )
+        .all()
+    )
+
+
+def find_flowcells_by_component(sess: Session, component: Component):
+    return (
+        sess.query(OseqFlowcell)
+        .filter(
+            OseqFlowcell.experiment_name == component.experiment_name,
+            OseqFlowcell.instrument_slot == component.position,
         )
         .order_by(
             asc(OseqFlowcell.experiment_name),
