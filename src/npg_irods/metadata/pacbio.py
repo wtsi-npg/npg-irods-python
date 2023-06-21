@@ -109,11 +109,14 @@ def ensure_id_product(
             id_product_old = avu.value
         elif avu.attribute in Instrument.values():
             metadata[avu.attribute] = avu.value
-
-    id_args = {
-        "run_name": metadata[Instrument.RUN_NAME.value],
-        "well_label": remove_well_padding(metadata[Instrument.WELL_LABEL.value]),
-    }
+    try:
+        id_args = {
+            "run_name": metadata[Instrument.RUN_NAME.value],
+            "well_label": remove_well_padding(metadata[Instrument.WELL_LABEL.value]),
+        }
+    except KeyError:
+        log.error("Data object has missing run name or well label metadata", path=obj)
+        return False
 
     if has_target_metadata(obj):
         if Instrument.TAG_SEQUENCE.value in metadata:

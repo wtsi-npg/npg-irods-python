@@ -79,7 +79,7 @@ class LocationWriter:
                     {
                         "id_product": self.products[obj],
                         "pipeline_name": NPG_PROD,
-                        "platform_name": PACBIO,
+                        "seq_platform_name": PACBIO,
                         "irods_root_collection": coll_path,
                         "irods_data_relative_path": str(obj_path.name),
                     }
