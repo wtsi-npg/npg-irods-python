@@ -41,6 +41,7 @@ setup(
     tests_require=["black", "pytest", "pytest-it"],
     scripts=[
         "scripts/backfill_illumina_locations.py",
+        "scripts/backfill_pacbio_ids",
         "scripts/check-checksums",
         "scripts/check-common-metadata",
         "scripts/check-consent-withdrawn",
