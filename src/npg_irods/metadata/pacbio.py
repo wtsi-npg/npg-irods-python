@@ -25,8 +25,8 @@ from threading import Lock
 from npg_id_generation.pac_bio import PacBioEntity
 from structlog import get_logger
 
-from npg_irods.metadata.common import parse_object_type, has_target_metadata
-from npg_irods.metadata.lims import has_id_product_metadata, SeqConcept
+from npg_irods.metadata.common import SeqConcept, parse_object_type, has_target_metadata
+from npg_irods.metadata.lims import has_id_product_metadata
 from npg_irods.mlwh_locations.writer import LocationWriter, PACBIO
 from partisan.irods import (
     AVU,

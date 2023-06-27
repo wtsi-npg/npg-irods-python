@@ -19,24 +19,27 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import argparse
-import configparser
+from datetime import datetime, timedelta, timezone
 
 import sqlalchemy
 import structlog
 from partisan.irods import AVU, query_metadata
 from sqlalchemy.orm import Session
 
+from npg_irods import illumina
+from npg_irods.cli import add_logging_arguments, configure_logging, parse_iso_date
 from npg_irods.db import DBConfig
 from npg_irods.db.mlwh import find_consent_withdrawn_samples
+from npg_irods.metadata.common import SeqConcept
+from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import TrackedSample
-from npg_irods.cli import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
 A utility for locating sets of data objects in iRODS.
 
-Currently this supports one mode of operation, which is to find data objects related to
-samples whose consent for data use has been withdrawn.
+Each sub-command runs canned queries first on the ML warehouse and then, using that
+result, on iRODS to locate relevant data objects.
 
 The paths of the data objects located are printed to STDOUT.
 """
@@ -52,6 +55,7 @@ parser.add_argument(
     type=argparse.FileType("r"),
     required=True,
 )
+
 parser.add_argument(
     "--zone",
     help="Specify a federated iRODS zone in which to find data objects to check. "
@@ -59,6 +63,101 @@ parser.add_argument(
     type=str,
 )
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
+
+subparsers = parser.add_subparsers(
+    title="queries", help="Data object location queries", required=True
+)
+
+
+def consent_withdrawn(cli_args):
+    dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    engine = sqlalchemy.create_engine(dbconfig.url)
+    with Session(engine) as session:
+        num_processed = num_errors = 0
+
+        for i, s in enumerate(find_consent_withdrawn_samples(session)):
+            num_processed += 1
+            log.info("Finding data objects", item=i, sample=s)
+
+            if s.id_sample_lims is None:
+                num_errors += 1
+                log.error("Missing id_sample_lims", item=i, sample=s)
+                continue
+
+            try:
+                for obj in query_metadata(
+                    AVU(TrackedSample.ID, s.id_sample_lims),
+                    data_object=True,
+                    collection=False,
+                    zone=cli_args.zone,
+                ):
+                    print(obj)
+            except Exception as e:
+                num_errors += 1
+                log.error(e, item=i, sample=s)
+
+    log.info(f"Processed {num_processed} with {num_errors} errors")
+    if num_errors:
+        exit(1)
+
+
+cwdr_parser = subparsers.add_parser(
+    "consent-withdrawn",
+    help="Find data objects related to samples whose consent for data use has "
+    "been withdrawn.",
+)
+cwdr_parser.set_defaults(func=consent_withdrawn)
+
+ilup_parser = subparsers.add_parser(
+    "illumina-updates",
+    help="Find data objects which are the components of Illumina runs, whose tracking "
+    "metadata in the ML warehouse have changed since a specified time.",
+)
+ilup_parser.add_argument(
+    "--begin-date",
+    "--begin_date",
+    help="Limit data object found to those changed after this date. "
+    "Defaults to 14 days ago. "
+    "The argument must be an ISO8601 UTC date or date and time e.g. 2022-01-30, "
+    "2022-01-30T11:11:03Z",
+    type=parse_iso_date,
+    default=datetime.now(timezone.utc) - timedelta(days=14),
+)
+
+
+def illumina_updates(cli_args):
+    dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    engine = sqlalchemy.create_engine(dbconfig.url)
+    with Session(engine) as session:
+        num_processed = num_errors = 0
+        iso_date = cli_args.begin_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        for i, c in enumerate(
+            illumina.find_components_changed(session, since=cli_args.begin_date)
+        ):
+            num_processed += 1
+            log.info("Finding data objects", item=i, component=c, since=iso_date)
+
+            try:
+                for obj in query_metadata(
+                    AVU(Instrument.RUN, c.id_run),
+                    AVU(Instrument.LANE, c.position),
+                    AVU(SeqConcept.TAG_INDEX, c.tag_index),
+                    data_object=True,
+                    collection=False,
+                    zone=cli_args.zone,
+                ):
+                    print(obj)
+            except Exception as e:
+                num_errors += 1
+                log.error(e, item=i, component=c)
+
+        log.info(f"Processed {num_processed} with {num_errors} errors")
+        if num_errors:
+            exit(1)
+
+
+ilup_parser.set_defaults(func=illumina_updates)
 
 args = parser.parse_args()
 configure_logging(
@@ -75,32 +174,7 @@ def main():
     if args.version:
         print(version())
         exit(0)
-
-    dbconfig = DBConfig.from_file(args.database_config.name, "mlwh_ro")
-
-    engine = sqlalchemy.create_engine(dbconfig.url)
-    with Session(engine) as session:
-        num_processed, num_errors = 0, 0
-        for s in find_consent_withdrawn_samples(session):
-            log.info("Finding data objects for", sample=s)
-            num_processed += 1
-
-            if s.id_sample_lims is None:
-                log.error("Missing id_sample_lims", sample=s)
-                num_errors += 1
-                continue
-
-            for obj in query_metadata(
-                AVU(TrackedSample.ID, s.id_sample_lims),
-                data_object=True,
-                collection=False,
-                zone=args.zone,
-            ):
-                print(obj)
-
-        log.info(f"Processed {num_processed} with {num_errors} errors")
-        if num_errors:
-            exit(1)
+    args.func(args)
 
 
 if __name__ == "__main__":

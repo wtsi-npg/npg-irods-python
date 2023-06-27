@@ -21,6 +21,7 @@ from enum import unique
 from typing import List, Dict
 
 from partisan.metadata import AsValueEnum
+from sqlalchemy import asc
 from sqlalchemy.orm import Session, Query
 from datetime import datetime
 
@@ -85,6 +86,7 @@ def _recently_changed_query(sess: Session, start_time: datetime) -> Query:
             | (IseqFlowcell.recorded_at > start_time)
             | (IseqProductMetrics.last_changed > start_time)
         )
+        .order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp))
     )
 
 

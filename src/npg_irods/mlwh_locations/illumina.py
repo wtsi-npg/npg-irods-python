@@ -23,7 +23,7 @@ import structlog
 from typing import List, Dict
 from multiprocessing import Pool, pool
 from partisan.irods import DataObject, Collection, client_pool, AVU
-from npg_irods.metadata.lims import SeqConcept
+from npg_irods.metadata.common import SeqConcept
 
 log = structlog.get_logger(__file__)
 
