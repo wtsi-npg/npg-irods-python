@@ -31,7 +31,7 @@ from npg_irods.ont import find_recent_expt, find_recent_expt_slot
 class TestONTMLWarehouseQueries(object):
     @m.context("When a query date is provided")
     @m.it("Finds the correct experiments")
-    def test_find_recent_expt(self, mlwh_session):
+    def test_find_recent_expt(self, ont_synthetic_mlwh):
         all_expts = [
             "simple_experiment_001",
             "simple_experiment_002",
@@ -42,7 +42,7 @@ class TestONTMLWarehouseQueries(object):
             "multiplexed_experiment_002",
             "multiplexed_experiment_003",
         ]
-        assert find_recent_expt(mlwh_session, EARLY) == all_expts
+        assert find_recent_expt(ont_synthetic_mlwh, EARLY) == all_expts
 
         # Odd-numbered experiments were done late or latest
         before_late = LATE - timedelta(days=1)
@@ -53,16 +53,16 @@ class TestONTMLWarehouseQueries(object):
             "multiplexed_experiment_001",
             "multiplexed_experiment_003",
         ]
-        assert find_recent_expt(mlwh_session, before_late) == odd_expts
+        assert find_recent_expt(ont_synthetic_mlwh, before_late) == odd_expts
 
         after_latest = LATEST + timedelta(days=1)
-        none = find_recent_expt(mlwh_session, after_latest)
+        none = find_recent_expt(ont_synthetic_mlwh, after_latest)
         assert none == []
 
     @m.describe("Finding updated experiments and positions by datetime")
     @m.context("When a query date is provided")
     @m.it("Finds the correct experiment, slot tuples")
-    def test_find_recent_expt_pos(self, mlwh_session):
+    def test_find_recent_expt_pos(self, ont_synthetic_mlwh):
         before_late = LATE - timedelta(days=1)
         odd_expts = [
             ("multiplexed_experiment_001", 1),
@@ -91,7 +91,7 @@ class TestONTMLWarehouseQueries(object):
             ("simple_experiment_005", 4),
             ("simple_experiment_005", 5),
         ]
-        assert find_recent_expt_slot(mlwh_session, before_late) == odd_expts
+        assert find_recent_expt_slot(ont_synthetic_mlwh, before_late) == odd_expts
 
         before_latest = LATEST - timedelta(days=1)
         odd_positions = [
@@ -102,17 +102,17 @@ class TestONTMLWarehouseQueries(object):
             ("multiplexed_experiment_003", 3),
             ("multiplexed_experiment_003", 5),
         ]
-        assert find_recent_expt_slot(mlwh_session, before_latest) == odd_positions
+        assert find_recent_expt_slot(ont_synthetic_mlwh, before_latest) == odd_positions
 
         after_latest = LATEST + timedelta(days=1)
-        assert find_recent_expt_slot(mlwh_session, after_latest) == []
+        assert find_recent_expt_slot(ont_synthetic_mlwh, after_latest) == []
 
 
 @m.describe("Finding Illumina recently changed information in Illumina tables")
 class TestIlluminaMLWarehouseQueries(object):
     @m.context("When given a datetime")
     @m.it("Finds rows updated since that datetime")
-    def test_recently_changed(self, mlwh_session):
+    def test_recently_changed(self, illumina_backfill_mlwh):
         late_expected = [
             {
                 TrackedStudy.ACCESSION_NUMBER: "ST0000000001",
@@ -211,11 +211,11 @@ class TestIlluminaMLWarehouseQueries(object):
         after_latest = LATEST + timedelta(days=1)
 
         # only recently updated
-        assert illumina.recently_changed(mlwh_session, LATE) == late_expected
+        assert illumina.recently_changed(illumina_backfill_mlwh, LATE) == late_expected
         # all
         assert (
-            illumina.recently_changed(mlwh_session, before_early)
+            illumina.recently_changed(illumina_backfill_mlwh, before_early)
             == before_early_expected
         )
         # none
-        assert illumina.recently_changed(mlwh_session, after_latest) == []
+        assert illumina.recently_changed(illumina_backfill_mlwh, after_latest) == []

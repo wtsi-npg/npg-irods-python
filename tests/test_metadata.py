@@ -18,7 +18,6 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import datetime
-import re
 from unittest.mock import patch
 
 import pytest
@@ -163,7 +162,7 @@ class TestChecksums:
             obj,
             checksum=lambda: checksum,
             replicas=lambda: replicas,
-            metadata=lambda: metadata,
+            metadata=lambda attr=None: metadata,
         ):
             assert has_matching_checksum_metadata(obj)
 
@@ -182,7 +181,7 @@ class TestChecksums:
             obj,
             replicas=lambda: replicas,
             checksum=lambda: "bbbbbbbbbb",
-            metadata=lambda: [AVU(DataFile.MD5, checksum)],
+            metadata=lambda attr=None: [AVU(DataFile.MD5, checksum)],
         ):
             assert not has_matching_checksums(obj)
 
@@ -201,7 +200,7 @@ class TestChecksums:
             obj,
             replicas=lambda: replicas,
             checksum=lambda: checksum,
-            metadata=lambda: [],
+            metadata=lambda attr=None: [],
         ):
             assert not has_matching_checksum_metadata(obj)
 
@@ -222,7 +221,7 @@ class TestChecksums:
             obj,
             replicas=lambda: replicas,
             checksum=lambda: checksum,
-            metadata=lambda: metadata,
+            metadata=lambda attr=None: metadata,
         ):
             assert not has_matching_checksum_metadata(obj)
 
@@ -366,7 +365,7 @@ class TestCreationMetadata:
 class TestCommonMetadata:
     @tests_have_admin
     @m.context("When common metadata are present")
-    @m.context("A has_ function is called")
+    @m.context("When a has_ function is called")
     @m.it("Returns True")
     def test_has_metadata_present(self, annotated_data_object):
         obj = DataObject(annotated_data_object)
@@ -376,7 +375,7 @@ class TestCommonMetadata:
         assert has_checksum_metadata(obj)
 
     @m.context("When common metadata are absent")
-    @m.context("A has_ function is called")
+    @m.context("When a has_ function is called")
     @m.it("Returns False")
     def test_has_metadata_absent(self, annotated_data_object):
         obj = DataObject(annotated_data_object)
@@ -391,7 +390,7 @@ class TestCommonMetadata:
         assert not has_checksum_metadata(obj)
 
     @m.context("When common metadata are present")
-    @m.context("An ensure_ function is called")
+    @m.context("When an ensure_ function is called")
     @m.it("Returns False")
     def test_ensure_metadata_present(self, annotated_data_object):
         obj = DataObject(annotated_data_object)
@@ -406,7 +405,7 @@ class TestCommonMetadata:
         assert not ensure_checksum_metadata(obj)
 
     @m.context("When common metadata are absent")
-    @m.context("An ensure_ function is called")
+    @m.context("When an ensure_ function is called")
     @m.it("Adds absent metadata and returns True")
     def test_ensure_metadata_absent(self, annotated_data_object):
         obj = DataObject(annotated_data_object)

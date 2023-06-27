@@ -23,8 +23,8 @@ import os
 from npg_id_generation.pac_bio import PacBioEntity
 from pytest import mark as m
 
-from npg_irods.metadata.common import DataFile
-from npg_irods.metadata.lims import has_id_product_metadata, SeqConcept
+from npg_irods.metadata.common import DataFile, SeqConcept
+from npg_irods.metadata.lims import has_id_product_metadata
 from npg_irods.metadata.pacbio import (
     ensure_id_product,
     Instrument,
