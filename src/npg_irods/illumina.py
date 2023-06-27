@@ -21,21 +21,19 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, unique
-from pathlib import PurePath
 from typing import Iterator, Optional, Type
 
-from partisan.irods import AVU, Collection, DataObject, Permission
+from partisan.irods import AVU, Collection, DataObject
 from sqlalchemy import asc
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
+from npg_irods.common import do_metadata_update, do_permissions_update, infer_zone
 from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics, Sample, Study
 from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
-    has_mixed_ownership,
-    is_managed_access,
     make_sample_acl,
     make_sample_metadata,
     make_study_metadata,
@@ -143,7 +141,7 @@ class Component:
 
 
 def ensure_secondary_metadata_updated(
-    item: Collection | DataObject, mlwh_session, include_controls=False, zone=None
+    item: Collection | DataObject, mlwh_session, include_controls=False
 ) -> bool:
     """Update iRODS secondary metadata and permissions on Illumina run collections
     and data objects.
@@ -187,24 +185,18 @@ def ensure_secondary_metadata_updated(
         mlwh_session: An open SQL session.
         include_controls: If True, include any control samples in the metadata and
         permissions.
-        zone: The iRODS zone for any permissions created.
 
     Returns:
        True if updated.
     """
-    if zone is None:
-        parts = PurePath(item).parts
-        if len(parts) < 2:
-            raise ValueError(f"Invalid iRODS path {item}; no zone component")
-        zone = parts[1]
-
+    zone = infer_zone(item)
     updated = False
     secondary_metadata, acl = [], []
 
     components = [
         Component.from_avu(avu)
         for avu in item.metadata(attr=SeqConcept.COMPONENT.value)
-    ]
+    ]  # Illumina specific
     for c in components:
         for fc in find_flowcells_by_component(
             mlwh_session, c, include_controls=include_controls
@@ -213,41 +205,12 @@ def ensure_secondary_metadata_updated(
             secondary_metadata.extend(make_study_metadata(fc.study))
             acl.extend(make_sample_acl(fc.sample, fc.study, zone=zone))
 
-    log.info("Updating metadata", path=item, meta=secondary_metadata)
-    num_removed, num_added = item.supersede_metadata(*secondary_metadata, history=True)
-    log.info(
-        "Updated metadata",
-        path=item,
-        meta=secondary_metadata,
-        num_added=num_added,
-        num_removed=num_removed,
-    )
-    if num_removed or num_added:
-        updated = True
+    updated = True if do_metadata_update(item, secondary_metadata) else updated
 
-    if any(c.contains_nonconsented_human() for c in components):
+    if any(c.contains_nonconsented_human() for c in components):  # Illumina specific
         updated = True if ensure_consent_withdrawn(item) else updated
     else:
-        if has_mixed_ownership(acl):
-            log.warn("Mixed-study data", path=item, acl=acl)
-            for ac in acl:
-                if is_managed_access(ac):
-                    ac.perm = Permission.NULL
-
-        keep = [ac for ac in item.permissions() if not is_managed_access(ac)]
-
-        log.info("Updating permissions", path=item, keep=keep, acl=acl)
-        num_removed, num_added = item.supersede_permissions(*keep, *acl)
-        log.info(
-            "Updated permissions",
-            path=item,
-            keep=keep,
-            acl=acl,
-            num_added=num_added,
-            num_removed=num_removed,
-        )
-        if num_removed or num_added:
-            updated = True
+        updated = True if do_permissions_update(item, acl) else updated
 
     return updated
 
@@ -320,10 +283,10 @@ def find_components_changed(sess: Session, since: datetime) -> Iterator[Componen
         .join(IseqFlowcell.study)
         .join(IseqFlowcell.iseq_product_metrics)
         .filter(
-            (Sample.recorded_at > since)
-            | (Study.recorded_at > since)
-            | (IseqFlowcell.recorded_at > since)
-            | (IseqProductMetrics.last_changed > since)
+            (Sample.recorded_at >= since)
+            | (Study.recorded_at >= since)
+            | (IseqFlowcell.recorded_at >= since)
+            | (IseqProductMetrics.last_changed >= since)
         )
         .order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp))
     ):

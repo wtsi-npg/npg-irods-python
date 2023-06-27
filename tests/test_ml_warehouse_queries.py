@@ -24,7 +24,7 @@ from pytest import mark as m
 from conftest import BEGIN, EARLY, LATE, LATEST
 from npg_irods.metadata import illumina
 from npg_irods.metadata.lims import TrackedSample, TrackedStudy
-from npg_irods.ont import find_recent_expt, find_recent_expt_slot
+from npg_irods.ont import Component, find_components_changed, find_recent_expt
 
 
 @m.describe("Finding updated ONT experiments by datetime")
@@ -62,50 +62,71 @@ class TestONTMLWarehouseQueries(object):
     @m.describe("Finding updated experiments and positions by datetime")
     @m.context("When a query date is provided")
     @m.it("Finds the correct experiment, slot tuples")
-    def test_find_recent_expt_pos(self, ont_synthetic_mlwh):
+    def test_find_recent_component(self, ont_synthetic_mlwh):
         before_late = LATE - timedelta(days=1)
         odd_expts = [
-            ("multiplexed_experiment_001", 1),
-            ("multiplexed_experiment_001", 2),
-            ("multiplexed_experiment_001", 3),
-            ("multiplexed_experiment_001", 4),
-            ("multiplexed_experiment_001", 5),
-            ("multiplexed_experiment_003", 1),
-            ("multiplexed_experiment_003", 2),
-            ("multiplexed_experiment_003", 3),
-            ("multiplexed_experiment_003", 4),
-            ("multiplexed_experiment_003", 5),
-            ("simple_experiment_001", 1),
-            ("simple_experiment_001", 2),
-            ("simple_experiment_001", 3),
-            ("simple_experiment_001", 4),
-            ("simple_experiment_001", 5),
-            ("simple_experiment_003", 1),
-            ("simple_experiment_003", 2),
-            ("simple_experiment_003", 3),
-            ("simple_experiment_003", 4),
-            ("simple_experiment_003", 5),
-            ("simple_experiment_005", 1),
-            ("simple_experiment_005", 2),
-            ("simple_experiment_005", 3),
-            ("simple_experiment_005", 4),
-            ("simple_experiment_005", 5),
+            Component(*args)
+            for args in [
+                ("multiplexed_experiment_001", 1),
+                ("multiplexed_experiment_001", 2),
+                ("multiplexed_experiment_001", 3),
+                ("multiplexed_experiment_001", 4),
+                ("multiplexed_experiment_001", 5),
+                ("multiplexed_experiment_003", 1),
+                ("multiplexed_experiment_003", 2),
+                ("multiplexed_experiment_003", 3),
+                ("multiplexed_experiment_003", 4),
+                ("multiplexed_experiment_003", 5),
+                ("simple_experiment_001", 1),
+                ("simple_experiment_001", 2),
+                ("simple_experiment_001", 3),
+                ("simple_experiment_001", 4),
+                ("simple_experiment_001", 5),
+                ("simple_experiment_003", 1),
+                ("simple_experiment_003", 2),
+                ("simple_experiment_003", 3),
+                ("simple_experiment_003", 4),
+                ("simple_experiment_003", 5),
+                ("simple_experiment_005", 1),
+                ("simple_experiment_005", 2),
+                ("simple_experiment_005", 3),
+                ("simple_experiment_005", 4),
+                ("simple_experiment_005", 5),
+            ]
         ]
-        assert find_recent_expt_slot(ont_synthetic_mlwh, before_late) == odd_expts
+        assert [
+            c
+            for c in find_components_changed(
+                ont_synthetic_mlwh, before_late, include_tags=False
+            )
+        ] == odd_expts
 
         before_latest = LATEST - timedelta(days=1)
         odd_positions = [
-            ("multiplexed_experiment_001", 1),
-            ("multiplexed_experiment_001", 3),
-            ("multiplexed_experiment_001", 5),
-            ("multiplexed_experiment_003", 1),
-            ("multiplexed_experiment_003", 3),
-            ("multiplexed_experiment_003", 5),
+            Component(*args)
+            for args in [
+                ("multiplexed_experiment_001", 1),
+                ("multiplexed_experiment_001", 3),
+                ("multiplexed_experiment_001", 5),
+                ("multiplexed_experiment_003", 1),
+                ("multiplexed_experiment_003", 3),
+                ("multiplexed_experiment_003", 5),
+            ]
         ]
-        assert find_recent_expt_slot(ont_synthetic_mlwh, before_latest) == odd_positions
+        assert [
+            c
+            for c in find_components_changed(
+                ont_synthetic_mlwh, before_latest, include_tags=False
+            )
+        ] == odd_positions
 
         after_latest = LATEST + timedelta(days=1)
-        assert find_recent_expt_slot(ont_synthetic_mlwh, after_latest) == []
+        assert [
+            c
+            for c in find_components_changed(
+                ont_synthetic_mlwh, after_latest, include_tags=False
+            )
+        ] == []
 
 
 @m.describe("Finding Illumina recently changed information in Illumina tables")

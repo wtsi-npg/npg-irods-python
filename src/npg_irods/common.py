@@ -22,9 +22,14 @@
 import re
 from enum import Enum, unique
 from os import PathLike
+from pathlib import PurePath
 from typing import Tuple
 
+from partisan.irods import AC, AVU, Collection, DataObject, Permission
 from structlog import get_logger
+
+from npg_irods.metadata.lims import has_mixed_ownership, is_managed_access
+
 
 log = get_logger(__package__)
 
@@ -194,3 +199,88 @@ def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
         return Platform.ULTIMA_GENOMICS, AnalysisType.NUCLEIC_ACID_SEQUENCING
 
     raise ValueError(f"Failed to infer a data source for iRODS path '{path}'")
+
+
+def do_metadata_update(item: Collection | DataObject, avus: list[AVU]) -> bool:
+    """Update metadata on an iRODS path, removing existing metadata and replacing with
+    the given AVUs and adding history of changes.
+
+    Args:
+        item: iRODS path to update.
+        avus: Metadata to apply.
+
+    Returns:
+        True if any changes were made, False if the desired metadata were already
+        present.
+    """
+    log.info("Updating metadata", path=item, meta=avus)
+    num_removed, num_added = item.supersede_metadata(*avus, history=True)
+    log.info(
+        "Updated metadata",
+        path=item,
+        meta=avus,
+        num_added=num_added,
+        num_removed=num_removed,
+    )
+    return num_removed > 0 or num_added > 0
+
+
+def do_permissions_update(
+    item: Collection | DataObject, acl: list[AC], recurse=False
+) -> bool:
+    """Update permissions on an iRODS path, removing existing permissions and replacing
+    with the given ACL. If the ACL contains multiple, conflicting, managed permissions
+    then it will issue a warning and revoke access.
+
+    Args:
+        item: iRODS path to update.
+        acl: ACL to apply.
+        recurse: If True, recursively apply the ACL.
+
+    Returns:
+        True if changes any changes were made, False if the ACL(s) of the target path(s)
+    were already in the desired state. This applies recursively, so to return False for
+    a recursive operation, neither the target path, nor any contained path will have
+    been updated.
+    """
+    if item.rods_type == DataObject and recurse:
+        raise ValueError(
+            f"Cannot recursively update permissions on a data object: {item}"
+        )
+
+    if has_mixed_ownership(acl):
+        log.warn("Mixed-study data", path=item, acl=acl)
+        for ac in acl:
+            if is_managed_access(ac):
+                ac.perm = Permission.NULL
+
+    keep = [ac for ac in item.permissions() if not is_managed_access(ac)]
+
+    log.info("Updating permissions", path=item, keep=keep, acl=acl)
+
+    kwargs = {"recurse": recurse} if recurse else {}
+    num_removed, num_added = item.supersede_permissions(*keep, *acl, **kwargs)
+    log.info(
+        "Updated permissions",
+        path=item,
+        keep=keep,
+        acl=acl,
+        num_added=num_added,
+        num_removed=num_removed,
+    )
+    return num_removed > 0 or num_added > 0
+
+
+def infer_zone(path: Collection | DataObject) -> str:
+    """Infer the iRODS zone from an iRODS path.
+
+    Args:
+        path: An absolute iRODS path.
+
+    Returns:
+        The zone.
+    """
+    parts = PurePath(path).parts
+    if len(parts) < 2:
+        raise ValueError(f"Invalid iRODS path {path}; no zone component")
+    return parts[1]

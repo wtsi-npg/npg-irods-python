@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from npg_irods.cli import add_logging_arguments, configure_logging, parse_iso_date
 from npg_irods.db import DBConfig
-from npg_irods.ont import MetadataUpdate
+from npg_irods.ont import update_metadata
 from npg_irods.version import version
 
 description = """
@@ -94,9 +94,8 @@ def main():
 
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
-        mu = MetadataUpdate(zone=args.zone)
-        num_processed, num_updated, num_errors = mu.update_secondary_metadata(
-            session, since=args.begin_date
+        num_processed, num_updated, num_errors = update_metadata(
+            session, since=args.begin_date, zone=args.zone
         )
 
         if num_errors:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ class Instrument(AsValueEnum, metaclass=with_namespace("ont")):
 
     EXPERIMENT_NAME = "experiment_name"
     INSTRUMENT_SLOT = "instrument_slot"
+    TAG_IDENTIFIER = "tag_identifier"
 
     def __repr__(self):
         return f"{Instrument.namespace}:{self.value}"

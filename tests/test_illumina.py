@@ -80,7 +80,7 @@ class TestIlluminaMetadataUpdate(object):
             assert avu in obj.metadata()
 
         assert not ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh, zone=zone
+            obj, mlwh_session=illumina_synthetic_mlwh
         )
 
         for avu in expected_avus:
@@ -275,7 +275,7 @@ class TestIlluminaPermissionsUpdate:
 
         assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
         assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh, zone=zone
+            obj, mlwh_session=illumina_synthetic_mlwh
         )
         assert obj.permissions() == [
             AC("irods", perm=Permission.OWN, zone=zone),
@@ -310,7 +310,7 @@ class TestIlluminaPermissionsUpdate:
 
         assert obj.permissions() == expected_acl
         assert not ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh, zone=zone
+            obj, mlwh_session=illumina_synthetic_mlwh
         )
         assert obj.permissions() == expected_acl
 
@@ -331,7 +331,7 @@ class TestIlluminaPermissionsUpdate:
 
         assert obj.permissions() == old_permissions
         assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh, zone=zone
+            obj, mlwh_session=illumina_synthetic_mlwh
         )
         new_permissions = [
             AC("irods", perm=Permission.OWN, zone=zone),
@@ -356,7 +356,7 @@ class TestIlluminaPermissionsUpdate:
 
         assert obj.permissions() == expected_acl
         assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh, zone=zone
+            obj, mlwh_session=illumina_synthetic_mlwh
         )
         assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
 
@@ -377,7 +377,7 @@ class TestIlluminaPermissionsUpdate:
 
         assert obj.permissions() == expected_acl
         assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh, zone=zone
+            obj, mlwh_session=illumina_synthetic_mlwh
         )
         assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
 

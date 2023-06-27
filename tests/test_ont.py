@@ -28,7 +28,11 @@ from conftest import LATEST, ont_tag_identifier, tests_have_admin, history_in_me
 from npg_irods.metadata.lims import TrackedSample, TrackedStudy
 from npg_irods.metadata.common import SeqConcept
 
-from npg_irods.ont import MetadataUpdate, annotate_results_collection
+from npg_irods.ont import (
+    Component,
+    annotate_results_collection,
+    update_metadata,
+)
 
 
 class TestONTMetadataCreation(object):
@@ -41,12 +45,8 @@ class TestONTMetadataCreation(object):
         slot = 1
 
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell011_69126024"
-        annotate_results_collection(
-            path,
-            experiment_name=expt,
-            instrument_slot=slot,
-            mlwh_session=ont_synthetic_mlwh,
-        )
+        c = Component(experiment_name=expt, instrument_slot=slot)
+        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         coll = Collection(path)
         for avu in [
@@ -64,9 +64,9 @@ class TestONTMetadataCreation(object):
             AC("irods", Permission.OWN, zone="testZone"),
             AC("ss_2000", Permission.READ, zone="testZone"),
         ]
-        assert coll.acl() == expected_acl
+        assert coll.acl() == expected_acl, f"ACL of {coll} is { expected_acl}"
         for item in coll.contents():
-            assert item.acl() == expected_acl
+            assert item.acl() == expected_acl, f"ACL of {item} is {expected_acl}"
 
     @tests_have_admin
     @m.context("When the experiment is multiplexed")
@@ -76,13 +76,8 @@ class TestONTMetadataCreation(object):
         slot = 1
 
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
-
-        annotate_results_collection(
-            path,
-            experiment_name=expt,
-            instrument_slot=slot,
-            mlwh_session=ont_synthetic_mlwh,
-        )
+        c = Component(experiment_name=expt, instrument_slot=slot)
+        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         for subcoll in ["fast5_fail", "fast5_pass", "fastq_fail", "fastq_pass"]:
             for tag_index in range(1, 12):
@@ -102,13 +97,8 @@ class TestONTMetadataCreation(object):
         slot = 1
 
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
-
-        annotate_results_collection(
-            path,
-            experiment_name=expt,
-            instrument_slot=slot,
-            mlwh_session=ont_synthetic_mlwh,
-        )
+        c = Component(experiment_name=expt, instrument_slot=slot)
+        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         for subcoll in ["fast5_fail", "fast5_pass", "fastq_fail", "fastq_pass"]:
             for tag_index in range(1, 12):
@@ -142,13 +132,8 @@ class TestONTMetadataCreation(object):
         slot = 1
 
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
-
-        annotate_results_collection(
-            path,
-            experiment_name=expt,
-            instrument_slot=slot,
-            mlwh_session=ont_synthetic_mlwh,
-        )
+        c = Component(experiment_name=expt, instrument_slot=slot)
+        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
         expected_acl = [
             AC("irods", Permission.OWN, zone="testZone"),
             AC("public", Permission.READ, zone="testZone"),
@@ -172,8 +157,7 @@ class TestONTMetadataUpdate(object):
         num_multiplexed_expts = 3
         num_slots = 5
 
-        update = MetadataUpdate()
-        num_found, num_updated, num_errors = update.update_secondary_metadata(
+        num_found, num_updated, num_errors = update_metadata(
             mlwh_session=ont_synthetic_mlwh
         )
         num_expected = (num_simple_expts * num_slots) + (
@@ -188,8 +172,7 @@ class TestONTMetadataUpdate(object):
     @m.context("When a time window is specified")
     @m.it("Finds only collections updated in that time window")
     def test_find_recent_updates(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        update = MetadataUpdate()
-        num_found, num_updated, num_errors = update.update_secondary_metadata(
+        num_found, num_updated, num_errors = update_metadata(
             mlwh_session=ont_synthetic_mlwh, since=LATEST
         )
 
@@ -218,9 +201,8 @@ class TestONTMetadataUpdate(object):
     @m.context("When an experiment name is specified")
     @m.it("Finds only collections with that experiment name")
     def test_find_updates_for_experiment(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        update = MetadataUpdate(experiment_name="simple_experiment_001")
-        num_found, num_updated, num_errors = update.update_secondary_metadata(
-            mlwh_session=ont_synthetic_mlwh
+        num_found, num_updated, num_errors = update_metadata(
+            experiment_name="simple_experiment_001", mlwh_session=ont_synthetic_mlwh
         )
 
         expected_colls = [
@@ -247,11 +229,10 @@ class TestONTMetadataUpdate(object):
     def test_find_updates_for_experiment_slot(
         self, ont_synthetic_irods, ont_synthetic_mlwh
     ):
-        update = MetadataUpdate(
-            experiment_name="simple_experiment_001", instrument_slot=1
-        )
-        num_found, num_updated, num_errors = update.update_secondary_metadata(
-            mlwh_session=ont_synthetic_mlwh
+        num_found, num_updated, num_errors = update_metadata(
+            experiment_name="simple_experiment_001",
+            instrument_slot=1,
+            mlwh_session=ont_synthetic_mlwh,
         )
 
         expected_colls = [
@@ -277,11 +258,12 @@ class TestONTMetadataUpdate(object):
             / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
         )
         assert AVU(TrackedSample.NAME, "sample 1") not in coll.metadata()
-        update = MetadataUpdate(
-            experiment_name="simple_experiment_001", instrument_slot=1
-        )
 
-        update.update_secondary_metadata(mlwh_session=ont_synthetic_mlwh)
+        update_metadata(
+            experiment_name="simple_experiment_001",
+            instrument_slot=1,
+            mlwh_session=ont_synthetic_mlwh,
+        )
 
         assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
 
@@ -293,11 +275,12 @@ class TestONTMetadataUpdate(object):
             / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
         )
         coll.add_metadata(AVU(TrackedSample.NAME, "sample 1"))
-        update = MetadataUpdate(
-            experiment_name="simple_experiment_001", instrument_slot=1
-        )
 
-        update.update_secondary_metadata(mlwh_session=ont_synthetic_mlwh)
+        update_metadata(
+            experiment_name="simple_experiment_001",
+            instrument_slot=1,
+            mlwh_session=ont_synthetic_mlwh,
+        )
 
         assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
 
@@ -309,11 +292,13 @@ class TestONTMetadataUpdate(object):
             / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
         )
         coll.add_metadata(AVU(TrackedSample.NAME, "sample 0"))
-        update = MetadataUpdate(
-            experiment_name="simple_experiment_001", instrument_slot=1
+
+        update_metadata(
+            experiment_name="simple_experiment_001",
+            instrument_slot=1,
+            mlwh_session=ont_synthetic_mlwh,
         )
 
-        update.update_secondary_metadata(mlwh_session=ont_synthetic_mlwh)
         assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
         assert AVU(TrackedSample.NAME, "sample 0") not in coll.metadata()
         assert history_in_meta(
@@ -329,10 +314,12 @@ class TestONTMetadataUpdate(object):
         )
         coll.add_metadata(AVU(TrackedStudy.NAME, "Study A"))
         coll.add_metadata(AVU(TrackedStudy.NAME, "Study B"))
-        update = MetadataUpdate(
-            experiment_name="simple_experiment_001", instrument_slot=1
+
+        update_metadata(
+            experiment_name="simple_experiment_001",
+            instrument_slot=1,
+            mlwh_session=ont_synthetic_mlwh,
         )
-        update.update_secondary_metadata(mlwh_session=ont_synthetic_mlwh)
         assert AVU(TrackedStudy.NAME, "Study Y") in coll.metadata()
         assert AVU(TrackedStudy.NAME, "Study A") not in coll.metadata()
         assert AVU(TrackedStudy.NAME, "Study B") not in coll.metadata()
