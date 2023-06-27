@@ -1,1 +1,1 @@
-{"version":"1.0","products":[{"irods_root_collection": "/testZone/home/irods/test", "irods_data_relative_path": "pb.bam", "platform_name": "pacbio", "pipeline_name": "npg-prod", "id_product": "a437a8871a17ef9af5c8cd58d036dd759bce1d6ecece0e14e561e58c8a7ac0cb"}]}
+{"version":"1.0","products":[{"irods_root_collection": "/testZone/home/irods/test", "irods_data_relative_path": "pb.bam", "seq_platform_name": "pacbio", "pipeline_name": "npg-prod", "id_product": "a437a8871a17ef9af5c8cd58d036dd759bce1d6ecece0e14e561e58c8a7ac0cb"}]}
