@@ -196,11 +196,20 @@ def initialize_mlwh_ont(session: Session):
 
     num_samples = 200
     for s in range(1, num_samples + 1):
-        sid = f"sample{s}"
+        lims_id = f"sample{s}"
         name = f"sample {s}"
+        donor_id = (f"donor {s}",)
+        accession = f"ACC{s}"
+        supplier_name = f"supplier_sample {s}"
         samples.append(
             Sample(
-                id_lims="LIMS_01", id_sample_lims=sid, name=name, **default_timestamps
+                accession_number=accession,
+                donor_id=donor_id,
+                id_lims="LIMS_01",
+                id_sample_lims=lims_id,
+                name=name,
+                supplier_name=supplier_name,
+                **default_timestamps,
             )
         )
     session.add_all(samples)
