@@ -17,7 +17,9 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
+
 from pytest import mark as m
 
 from datetime import datetime
@@ -25,6 +27,7 @@ from npg_irods import ont
 from conftest import LATEST, ont_tag_identifier, tests_have_admin, history_in_meta
 from npg_irods.metadata.lims import TrackedSample, TrackedStudy
 from npg_irods.metadata.common import SeqConcept
+
 from npg_irods.ont import MetadataUpdate, annotate_results_collection
 
 
@@ -47,7 +50,11 @@ class TestONTMetadataCreation(object):
 
         coll = Collection(path)
         for avu in [
+            AVU(TrackedSample.ACCESSION_NUMBER, "ACC1"),
+            AVU(TrackedSample.DONOR_ID, "donor 1"),
+            AVU(TrackedSample.ID, "sample1"),
             AVU(TrackedSample.NAME, "sample 1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_sample 1"),
             AVU(TrackedStudy.ID, "2000"),
             AVU(TrackedStudy.NAME, "Study Y"),
         ]:
@@ -109,7 +116,11 @@ class TestONTMetadataCreation(object):
                 bc_coll = Collection(path / subcoll / ont.barcode_name_from_id(tag_id))
 
                 for avu in [
+                    AVU(TrackedSample.ACCESSION_NUMBER, f"ACC{tag_index}"),
+                    AVU(TrackedSample.DONOR_ID, f"donor {tag_index}"),
+                    AVU(TrackedSample.ID, f"sample{tag_index}"),
                     AVU(TrackedSample.NAME, f"sample {tag_index}"),
+                    AVU(TrackedSample.SUPPLIER_NAME, f"supplier_sample {tag_index}"),
                     AVU(TrackedStudy.ID, "3000"),
                     AVU(TrackedStudy.NAME, "Study Z"),
                 ]:
@@ -269,7 +280,9 @@ class TestONTMetadataUpdate(object):
         update = MetadataUpdate(
             experiment_name="simple_experiment_001", instrument_slot=1
         )
+
         update.update_secondary_metadata(mlwh_session=ont_synthetic_mlwh)
+
         assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
 
     @m.context("When correct metadata is already present")
@@ -283,7 +296,9 @@ class TestONTMetadataUpdate(object):
         update = MetadataUpdate(
             experiment_name="simple_experiment_001", instrument_slot=1
         )
+
         update.update_secondary_metadata(mlwh_session=ont_synthetic_mlwh)
+
         assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
 
     @m.context("When incorrect metadata is present")
@@ -297,6 +312,7 @@ class TestONTMetadataUpdate(object):
         update = MetadataUpdate(
             experiment_name="simple_experiment_001", instrument_slot=1
         )
+
         update.update_secondary_metadata(mlwh_session=ont_synthetic_mlwh)
         assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
         assert AVU(TrackedSample.NAME, "sample 0") not in coll.metadata()
