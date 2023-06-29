@@ -42,7 +42,11 @@ class TestONT(object):
 
         coll = Collection(path)
         for avu in [
+            AVU(TrackedSample.ACCESSION_NUMBER, "ACC1"),
+            AVU(TrackedSample.DONOR_ID, "donor 1"),
+            AVU(TrackedSample.ID, "sample1"),
             AVU(TrackedSample.NAME, "sample 1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_sample 1"),
             AVU(TrackedStudy.ID, "2000"),
             AVU(TrackedStudy.NAME, "Study Y"),
         ]:
@@ -93,7 +97,11 @@ class TestONT(object):
                 bc_coll = Collection(path / subcoll / ont.barcode_name_from_id(tag_id))
 
                 for avu in [
+                    AVU(TrackedSample.ACCESSION_NUMBER, f"ACC{tag_index}"),
+                    AVU(TrackedSample.DONOR_ID, f"donor {tag_index}"),
+                    AVU(TrackedSample.ID, f"sample{tag_index}"),
                     AVU(TrackedSample.NAME, f"sample {tag_index}"),
+                    AVU(TrackedSample.SUPPLIER_NAME, f"supplier_sample {tag_index}"),
                     AVU(TrackedStudy.ID, "3000"),
                     AVU(TrackedStudy.NAME, "Study Z"),
                 ]:

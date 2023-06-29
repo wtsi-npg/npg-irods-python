@@ -90,7 +90,7 @@ def make_sample_metadata(sample: Sample) -> list[AVU]:
     Returns: List[AVU]
     """
     av = [
-        [TrackedSample.ID, sample.sanger_sample_id],
+        [TrackedSample.ID, sample.id_sample_lims],
         [TrackedSample.NAME, sample.name],
         [TrackedSample.ACCESSION_NUMBER, sample.accession_number],
         [TrackedSample.DONOR_ID, sample.donor_id],
