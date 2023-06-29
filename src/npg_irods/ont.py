@@ -23,7 +23,7 @@ from os import PathLike
 from typing import Type, Union
 
 from partisan.exception import RodsError
-from partisan.irods import AVU, Collection, query_metadata
+from partisan.irods import AVU, Collection, query_metadata, current_user
 from sqlalchemy import asc, distinct
 from sqlalchemy.orm import Session
 from structlog import get_logger
@@ -31,6 +31,7 @@ from structlog import get_logger
 from npg_irods.db.mlwh import OseqFlowcell
 from npg_irods.metadata.lims import (
     SeqConcept,
+    is_managed_access,
     make_sample_acl,
     make_sample_metadata,
     make_study_metadata,
@@ -264,7 +265,7 @@ def annotate_results_collection(
             AVU(Instrument.INSTRUMENT_SLOT, instrument_slot),
         ]
     ]
-    coll.add_metadata(*avus)  # These AVUs should be present already
+    coll.supersede_metadata(*avus)  # These AVUs should be present already
 
     # A single fc record (for non-multiplexed data)
     if len(fc_info) == 1:
@@ -273,9 +274,14 @@ def annotate_results_collection(
         )
         fc = fc_info[0]
         try:
-            coll.add_metadata(*make_study_metadata(fc.study))
-            coll.add_metadata(*make_sample_metadata(fc.sample))
-            coll.add_permissions(*make_sample_acl(fc.sample, fc.study), recurse=True)
+            coll.supersede_metadata(*make_study_metadata(fc.study), history=True)
+            coll.supersede_metadata(*make_sample_metadata(fc.sample), history=True)
+
+            # Keep the access controls that we don't manage
+            keep = [ac for ac in coll.permissions() if not is_managed_access(ac)]
+            coll.supersede_permissions(
+                *keep, *make_sample_acl(fc.sample, fc.study), recurse=True
+            )
         except RodsError as e:
             log.error(e.message, code=e.code)
             return False
@@ -322,15 +328,20 @@ def annotate_results_collection(
                     study=fc.study,
                 )
 
-                bc_coll.add_metadata(
-                    AVU(SeqConcept.TAG_INDEX, tag_index_from_id(fc.tag_identifier))
+                bc_coll.supersede_metadata(
+                    AVU(SeqConcept.TAG_INDEX, tag_index_from_id(fc.tag_identifier)),
+                    history=True,
                 )
-                bc_coll.add_metadata(*make_study_metadata(fc.study))
-                bc_coll.add_metadata(*make_sample_metadata(fc.sample))
+                bc_coll.supersede_metadata(*make_study_metadata(fc.study), history=True)
+                bc_coll.supersede_metadata(
+                    *make_sample_metadata(fc.sample), history=True
+                )
 
                 # The ACL could be different for each plex
-                bc_coll.add_permissions(
-                    *make_sample_acl(fc.sample, fc.study), recurse=True
+                # Keep the access controls that we don't manage
+                keep = [ac for ac in bc_coll.permissions() if not is_managed_access(ac)]
+                bc_coll.supersede_permissions(
+                    *keep, *make_sample_acl(fc.sample, fc.study), recurse=True
                 )
             except RodsError as e:
                 log.error(e.message, code=e.code)
