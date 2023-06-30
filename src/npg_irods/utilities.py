@@ -38,9 +38,9 @@ from partisan.irods import (
 )
 from structlog import get_logger
 
+from npg_irods import illumina, ont
 from npg_irods.common import AnalysisType, Platform, infer_data_source
 from npg_irods.exception import ChecksumError
-from npg_irods.illumina import ensure_secondary_metadata_updated
 from npg_irods.metadata.common import (
     DataFile,
     ensure_common_metadata,
@@ -588,7 +588,7 @@ def repair_common_metadata(
 
 
 def update_secondary_metadata(
-    reader, writer, mlwh_session, print_update=True, print_fail=False, zone=None
+    reader, writer, mlwh_session, print_update=True, print_fail=False
 ) -> (int, int, int):
     num_processed, num_updated, num_errors = 0, 0, 0
 
@@ -596,16 +596,32 @@ def update_secondary_metadata(
         num_processed += 1
         try:
             p = path.strip()
+            rods_item = make_rods_item(p)
+            updated = False
+
             match infer_data_source(p):
                 case Platform.ILLUMINA, AnalysisType.NUCLEIC_ACID_SEQUENCING:
-                    item = make_rods_item(p)
-                    log.info("Illumina", item=i, path=p, zone=zone)
-                    if ensure_secondary_metadata_updated(item, mlwh_session, zone=zone):
-                        num_updated += 1
-                        if print_update:
-                            _print(p, writer)
-                case _, _:
-                    log.warn("Unsupported", path=p)
+                    log.info("Illumina", item=i, path=p)
+                    updated = illumina.ensure_secondary_metadata_updated(
+                        rods_item, mlwh_session
+                    )
+                case Platform.OXFORD_NANOPORE_TECHNOLOGIES, AnalysisType.NUCLEIC_ACID_SEQUENCING:
+                    log.info("ONT", item=i, path=p)
+                    updated = ont.ensure_secondary_metadata_updated(
+                        rods_item, mlwh_session
+                    )
+                case platform, analysis:
+                    log.warn(
+                        "Unsupported platform/analysis",
+                        path=p,
+                        platform=platform,
+                        analysis=analysis,
+                    )
+
+            if updated:
+                num_updated += 1
+                if print_update:
+                    _print(p, writer)
 
         except RodsError as re:
             num_errors += 1

@@ -254,7 +254,7 @@ def initialize_mlwh_ont_synthetic(session: Session):
 
             # All the even experiments have the early datetime
             # All the odd experiments have the late datetime
-            when_expt = EARLY if expt % 2 == 0 else LATE
+            when = EARLY if expt % 2 == 0 else LATE
 
             flowcells.append(
                 OseqFlowcell(
@@ -266,8 +266,8 @@ def initialize_mlwh_ont_synthetic(session: Session):
                     id_lims=f"Example LIMS ID {sample_idx}",
                     id_flowcell_lims=id_flowcell,
                     requested_data_type=req_data_type,
-                    last_updated=when_expt,
-                    recorded_at=BEGIN,
+                    last_updated=when,
+                    recorded_at=when,
                 )
             )
             sample_idx += 1
@@ -325,7 +325,7 @@ def initialize_mlwh_ont_synthetic(session: Session):
                         tag_sequence=barcode,
                         tag_identifier=tag_id,
                         last_updated=when,
-                        recorded_at=BEGIN,
+                        recorded_at=when,
                     )
                 )
                 msample_idx += 1

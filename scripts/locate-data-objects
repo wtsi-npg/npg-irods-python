@@ -26,7 +26,7 @@ import structlog
 from partisan.irods import AVU, query_metadata
 from sqlalchemy.orm import Session
 
-from npg_irods import illumina
+from npg_irods import illumina, ont
 from npg_irods.cli import add_logging_arguments, configure_logging, parse_iso_date
 from npg_irods.db import DBConfig
 from npg_irods.db.mlwh import find_consent_withdrawn_samples
@@ -110,16 +110,15 @@ cwdr_parser.set_defaults(func=consent_withdrawn)
 
 ilup_parser = subparsers.add_parser(
     "illumina-updates",
-    help="Find data objects which are the components of Illumina runs, whose tracking "
+    help="Find data objects, which are components of Illumina runs, whose tracking "
     "metadata in the ML warehouse have changed since a specified time.",
 )
 ilup_parser.add_argument(
     "--begin-date",
     "--begin_date",
-    help="Limit data object found to those changed after this date. "
-    "Defaults to 14 days ago. "
-    "The argument must be an ISO8601 UTC date or date and time e.g. 2022-01-30, "
-    "2022-01-30T11:11:03Z",
+    help="Limit data objects found to those changed after this date. Defaults to 14 "
+    "days ago. The argument must be an ISO8601 UTC date or date and time e.g. "
+    "2022-01-30, 2022-01-30T11:11:03Z",
     type=parse_iso_date,
     default=datetime.now(timezone.utc) - timedelta(days=14),
 )
@@ -139,15 +138,14 @@ def illumina_updates(cli_args):
             log.info("Finding data objects", item=i, component=c, since=iso_date)
 
             try:
-                for obj in query_metadata(
+                avus = [
                     AVU(Instrument.RUN, c.id_run),
                     AVU(Instrument.LANE, c.position),
                     AVU(SeqConcept.TAG_INDEX, c.tag_index),
-                    data_object=True,
-                    collection=False,
-                    zone=cli_args.zone,
-                ):
+                ]
+                for obj in query_metadata(*avus, collection=False, zone=cli_args.zone):
                     print(obj)
+
             except Exception as e:
                 num_errors += 1
                 log.error(e, item=i, component=c)
@@ -158,6 +156,62 @@ def illumina_updates(cli_args):
 
 
 ilup_parser.set_defaults(func=illumina_updates)
+
+
+ontup_parser = subparsers.add_parser(
+    "ont-updates",
+    help="Find data objects, which are components of ONT runs, whose tracking metadata "
+    "in the ML warehouse have changed since a specified time.",
+)
+ontup_parser.add_argument(
+    "--begin-date",
+    "--begin_date",
+    help="Limit data objects found to those changed after this date. Defaults to 14 "
+    "days ago. The argument must be an ISO8601 UTC date or date and time e.g. "
+    "2022-01-30, 2022-01-30T11:11:03Z",
+    type=parse_iso_date,
+    default=datetime.now(timezone.utc) - timedelta(days=14),
+)
+
+
+def ont_updates(cli_args):
+    dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    engine = sqlalchemy.create_engine(dbconfig.url)
+    with Session(engine) as session:
+        num_processed = num_errors = 0
+        iso_date = cli_args.begin_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        for i, c in enumerate(
+            ont.find_components_changed(
+                session, include_tags=False, since=cli_args.begin_date
+            )
+        ):
+            num_processed += 1
+            log.info("Finding collections", item=i, component=c, since=iso_date)
+
+            try:
+                avus = [
+                    AVU(ont.Instrument.EXPERIMENT_NAME, c.experiment_name),
+                    AVU(ont.Instrument.INSTRUMENT_SLOT, c.instrument_slot),
+                ]
+                if c.tag_identifier is not None:
+                    avus.append(AVU(ont.Instrument.TAG_IDENTIFIER, c.tag_identifier))
+
+                for coll in query_metadata(
+                    *avus, data_object=False, zone=cli_args.zone
+                ):
+                    print(coll)
+
+            except Exception as e:
+                num_errors += 1
+                log.error(e, item=i, component=c)
+
+        log.info(f"Processed {num_processed} with {num_errors} errors")
+        if num_errors:
+            exit(1)
+
+
+ontup_parser.set_defaults(func=ont_updates)
 
 args = parser.parse_args()
 configure_logging(
