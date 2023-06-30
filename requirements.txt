@@ -1,4 +1,4 @@
-cryptography==40.0.2
+cryptography==41.0.1
 npg_id_generation@https://github.com/wtsi-npg/npg_id_generation/releases/download/3.0.0/npg_id_generation-3.0.0.tar.gz
 partisan@https://github.com/wtsi-npg/partisan/releases/download/2.5.1/partisan-2.5.1.tar.gz
 pymysql==1.1.0
