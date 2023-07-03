@@ -1,0 +1,71 @@
+[project]
+name = "npg-irods-python"
+description = "NPG iRODS data management tools."
+license = { file = "LICENSE", content-type = "text/plain" }
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [{ name = "Keith James", email = "kdj@sanger.ac.uk" },
+    { name = "Michael Kubiak", email = "mk35@sanger.ac.uk" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Programming Language :: Python"
+]
+keywords = ["irods", "npg"]
+requires-python = ">=3.10"
+
+dynamic = ["version"]
+
+dependencies = [
+    "npg_id_generation",
+    "partisan",
+    "rich",
+    "sqlalchemy",
+    "structlog",
+]
+
+[project.optional-dependencies]
+test = [
+    "black",
+    "pytest",
+    "pytest-it"
+]
+
+[project.urls]
+homepage = "https://github.com/wtsi-npg/npg-irods-python"
+repository = "https://github.com/wtsi-npg/npg-irods-python.git"
+
+[build-system]
+requires = ["setuptools>=41", "wheel", "setuptools-git-versioning<2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# Note: we are relying on setuptools' automatic package discovery, so no further
+# configuration is required. This is possible because partisan uses a standard src
+# layout. See the following for more information:
+#
+# https://setuptools.pypa.io/en/latest/userguide/package_discovery.html#src-layout
+
+# The script-files is key deprecated, but there is currently no alternative for
+# installing regular scripts. The setuptools documentation says to use
+# "project.scripts", but that only supports automatcially generating wrapper scripts
+# for entry points, not installing existing scripts.
+script-files = [
+    "scripts/backfill_illumina_locations.py",
+    "scripts/backfill_pacbio_ids",
+    "scripts/check-checksums",
+    "scripts/check-common-metadata",
+    "scripts/check-consent-withdrawn",
+    "scripts/check-replicas",
+    "scripts/copy-confirm",
+    "scripts/locate-data-objects",
+    "scripts/repair-checksums",
+    "scripts/repair-common-metadata",
+    "scripts/repair-replicas",
+    "scripts/safe-remove-script",
+    "scripts/update-ont-metadata",
+    "scripts/update-secondary-metadata",
+    "scripts/withdraw-consent",
+]
+
+[tool.setuptools-git-versioning]
+enabled = true
