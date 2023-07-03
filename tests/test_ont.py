@@ -51,10 +51,12 @@ class TestONTMetadataCreation(object):
         coll = Collection(path)
         for avu in [
             AVU(TrackedSample.ACCESSION_NUMBER, "ACC1"),
-            AVU(TrackedSample.DONOR_ID, "donor 1"),
-            AVU(TrackedSample.ID, "sample1"),
-            AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedSample.SUPPLIER_NAME, "supplier_sample 1"),
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
             AVU(TrackedStudy.ID, "2000"),
             AVU(TrackedStudy.NAME, "Study Y"),
         ]:
@@ -107,10 +109,12 @@ class TestONTMetadataCreation(object):
 
                 for avu in [
                     AVU(TrackedSample.ACCESSION_NUMBER, f"ACC{tag_index}"),
-                    AVU(TrackedSample.DONOR_ID, f"donor {tag_index}"),
-                    AVU(TrackedSample.ID, f"sample{tag_index}"),
-                    AVU(TrackedSample.NAME, f"sample {tag_index}"),
-                    AVU(TrackedSample.SUPPLIER_NAME, f"supplier_sample {tag_index}"),
+                    AVU(TrackedSample.COMMON_NAME, f"common_name{tag_index}"),
+                    AVU(TrackedSample.DONOR_ID, f"donor_id{tag_index}"),
+                    AVU(TrackedSample.ID, f"id_sample_lims{tag_index}"),
+                    AVU(TrackedSample.NAME, f"name{tag_index}"),
+                    AVU(TrackedSample.PUBLIC_NAME, f"public_name{tag_index}"),
+                    AVU(TrackedSample.SUPPLIER_NAME, f"supplier_name{tag_index}"),
                     AVU(TrackedStudy.ID, "3000"),
                     AVU(TrackedStudy.NAME, "Study Z"),
                 ]:
@@ -257,7 +261,7 @@ class TestONTMetadataUpdate(object):
             ont_synthetic_irods
             / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
         )
-        assert AVU(TrackedSample.NAME, "sample 1") not in coll.metadata()
+        assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
 
         update_metadata(
             experiment_name="simple_experiment_001",
@@ -265,7 +269,7 @@ class TestONTMetadataUpdate(object):
             mlwh_session=ont_synthetic_mlwh,
         )
 
-        assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
+        assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
 
     @m.context("When correct metadata is already present")
     @m.it("Leaves the metadata unchanged")
@@ -274,7 +278,7 @@ class TestONTMetadataUpdate(object):
             ont_synthetic_irods
             / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
         )
-        coll.add_metadata(AVU(TrackedSample.NAME, "sample 1"))
+        coll.add_metadata(AVU(TrackedSample.NAME, "name1"))
 
         update_metadata(
             experiment_name="simple_experiment_001",
@@ -282,7 +286,7 @@ class TestONTMetadataUpdate(object):
             mlwh_session=ont_synthetic_mlwh,
         )
 
-        assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
+        assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
 
     @m.context("When incorrect metadata is present")
     @m.it("Changes the metadata and adds history metadata")
@@ -291,7 +295,7 @@ class TestONTMetadataUpdate(object):
             ont_synthetic_irods
             / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
         )
-        coll.add_metadata(AVU(TrackedSample.NAME, "sample 0"))
+        coll.add_metadata(AVU(TrackedSample.NAME, "name0"))
 
         update_metadata(
             experiment_name="simple_experiment_001",
@@ -299,10 +303,10 @@ class TestONTMetadataUpdate(object):
             mlwh_session=ont_synthetic_mlwh,
         )
 
-        assert AVU(TrackedSample.NAME, "sample 1") in coll.metadata()
-        assert AVU(TrackedSample.NAME, "sample 0") not in coll.metadata()
+        assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
+        assert AVU(TrackedSample.NAME, "name0") not in coll.metadata()
         assert history_in_meta(
-            AVU.history(AVU(TrackedSample.NAME, "sample 0")), coll.metadata()
+            AVU.history(AVU(TrackedSample.NAME, "name0")), coll.metadata()
         )
 
     @m.context("When an attribute has multiple incorrect values")

@@ -227,18 +227,22 @@ def initialize_mlwh_ont_synthetic(session: Session):
 
     num_samples = 200
     for s in range(1, num_samples + 1):
-        lims_id = f"sample{s}"
-        name = f"sample {s}"
-        donor_id = (f"donor {s}",)
         accession = f"ACC{s}"
-        supplier_name = f"supplier_sample {s}"
+        common_name = f"common_name{s}"
+        donor_id = f"donor_id{s}"
+        id_sample_lims = f"id_sample_lims{s}"
+        name = f"name{s}"
+        public_name = f"public_name{s}"
+        supplier_name = f"supplier_name{s}"
         samples.append(
             Sample(
                 accession_number=accession,
+                common_name=common_name,
                 donor_id=donor_id,
                 id_lims="LIMS_01",
-                id_sample_lims=lims_id,
+                id_sample_lims=id_sample_lims,
                 name=name,
+                public_name=public_name,
                 supplier_name=supplier_name,
                 **default_timestamps,
             )
@@ -358,28 +362,34 @@ def initialize_mlwh_illumina_synthetic(session: Session):
     session.flush()
 
     sample1 = Sample(
-        donor_id="donor1",
+        common_name="common_name1",
+        donor_id="donor_id1",
         id_lims="LIMS_01",
-        id_sample_lims="sample1",
-        name="sample 1",
+        id_sample_lims="id_sample_lims1",
+        name="name1",
+        public_name="public_name1",
         sanger_sample_id="sanger_sample1",
         supplier_name="supplier_name1",
         **default_timestamps,
     )
     sample2 = Sample(
-        donor_id="donor2",
+        common_name="common_name2",
+        donor_id="donor_id2",
         id_lims="LIMS_01",
-        id_sample_lims="sample2",
-        name="sample 2",
+        id_sample_lims="id_sample_lims2",
+        name="name2",
+        public_name="public_name2",
         sanger_sample_id="sanger_sample2",
         supplier_name="supplier_name2",
         **default_timestamps,
     )
     sample3 = Sample(
-        donor_id="donor3",
+        common_name="common_name3",
+        donor_id="donor_id3",
         id_lims="LIMS_01",
-        id_sample_lims="sample3",
-        name="sample 3",
+        id_sample_lims="id_samplelims3",
+        name="name3",
+        public_name="public_name3",
         sanger_sample_id="sanger_sample3",
         supplier_name="supplier_name3",
         **default_timestamps,

@@ -78,12 +78,14 @@ class TrackedStudy(AsValueEnum):
 def make_sample_metadata(sample: Sample) -> list[AVU]:
     """Return standard iRODS metadata for a Sample:
 
+     - sample accession
+     - sample common name
+     - sample consent withdrawn
+     - sample donor ID
      - sample ID
      - sample name
-     - sample accession
-     - sample donor ID
+     - sample public name
      - sample supplier name
-     - sample consent withdrawn
 
     Args:
         sample: An ML warehouse schema Sample.
@@ -92,15 +94,17 @@ def make_sample_metadata(sample: Sample) -> list[AVU]:
         AVUs
     """
     av = [
-        [TrackedSample.ID, sample.id_sample_lims],
-        [TrackedSample.NAME, sample.name],
         [TrackedSample.ACCESSION_NUMBER, sample.accession_number],
-        [TrackedSample.DONOR_ID, sample.donor_id],
-        [TrackedSample.SUPPLIER_NAME, sample.supplier_name],
+        [TrackedSample.COMMON_NAME, sample.common_name],
         [
             TrackedSample.CONSENT_WITHDRAWN,
             1 if sample.consent_withdrawn else None,
         ],
+        [TrackedSample.DONOR_ID, sample.donor_id],
+        [TrackedSample.ID, sample.id_sample_lims],
+        [TrackedSample.NAME, sample.name],
+        [TrackedSample.PUBLIC_NAME, sample.public_name],
+        [TrackedSample.SUPPLIER_NAME, sample.supplier_name],
     ]
 
     return list(filter(lambda avu: avu is not None, starmap(avu_if_value, av)))
