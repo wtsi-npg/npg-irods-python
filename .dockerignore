@@ -5,8 +5,6 @@
 .pytest_cache
 Dockerfile
 dist
-LICENSE
-README.md
 docker-compose.yml
 pytest.ini
 *.report.json
