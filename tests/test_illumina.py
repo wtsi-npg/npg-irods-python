@@ -36,12 +36,14 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345.cram"
         obj = DataObject(path)
         expected_avus = [
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
             AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.NAME, "Study A"),
-            AVU(TrackedSample.DONOR_ID, "donor1"),
-            AVU(TrackedSample.ID, "sample1"),
-            AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
         ]
 
         for avu in expected_avus:
@@ -64,12 +66,14 @@ class TestIlluminaMetadataUpdate(object):
         zone = "testZone"
         obj = DataObject(path)
         expected_avus = [
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
             AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.NAME, "Study A"),
-            AVU(TrackedSample.DONOR_ID, "donor1"),
-            AVU(TrackedSample.ID, "sample1"),
-            AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
         ]
         obj.add_metadata(*expected_avus)
 
@@ -101,12 +105,12 @@ class TestIlluminaMetadataUpdate(object):
             assert avu in obj.metadata()
 
         expected_avus = [
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
             AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.NAME, "Study A"),
-            AVU(TrackedSample.DONOR_ID, "donor1"),
-            AVU(TrackedSample.ID, "sample1"),
-            AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
         ]
 
         assert ensure_secondary_metadata_updated(
@@ -158,12 +162,14 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345#1.cram"
         obj = DataObject(path)
         expected_avus = [
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
             AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.NAME, "Study A"),
-            AVU(TrackedSample.DONOR_ID, "donor1"),
-            AVU(TrackedSample.ID, "sample1"),
-            AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
         ]
 
         for avu in expected_avus:
@@ -204,16 +210,20 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345#0.cram"
         obj = DataObject(path)
         expected_avus = [
-            AVU(TrackedStudy.ID, "4000"),
-            AVU(TrackedStudy.NAME, "Study A"),
-            AVU(TrackedSample.DONOR_ID, "donor1"),
-            AVU(TrackedSample.DONOR_ID, "donor2"),
-            AVU(TrackedSample.ID, "sample1"),
-            AVU(TrackedSample.ID, "sample2"),
-            AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedSample.NAME, "sample 2"),
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.COMMON_NAME, "common_name2"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id2"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.ID, "id_sample_lims2"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.NAME, "name2"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name2"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name2"),
+            AVU(TrackedStudy.ID, "4000"),
+            AVU(TrackedStudy.NAME, "Study A"),
         ]
 
         for avu in expected_avus:
@@ -236,19 +246,23 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345#0.cram"
         obj = DataObject(path)
         expected_avus = [
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.COMMON_NAME, "common_name2"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id2"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.ID, "id_sample_lims2"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.NAME, "name2"),
+            AVU(TrackedSample.NAME, "Phi X"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name2"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name2"),
             AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.ID, "888"),
             AVU(TrackedStudy.NAME, "Study A"),
             AVU(TrackedStudy.NAME, "Control Study"),
-            AVU(TrackedSample.DONOR_ID, "donor1"),
-            AVU(TrackedSample.DONOR_ID, "donor2"),
-            AVU(TrackedSample.ID, "sample1"),
-            AVU(TrackedSample.ID, "sample2"),
-            AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedSample.NAME, "sample 2"),
-            AVU(TrackedSample.NAME, "Phi X"),
-            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
-            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name2"),
         ]
 
         for avu in expected_avus:
@@ -293,12 +307,14 @@ class TestIlluminaPermissionsUpdate:
         obj = DataObject(path)
 
         expected_metadata = [
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
             AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.NAME, "Study A"),
-            AVU(TrackedSample.DONOR_ID, "donor1"),
-            AVU(TrackedSample.ID, "sample1"),
-            AVU(TrackedSample.NAME, "sample 1"),
-            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
         ]
         obj.add_metadata(*expected_metadata)
 
