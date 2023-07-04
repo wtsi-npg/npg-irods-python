@@ -15,6 +15,7 @@ RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selectio
     git \
     libtool \
     pkg-config \
+    libffi-dev \
     libbz2-dev \
     libssl-dev \
     zlib1g-dev \
