@@ -19,6 +19,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import argparse
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import sqlalchemy
@@ -27,7 +28,12 @@ from partisan.irods import AVU, query_metadata
 from sqlalchemy.orm import Session
 
 from npg_irods import illumina, ont
-from npg_irods.cli import add_logging_arguments, configure_logging, parse_iso_date
+from npg_irods.cli import (
+    add_logging_arguments,
+    configure_logging,
+    integer_in_range,
+    parse_iso_date,
+)
 from npg_irods.db import DBConfig
 from npg_irods.db.mlwh import find_consent_withdrawn_samples
 from npg_irods.metadata.common import SeqConcept
@@ -122,6 +128,17 @@ ilup_parser.add_argument(
     type=parse_iso_date,
     default=datetime.now(timezone.utc) - timedelta(days=14),
 )
+ilup_parser.add_argument(
+    "--skip-absent-runs",
+    "--skip_absent_runs",
+    help="Skip runs that cannot be found in iRODS after the number of attempts given "
+    "as an argument to this option. The argument may be an integer from 1 to 100, "
+    "inclusive and defaults to 10.",
+    nargs="?",
+    action="store",
+    type=integer_in_range(1, 100),
+    default=10,
+)
 
 
 def illumina_updates(cli_args):
@@ -129,7 +146,12 @@ def illumina_updates(cli_args):
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
         num_processed = num_errors = 0
+
         iso_date = cli_args.begin_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        skip_absent_runs = cli_args.skip_absent_runs
+
+        attempts_per_run = defaultdict(int)
+        success_per_run = defaultdict(int)
 
         for i, c in enumerate(
             illumina.find_components_changed(session, since=cli_args.begin_date)
@@ -143,7 +165,29 @@ def illumina_updates(cli_args):
                     AVU(Instrument.LANE, c.position),
                     AVU(SeqConcept.TAG_INDEX, c.tag_index),
                 ]
-                for obj in query_metadata(*avus, collection=False, zone=cli_args.zone):
+
+                if (
+                    skip_absent_runs
+                    and success_per_run[c.id_run] == 0
+                    and attempts_per_run[c.id_run] == skip_absent_runs
+                ):
+                    log.info(
+                        "Skipping run after unsuccessful attempts to find it",
+                        item=i,
+                        component=c,
+                        since=iso_date,
+                        attempts=attempts_per_run[c.id_run],
+                    )
+                    continue
+
+                result = query_metadata(*avus, collection=False, zone=cli_args.zone)
+                if not result:
+                    attempts_per_run[c.id_run] += 1
+                    continue
+
+                success_per_run[c.id_run] += 1
+
+                for obj in result:
                     print(obj)
 
             except Exception as e:
