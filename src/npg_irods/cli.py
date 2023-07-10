@@ -194,3 +194,21 @@ def parse_iso_date(date: str) -> datetime:
         raise argparse.ArgumentTypeError(
             f"Incorrect format {date}. Please use ISO8601 UTC e.g. 2022-01-30T11:11:03Z"
         )
+
+
+def integer_in_range(minimum: int, maximum: int):
+    """Custom argparse type for integers in a range."""
+
+    def check_range(value: str) -> int:
+        try:
+            val = int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"Value {value} is not an integer")
+
+        if val < minimum or val > maximum:
+            raise argparse.ArgumentTypeError(
+                f"Value {val} is not in range {minimum} to {maximum}"
+            )
+        return val
+
+    return check_range
