@@ -1,10 +1,6 @@
 .DS_Store
-.dockerignore
-.github
-.gitignore
 .pytest_cache
-Dockerfile
+build
 dist
-docker-compose.yml
-pytest.ini
+*.egg-info
 *.report.json

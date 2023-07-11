@@ -56,10 +56,12 @@ WORKDIR /app
 
 COPY --from=builder /app /app
 
-# Mount the .git directory to allow setuptools_scm to get the version
+# Mount the .git directory to allow the build to get the version from git
 RUN --mount=source=.git,target=.git,type=bind \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir .
+    pip install --no-cache-dir . && \
+    git status && \
+    ls -al
 
 RUN useradd -l -m -s /bin/false appuser && mkdir /home/appuser/.irods
 
