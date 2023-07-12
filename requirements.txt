@@ -5,5 +5,5 @@ pymysql==1.1.0
 rich==13.4.2
 setuptools==68.0.0
 setuptools-git-versioning==1.13.3
-sqlalchemy==2.0.17
+sqlalchemy==2.0.18
 structlog==23.1.0
