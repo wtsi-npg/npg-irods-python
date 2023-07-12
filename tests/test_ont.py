@@ -25,14 +25,126 @@ from pytest import mark as m
 from datetime import datetime
 from npg_irods import ont
 from conftest import LATEST, ont_tag_identifier, tests_have_admin, history_in_meta
-from npg_irods.metadata.lims import TrackedSample, TrackedStudy
+from npg_irods.metadata.lims import (
+    TrackedSample,
+    TrackedStudy,
+    ensure_consent_withdrawn,
+)
 from npg_irods.metadata.common import SeqConcept
 
 from npg_irods.ont import (
     Component,
     annotate_results_collection,
-    update_metadata,
+    apply_metadata,
+    is_minknow_report,
 )
+
+
+class TestONTFindUpdates:
+    @tests_have_admin
+    @m.context("When an ONT metadata update is requested")
+    @m.context("When no experiment name is specified")
+    @m.context("When no time window is specified")
+    @m.it("Finds all collections")
+    def test_find_all(self, ont_synthetic_irods, ont_synthetic_mlwh):
+        num_simple_expts = 5
+        num_multiplexed_expts = 3
+        num_slots = 5
+
+        num_found, num_updated, num_errors = apply_metadata(
+            mlwh_session=ont_synthetic_mlwh
+        )
+        num_expected = (num_simple_expts * num_slots) + (
+            num_multiplexed_expts * num_slots
+        )
+
+        assert num_found == num_expected, f"Found {num_expected} collections"
+        assert num_updated == num_expected
+        assert num_errors == 0
+
+    @m.context("When an ONT metadata update is requested")
+    @m.context("When no experiment name is specified")
+    @m.context("When a time window is specified")
+    @m.it("Finds only collections updated in that time window")
+    def test_find_recent_updates(self, ont_synthetic_irods, ont_synthetic_mlwh):
+        num_found, num_updated, num_errors = apply_metadata(
+            mlwh_session=ont_synthetic_mlwh, since=LATEST
+        )
+
+        # Only slots 1, 3 and 5 of multiplexed experiments 1 and 3 were updated in
+        # the MLWH since time LATEST i.e.
+        expected_colls = [
+            Collection(ont_synthetic_irods / path)
+            for path in [
+                "multiplexed_experiment_001/20190904_1514_GA10000_flowcell101_cf751ba1",
+                "multiplexed_experiment_001/20190904_1514_GA30000_flowcell103_cf751ba1",
+                "multiplexed_experiment_001/20190904_1514_GA50000_flowcell105_cf751ba1",
+                "multiplexed_experiment_003/20190904_1514_GA10000_flowcell101_cf751ba1",
+                "multiplexed_experiment_003/20190904_1514_GA30000_flowcell103_cf751ba1",
+                "multiplexed_experiment_003/20190904_1514_GA50000_flowcell105_cf751ba1",
+            ]
+        ]
+        num_expected = len(expected_colls)
+
+        assert num_found == num_expected, (
+            f"Found {num_expected} collections "
+            "(slots 1, 3 and 5 of multiplexed experiments 1 and 3)"
+        )
+        assert num_updated == num_expected
+        assert num_errors == 0
+
+    @m.context("When an ONT metadata update is requested")
+    @m.context("When an experiment name is specified")
+    @m.it("Finds only collections with that experiment name")
+    def test_find_updates_for_experiment(self, ont_synthetic_irods, ont_synthetic_mlwh):
+        num_found, num_updated, num_errors = apply_metadata(
+            experiment_name="simple_experiment_001", mlwh_session=ont_synthetic_mlwh
+        )
+
+        expected_colls = [
+            Collection(ont_synthetic_irods / path)
+            for path in [
+                "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024",
+                "simple_experiment_001/20190904_1514_G200000_flowcell012_69126024",
+                "simple_experiment_001/20190904_1514_G300000_flowcell013_69126024",
+                "simple_experiment_001/20190904_1514_G400000_flowcell014_69126024",
+                "simple_experiment_001/20190904_1514_G500000_flowcell015_69126024",
+            ]
+        ]
+        num_expected = len(expected_colls)
+
+        assert (
+            num_found == num_expected
+        ), f"Found {num_expected} collections (all slots from simple experiment 1)"
+        assert num_updated == num_expected
+        assert num_errors == 0
+
+    @m.context("When an ONT metadata update is requested")
+    @m.context("When an experiment name is specified")
+    @m.context("When a slot position is specified")
+    @m.it("Finds only collections with that experiment name and slot position")
+    def test_find_updates_for_experiment_slot(
+        self, ont_synthetic_irods, ont_synthetic_mlwh
+    ):
+        num_found, num_updated, num_errors = apply_metadata(
+            experiment_name="simple_experiment_001",
+            instrument_slot=1,
+            mlwh_session=ont_synthetic_mlwh,
+        )
+
+        expected_colls = [
+            Collection(
+                ont_synthetic_irods
+                / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
+            )
+        ]
+        num_expected = len(expected_colls)
+
+        assert (
+            num_found == num_expected
+        ), f"Found {num_expected} collections (slot 1 from simple experiment 1)"
+        assert num_updated == num_expected
+        assert num_errors == 0
 
 
 class TestONTMetadataCreation(object):
@@ -71,6 +183,7 @@ class TestONTMetadataCreation(object):
             assert item.acl() == expected_acl, f"ACL of {item} is {expected_acl}"
 
     @tests_have_admin
+    @m.context("When an ONT experiment collection is annotated")
     @m.context("When the experiment is multiplexed")
     @m.it("Adds {tag_index_from_id => <n>} metadata to barcode<0n> sub-collections")
     def test_add_new_plex_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
@@ -91,6 +204,8 @@ class TestONTMetadataCreation(object):
                 assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
 
     @tests_have_admin
+    @m.context("When an ONT experiment collection is annotated")
+    @m.context("When the experiment is multiplexed")
     @m.it("Adds sample and study metadata to barcode<0n> sub-collections")
     def test_add_new_plex_sample_metadata(
         self, ont_synthetic_irods, ont_synthetic_mlwh
@@ -129,132 +244,10 @@ class TestONTMetadataCreation(object):
                 for item in bc_coll.contents():
                     assert item.acl() == expected_acl
 
-    @tests_have_admin
-    @m.it("Makes report files publicly readable")
-    def test_public_read_reports(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        expt = "multiplexed_experiment_001"
-        slot = 1
-
-        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
-        c = Component(experiment_name=expt, instrument_slot=slot)
-        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
-        expected_acl = [
-            AC("irods", Permission.OWN, zone="testZone"),
-            AC("public", Permission.READ, zone="testZone"),
-        ]
-
-        for ext in ["html", "md", "json.gz"]:
-            assert (
-                DataObject(path / f"report_multiplexed_synthetic.{ext}").acl()
-                == expected_acl
-            )
-
 
 class TestONTMetadataUpdate(object):
-    @tests_have_admin
-    @m.context("When an ONT metadata update is requested")
-    @m.context("When no experiment name is specified")
-    @m.context("When no time window is specified")
-    @m.it("Finds all collections")
-    def test_find_all(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        num_simple_expts = 5
-        num_multiplexed_expts = 3
-        num_slots = 5
-
-        num_found, num_updated, num_errors = update_metadata(
-            mlwh_session=ont_synthetic_mlwh
-        )
-        num_expected = (num_simple_expts * num_slots) + (
-            num_multiplexed_expts * num_slots
-        )
-
-        assert num_found == num_expected, f"Found {num_expected} collections"
-        assert num_updated == num_expected
-        assert num_errors == 0
-
-    @m.context("When no experiment name is specified")
-    @m.context("When a time window is specified")
-    @m.it("Finds only collections updated in that time window")
-    def test_find_recent_updates(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        num_found, num_updated, num_errors = update_metadata(
-            mlwh_session=ont_synthetic_mlwh, since=LATEST
-        )
-
-        # Only slots 1, 3 and 5 of multiplexed experiments 1 and 3 were updated in
-        # the MLWH since time LATEST i.e.
-        expected_colls = [
-            Collection(ont_synthetic_irods / path)
-            for path in [
-                "multiplexed_experiment_001/20190904_1514_GA10000_flowcell101_cf751ba1",
-                "multiplexed_experiment_001/20190904_1514_GA30000_flowcell103_cf751ba1",
-                "multiplexed_experiment_001/20190904_1514_GA50000_flowcell105_cf751ba1",
-                "multiplexed_experiment_003/20190904_1514_GA10000_flowcell101_cf751ba1",
-                "multiplexed_experiment_003/20190904_1514_GA30000_flowcell103_cf751ba1",
-                "multiplexed_experiment_003/20190904_1514_GA50000_flowcell105_cf751ba1",
-            ]
-        ]
-        num_expected = len(expected_colls)
-
-        assert num_found == num_expected, (
-            f"Found {num_expected} collections "
-            "(slots 1, 3 and 5 of multiplexed experiments 1 and 3)"
-        )
-        assert num_updated == num_expected
-        assert num_errors == 0
-
-    @m.context("When an experiment name is specified")
-    @m.it("Finds only collections with that experiment name")
-    def test_find_updates_for_experiment(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        num_found, num_updated, num_errors = update_metadata(
-            experiment_name="simple_experiment_001", mlwh_session=ont_synthetic_mlwh
-        )
-
-        expected_colls = [
-            Collection(ont_synthetic_irods / path)
-            for path in [
-                "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024",
-                "simple_experiment_001/20190904_1514_G200000_flowcell012_69126024",
-                "simple_experiment_001/20190904_1514_G300000_flowcell013_69126024",
-                "simple_experiment_001/20190904_1514_G400000_flowcell014_69126024",
-                "simple_experiment_001/20190904_1514_G500000_flowcell015_69126024",
-            ]
-        ]
-        num_expected = len(expected_colls)
-
-        assert (
-            num_found == num_expected
-        ), f"Found {num_expected} collections (all slots from simple experiment 1)"
-        assert num_updated == num_expected
-        assert num_errors == 0
-
-    @m.context("When an experiment name is specified")
-    @m.context("When a slot position is specified")
-    @m.it("Finds only collections with that experiment name and slot position")
-    def test_find_updates_for_experiment_slot(
-        self, ont_synthetic_irods, ont_synthetic_mlwh
-    ):
-        num_found, num_updated, num_errors = update_metadata(
-            experiment_name="simple_experiment_001",
-            instrument_slot=1,
-            mlwh_session=ont_synthetic_mlwh,
-        )
-
-        expected_colls = [
-            Collection(
-                ont_synthetic_irods
-                / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
-            )
-        ]
-        num_expected = len(expected_colls)
-
-        assert (
-            num_found == num_expected
-        ), f"Found {num_expected} collections (slot 1 from simple experiment 1)"
-        assert num_updated == num_expected
-        assert num_errors == 0
-
-    @m.context("When metadata is updated")
-    @m.context("When the metadata is absent")
+    @m.context("When ONT metadata are updated")
+    @m.context("When the metadata are absent")
     @m.it("Adds the metadata")
     def test_updates_absent_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
         coll = Collection(
@@ -263,7 +256,7 @@ class TestONTMetadataUpdate(object):
         )
         assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
 
-        update_metadata(
+        apply_metadata(
             experiment_name="simple_experiment_001",
             instrument_slot=1,
             mlwh_session=ont_synthetic_mlwh,
@@ -271,7 +264,8 @@ class TestONTMetadataUpdate(object):
 
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
 
-    @m.context("When correct metadata is already present")
+    @m.context("When ONT metadata are updated")
+    @m.context("When correct metadata are already present")
     @m.it("Leaves the metadata unchanged")
     def test_updates_present_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
         coll = Collection(
@@ -280,7 +274,7 @@ class TestONTMetadataUpdate(object):
         )
         coll.add_metadata(AVU(TrackedSample.NAME, "name1"))
 
-        update_metadata(
+        apply_metadata(
             experiment_name="simple_experiment_001",
             instrument_slot=1,
             mlwh_session=ont_synthetic_mlwh,
@@ -288,7 +282,8 @@ class TestONTMetadataUpdate(object):
 
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
 
-    @m.context("When incorrect metadata is present")
+    @m.context("When ONT metadata are updated")
+    @m.context("When incorrect metadata are present")
     @m.it("Changes the metadata and adds history metadata")
     def test_updates_changed_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
         coll = Collection(
@@ -297,7 +292,7 @@ class TestONTMetadataUpdate(object):
         )
         coll.add_metadata(AVU(TrackedSample.NAME, "name0"))
 
-        update_metadata(
+        apply_metadata(
             experiment_name="simple_experiment_001",
             instrument_slot=1,
             mlwh_session=ont_synthetic_mlwh,
@@ -309,6 +304,7 @@ class TestONTMetadataUpdate(object):
             AVU.history(AVU(TrackedSample.NAME, "name0")), coll.metadata()
         )
 
+    @m.context("When ONT metadata are updated")
     @m.context("When an attribute has multiple incorrect values")
     @m.it("Groups those values in the history metadata")
     def test_updates_multiple_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
@@ -319,7 +315,7 @@ class TestONTMetadataUpdate(object):
         coll.add_metadata(AVU(TrackedStudy.NAME, "Study A"))
         coll.add_metadata(AVU(TrackedStudy.NAME, "Study B"))
 
-        update_metadata(
+        apply_metadata(
             experiment_name="simple_experiment_001",
             instrument_slot=1,
             mlwh_session=ont_synthetic_mlwh,
@@ -334,3 +330,115 @@ class TestONTMetadataUpdate(object):
             ),
             coll.metadata(),
         )
+
+
+class TestONTPermissionsUpdate:
+    @tests_have_admin
+    @m.context("When ONT permissions are updated")
+    @m.it("Makes report files publicly readable")
+    def test_public_read_reports(self, ont_synthetic_irods, ont_synthetic_mlwh):
+        expt = "multiplexed_experiment_001"
+        slot = 1
+
+        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+        c = Component(experiment_name=expt, instrument_slot=slot)
+        expected_acl = [
+            AC("irods", Permission.OWN, zone="testZone"),
+            AC("public", Permission.READ, zone="testZone"),
+        ]
+
+        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+
+        for ext in ["html", "md", "json.gz"]:
+            assert (
+                DataObject(path / f"report_multiplexed_synthetic.{ext}").acl()
+                == expected_acl
+            )
+
+    @m.context("When ONT permissions are updated")
+    @m.context("When the experiment is single-sample")
+    @m.context("When data have had consent withdrawn")
+    @m.it("Does not restore access permissions")
+    def test_retains_consent_withdrawn(self, ont_synthetic_irods, ont_synthetic_mlwh):
+        zone = "testZone"
+        expt = "simple_experiment_001"
+        slot = 1
+
+        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        c = Component(experiment_name=expt, instrument_slot=slot)
+        expected_acl = [AC("irods", perm=Permission.OWN, zone=zone)]
+
+        coll = Collection(path)
+        assert ensure_consent_withdrawn(coll)
+        assert coll.acl() == expected_acl
+
+        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+
+        assert coll.acl() == expected_acl, f"ACL of {coll} is {expected_acl}"
+        for item in coll.contents(acl=True, recurse=True):
+            assert item.acl() == expected_acl, f"ACL of {item} is {expected_acl}"
+
+    @m.context("When ONT permissions are updated")
+    @m.context("When the experiment is multiplexed")
+    @m.context("When data have had consent withdrawn")
+    @m.it("Does not restore access permissions")
+    def test_retains_consent_withdrawn_mx(
+        self, ont_synthetic_irods, ont_synthetic_mlwh
+    ):
+        zone = "testZone"
+        expt = "multiplexed_experiment_001"
+        slot = 1
+        path = (
+            ont_synthetic_irods
+            / "multiplexed_experiment_001/20190904_1514_GA10000_flowcell101_cf751ba1"
+        )
+        c = Component(experiment_name=expt, instrument_slot=slot)
+        expected_acl = [AC("irods", perm=Permission.OWN, zone=zone)]
+        expected_report_acl = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("public", perm=Permission.READ, zone=zone),
+        ]
+
+        coll = Collection(path)
+        sub_colls = ["fast5_fail", "fast5_pass", "fastq_fail", "fastq_pass"]
+        bc_colls = [
+            it
+            for it in coll.contents(recurse=True)
+            if it.rods_type == Collection and "barcode" in it.path.name
+        ]
+        assert len(bc_colls) == 12 * len(sub_colls)
+
+        for bc_coll in bc_colls:
+            assert ensure_consent_withdrawn(
+                bc_coll
+            )  # Mark barcode collections as consent withdrawn
+
+            assert (
+                bc_coll.acl() == expected_acl
+            ), f"ACL of barcode collection {bc_coll} is {expected_acl}"
+            for item in bc_coll.contents(acl=True, recurse=True):
+                assert (
+                    item.acl() == expected_acl
+                ), f"ACL of barcode collection member {item} is {expected_acl}"
+
+        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+
+        for bc_coll in bc_colls:
+            assert bc_coll.acl() == expected_acl, f"ACL of {c} is {expected_acl}"
+            for item in bc_coll.contents(acl=True, recurse=True):
+                assert (
+                    item.acl() == expected_acl
+                ), f"ACL of barcode collection member {item} is {expected_acl}"
+
+        assert (
+            coll.acl() == expected_acl
+        ), f"ACL of root collection {coll} is {expected_acl}"
+        for item in coll.contents(acl=True, recurse=True):
+            if is_minknow_report(item):
+                assert (
+                    item.acl() == expected_report_acl
+                ), f"ACL of MinKNOW report {item} is {expected_report_acl}"
+            else:
+                assert (
+                    item.acl() == expected_acl
+                ), f"ACL of root collection member {item} is {expected_acl}"

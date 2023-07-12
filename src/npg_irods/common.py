@@ -201,7 +201,7 @@ def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
     raise ValueError(f"Failed to infer a data source for iRODS path '{path}'")
 
 
-def do_metadata_update(item: Collection | DataObject, avus: list[AVU]) -> bool:
+def update_metadata(item: Collection | DataObject, avus: list[AVU]) -> bool:
     """Update metadata on an iRODS path, removing existing metadata and replacing with
     the given AVUs and adding history of changes.
 
@@ -225,7 +225,7 @@ def do_metadata_update(item: Collection | DataObject, avus: list[AVU]) -> bool:
     return num_removed > 0 or num_added > 0
 
 
-def do_permissions_update(
+def update_permissions(
     item: Collection | DataObject, acl: list[AC], recurse=False
 ) -> bool:
     """Update permissions on an iRODS path, removing existing permissions and replacing

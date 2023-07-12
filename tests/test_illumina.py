@@ -23,7 +23,11 @@ from pytest import mark as m
 
 from conftest import history_in_meta
 from npg_irods.illumina import ensure_secondary_metadata_updated
-from npg_irods.metadata.lims import TrackedSample, TrackedStudy
+from npg_irods.metadata.lims import (
+    TrackedSample,
+    TrackedStudy,
+    ensure_consent_withdrawn,
+)
 
 
 class TestIlluminaMetadataUpdate(object):
@@ -358,7 +362,7 @@ class TestIlluminaPermissionsUpdate:
     @m.context("When data are multiplexed")
     @m.context("When data contain a human subset")
     @m.it("Removes managed access permissions")
-    def test_updates_human_permissions(
+    def test_updates_human_permissions_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345#1_human.cram"
@@ -379,7 +383,7 @@ class TestIlluminaPermissionsUpdate:
     @m.context("When data are multiplexed")
     @m.context("When data contain a human X chromosome/autosome subset")
     @m.it("Removes managed access permissions")
-    def test_updates_xahuman_permissions(
+    def test_updates_xahuman_permissions_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345#1_xahuman.cram"
@@ -400,7 +404,7 @@ class TestIlluminaPermissionsUpdate:
     @m.context("When data are multiplexed")
     @m.context("When data are from multiple studies")
     @m.it("Removes managed access permissions")
-    def test_multiple_study_permissions(
+    def test_multiple_study_permissions_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345#2.cram"
@@ -411,6 +415,40 @@ class TestIlluminaPermissionsUpdate:
             AC("ss_5000", Permission.READ, zone=zone),
         )
 
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=illumina_synthetic_mlwh
+        )
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+
+    @m.context("When data are not multiplexed")
+    @m.context("When data have had consent withdrawn")
+    @m.it("Does not restore access permissions")
+    def test_retains_consent_withdrawn(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345.cram"
+        zone = "testZone"
+        obj = DataObject(path)
+
+        assert ensure_consent_withdrawn(obj)
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=illumina_synthetic_mlwh
+        )
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+
+    @m.context("When data are multiplexed")
+    @m.context("When data have had consent withdrawn")
+    @m.it("Does not restore access permissions")
+    def test_updates_human_permissions_mx(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345#1_human.cram"
+        zone = "testZone"
+        obj = DataObject(path)
+
+        assert ensure_consent_withdrawn(obj)
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
         assert ensure_secondary_metadata_updated(
             obj, mlwh_session=illumina_synthetic_mlwh
         )
