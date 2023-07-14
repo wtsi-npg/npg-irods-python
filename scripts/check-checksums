@@ -31,6 +31,18 @@ description = """
 Reads iRODS data object paths from a file or STDIN, one per line and performs
 consistency checks on their iRODS checksums and checksum metadata.
 
+The conditions for checksums and checksum metadata of a data object to be correct
+are:
+
+- The data object must have a checksum set for each valid replica.
+- The checksums for all replicas must have the same value.
+- The data object must have one, and only one, checksum AVU in its metadata.
+- The checksum AVU must have the same value as the replica checksums.
+
+This script will never change any values. To repair checksums, use the --print-fail
+option to print failed paths to STDOUT and pipe them to the desired repair script
+e.g. `repair-checksums`.
+
 If any of the paths fail their checksum check, the exit code will be non-zero and an 
 error message summarising the results will be sent to STDERR.
 """

@@ -31,11 +31,16 @@ description = """
 Reads iRODS data object paths from a file or STDIN, one per line and repairs
 their metadata, if necessary.
 
-"Common" metadata refers to a subset of primary metadata, namely
+The possible repairs are:
 
- - Creation date/creator
- - Checksum
- - File type
+ - Creation metadata: the creation time is estimated from iRODS' internal record of
+   creation time of one of the object's replicas. The creator is set to the current
+   user.
+ - Checksum metadata: the checksum is taken from the object's replicas.
+ - Type metadata: the type is taken from the object's path.
+
+If any of the paths could not be repaired, the exit code will be non-zero and an
+error message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(

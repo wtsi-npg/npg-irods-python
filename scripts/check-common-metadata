@@ -31,11 +31,19 @@ description = """
 Reads iRODS data object paths from a file or STDIN, one per line and performs
 consistency checks on their metadata.
 
-"Common" metadata refers to a subset of primary metadata, namely
+The conditions for common metadata of a data object to be correct are:
 
- - Creation date/creator
- - Checksum
- - File type
+ - Creation date must be present under a "dcterms:created" attribute.
+ - Creator (user or agent) must be present under a "dcterms:creator" attribute.
+ - An MD5 checksum must be present under an "md5" attribute.
+ - File type must be present under a "type" attribute.
+
+This script will never change any values. To repair metadata, use the --print-fail
+option to print failed paths to STDOUT and pipe them to the desired repair script
+e.g. `repair-common-metadata`.
+
+If any of the paths fail their check, the exit code will be non-zero and an error
+message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(

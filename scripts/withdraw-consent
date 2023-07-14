@@ -33,10 +33,18 @@ description = """
 Reads iRODS data object paths from a file or STDIN, one per line and ensures that each
 one is in a state consistent with sample consent being withdrawn.
 
-Data objects with consent withdrawn must:
+The conditions for data objects to be in the correct state for having had consent
+withdrawn are: 
 
-- Have relevant iRODS metadata AVUs indicating that consent is withdrawn.
-- Have been made unreadable by all except administrative users.
+ - The data object has the correct metadata. Either:
+     - sample_consent = 0 (data managed by the GAPI codebase)
+     - sample_consent_withdrawn = 1 (data managed by the NPG codebase)
+
+ - Read permission for any SequenceScape study iRODS groups (named ss_<Study ID>)
+   absent.
+
+If any of the paths could not have consent withdrawn, the exit code will be non-zero
+and an error message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(

@@ -40,8 +40,8 @@ versus
 `irm -r /seq /my/bad/data`
 
 This tool writes a shell script that uses only non-recursive `irm` commands to remove
-data objects and `irmdir` to remove collections. This automates the step of creating the
-removal commands, but the script must still be used according to Standard Operating
+data objects and `irmdir` to remove collections. This automates the step of creating
+the removal commands, but the script must still be used according to Standard Operating
 Procedures e.g. be manually reviewed before use.
 """
 
