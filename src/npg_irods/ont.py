@@ -31,10 +31,12 @@ from sqlalchemy import asc, distinct
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
-from npg_irods.common import do_metadata_update, do_permissions_update, infer_zone
+from npg_irods.common import update_metadata, update_permissions, infer_zone
 from npg_irods.db.mlwh import OseqFlowcell, Sample, Study
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.lims import (
+    ensure_consent_withdrawn,
+    has_consent_withdrawn_metadata,
     is_managed_access,
     make_public_read_acl,
     make_sample_acl,
@@ -75,17 +77,17 @@ class Component:
         self.tag_identifier = tag_identifier
 
 
-def update_metadata(
+def apply_metadata(
     mlwh_session: Session,
     experiment_name=None,
     instrument_slot=None,
     since: datetime = None,
     zone=None,
 ) -> (int, int, int):
-    """Update iRODS metadata on ONT run collections whose corresponding ML warehouse
+    """Apply iRODS metadata on ONT run collections whose corresponding ML warehouse
     records have been updated at, or more recently than, the specified time.
 
-    Collections to update are identified by having ont:experiment_name and
+    Collections to annotate are identified by having ont:experiment_name and
     ont:instrument_slot metadata already attached to them. This is done for example,
     by the process which moves sequence data from the instrument into iRODS.
 
@@ -99,7 +101,7 @@ def update_metadata(
 
     Returns:
         A tuple of the number of paths found, the number of paths whose metadata
-    was updated and the number of errors encountered.
+    were changed and the number of errors encountered.
     """
     if since is None:
         since = datetime.fromtimestamp(0)  # Everything since the Epoch
@@ -190,12 +192,6 @@ def annotate_results_collection(
         log.warn("Collection does not exist", path=coll, comp=c)
         return False
 
-    avus = [
-        AVU(Instrument.EXPERIMENT_NAME, c.experiment_name),
-        AVU(Instrument.INSTRUMENT_SLOT, c.instrument_slot),
-    ]
-    coll.supersede_metadata(*avus)  # These AVUs should be present already
-
     # A single fc record (for non-multiplexed data)
     if len(flowcells) == 1:
         log.info("Found non-multiplexed", comp=c)
@@ -203,7 +199,7 @@ def annotate_results_collection(
             # Secondary metadata. Updating this here is an optimisation to reduce
             # turn-around-time. If we don't update, we just have to wait for a
             # cron job to call `ensure_secondary_metadata_updated`.
-            _do_metadata_and_permissions_update(coll, flowcells)
+            _do_secondary_metadata_and_perms_update(coll, flowcells)
         except RodsError as e:
             log.error(e.message, code=e.code)
             return False
@@ -263,7 +259,7 @@ def annotate_results_collection(
                 # Secondary metadata. Updating this here is an optimisation to reduce
                 # turn-around-time. If we don't update, we just have to wait for a
                 # cron job to call `ensure_secondary_metadata_updated`.
-                _do_metadata_and_permissions_update(bcoll, [fc])
+                _do_secondary_metadata_and_perms_update(bcoll, [fc])
 
             except RodsError as e:
                 log.error(e.message, code=e.code)
@@ -292,7 +288,7 @@ def ensure_secondary_metadata_updated(
     component = Component(expt.value, slot.value, tag_id.value)
     flowcells = find_flowcells_by_component(mlwh_session, component)
 
-    return _do_metadata_and_permissions_update(item, flowcells)
+    return _do_secondary_metadata_and_perms_update(item, flowcells)
 
 
 def find_recent_expt(sess: Session, since: datetime) -> list[str]:
@@ -420,7 +416,19 @@ def barcode_name_from_id(tag_identifier: str) -> str:
     )
 
 
-def _do_metadata_and_permissions_update(
+def is_minknow_report(obj: DataObject) -> bool:
+    """Return True if the data object is a MinKNOW run report.
+
+    Args:
+        obj: iRODS path to check.
+
+    Returns:
+        True if the object is a MinKNOW report.
+    """
+    return obj.rods_type == DataObject and "report" in obj.name
+
+
+def _do_secondary_metadata_and_perms_update(
     item: Collection | DataObject, flowcells
 ) -> bool:
     """Update metadata and permissions using sample/study information obtained from
@@ -439,16 +447,22 @@ def _do_metadata_and_permissions_update(
     for fc in flowcells:
         metadata.extend(make_sample_metadata(fc.sample))
         metadata.extend(make_study_metadata(fc.study))
-    meta_updated = do_metadata_update(item, metadata)
+    meta_update = update_metadata(item, metadata)
 
     acl = []
     for fc in flowcells:
         acl.extend(make_sample_acl(fc.sample, fc.study, zone=zone))
-    perm_updated = do_permissions_update(
-        item, acl, recurse=(item.rods_type == Collection)
-    )
 
-    return meta_updated or perm_updated
+    recurse = item.rods_type == Collection
+    cons_update = perm_update = False
+
+    if has_consent_withdrawn_metadata(item):
+        log.info("Consent withdrawn", path=item)
+        cons_update = ensure_consent_withdrawn(item, recurse=recurse)
+    else:
+        perm_update = update_permissions(item, acl, recurse=recurse)
+
+    return any([meta_update, cons_update, perm_update])
 
 
 def _set_minknow_reports_public(coll: Collection) -> int:
@@ -463,11 +477,7 @@ def _set_minknow_reports_public(coll: Collection) -> int:
     """
     num_errors = 0
 
-    reports = [
-        obj
-        for obj in coll.contents()
-        if obj.rods_type == DataObject and "report" in obj.name
-    ]
+    reports = [obj for obj in coll.contents() if is_minknow_report(obj)]
 
     for report in reports:
         try:

@@ -173,7 +173,9 @@ def make_public_read_acl() -> list[AC]:
     return [AC("public", Permission.READ)]
 
 
-def has_consent_withdrawn_metadata(item: Collection | DataObject) -> bool:
+def has_consent_withdrawn_metadata(
+    item: Collection | DataObject, recurse=False
+) -> bool:
     """Return True if the collection or data object is annotated in iRODS as having
     donor consent withdrawn.
 
@@ -189,30 +191,64 @@ def has_consent_withdrawn_metadata(item: Collection | DataObject) -> bool:
     the collection or data object "fails closed" (unreadable), rather than "fails open"
     (readable).
 
+    A collection having consent withdrawn metadata may imply that its contents
+    should have permissions removed recursively. This can be checked with the recurse keyword.
+
     Args:
         item: The collection or data object to check.
-
+        recurse: Include a check of collection contents recursively. Defaults to False.
+            If True and item is a DataObject, raises a ValueError.
     Returns:
         True if consent was withdrawn.
     """
-    meta = item.metadata()
+    if item.rods_type == DataObject and recurse:
+        raise ValueError(f"Cannot recursively check metadata on a data object: {item}")
 
-    return (
-        AVU(TrackedSample.CONSENT, 0) in meta
-        or AVU(TrackedSample.CONSENT_WITHDRAWN, 1) in meta
-    )
+    gapi_withdrawn = AVU(TrackedSample.CONSENT, 0)
+    npg_withdrawn = AVU(TrackedSample.CONSENT_WITHDRAWN, 1)
+
+    def is_withdrawn(x):
+        meta = x.metadata()
+        return gapi_withdrawn in meta or npg_withdrawn in meta
+
+    withdrawn_root = is_withdrawn(item)
+    withdrawn_child = True
+
+    if item.rods_type == Collection and recurse:
+        for it in item.iter_contents(recurse=True):
+            if not is_withdrawn(it):
+                withdrawn_child = False
+                break
+
+    return withdrawn_root and withdrawn_child
 
 
-def ensure_consent_withdrawn_metadata(item: Collection | DataObject) -> bool:
+def ensure_consent_withdrawn_metadata(
+    item: Collection | DataObject, recurse=False
+) -> bool:
     """Ensure that consent withdrawn metadata are on the collection or data object.
 
     Args:
-        item: The collection or data object to check.
+        item: The collection or data object to update.
+        recurse: Apply to collection contents recursively. Defaults to False. If True
+            and item is a DataObject, raises a ValueError.
 
     Returns:
         True if metadata were added.
     """
-    return ensure_avus_present(item, AVU(TrackedSample.CONSENT_WITHDRAWN, 1))
+    if item.rods_type == DataObject and recurse:
+        raise ValueError(f"Cannot recursively update metadata on a data object: {item}")
+
+    withdrawn_avu = AVU(TrackedSample.CONSENT_WITHDRAWN, 1)
+    updated_root = ensure_avus_present(item, withdrawn_avu)
+    updated_child = False
+
+    if item.rods_type == Collection and recurse:
+        for it in item.iter_contents(recurse=True):
+            if ensure_avus_present(it, withdrawn_avu):
+                updated_child = True
+
+    return updated_root or updated_child
 
 
 def is_managed_access(ac: AC):
@@ -244,93 +280,136 @@ def has_mixed_ownership(acl: list[AC]):
     return len({ac.user for ac in acl if is_managed_access(ac)}) > 1
 
 
-def has_consent_withdrawn_permissions(item: Collection | DataObject) -> bool:
+def has_consent_withdrawn_permissions(
+    item: Collection | DataObject, recurse=False
+) -> bool:
     """Return True if the collection or data object has permissions expected for data
     with consent withdrawn.
 
     Args:
         item: The collection or data object to check.
-
+        recurse: Include a check of collection contents recursively. Defaults to False.
+            If True and item is a DataObject, raises a ValueError.
     Returns:
         True if the permissions were as expected.
     """
+    if item.rods_type == DataObject and recurse:
+        raise ValueError(
+            f"Cannot recursively check permissions on a data object: {item}"
+        )
+
     # Alternatively, we could keep a list of rodsadmin users who should have continued
     # access e.g. in order to redact the data, and check that no other users are in the
     # ACL. Using a list of rodsadmins would mean we don't need to use regex.
-    study_acl = [ac for ac in item.permissions() if is_managed_access(ac)]
+    def has_study_perms(x):
+        return any([ac for ac in x.permissions() if is_managed_access(ac)])
 
-    return not study_acl
+    withdrawn_root = not has_study_perms(item)
+    withdrawn_child = True
+
+    if item.rods_type == Collection and recurse:
+        for it in item.iter_contents(recurse=True):
+            if has_study_perms(it):
+                withdrawn_child = False
+                break
+
+    return withdrawn_root and withdrawn_child
 
 
-def has_consent_withdrawn(item: Collection | DataObject) -> bool:
+def has_consent_withdrawn(item: Collection | DataObject, recurse=False) -> bool:
     """Return True if the data object has metadata and permissions for data with consent
     withdrawn.
 
     Args:
         item: The collection or data object to check.
+        recurse: Include a check of the collection contents recursively. Defaults to
+        False. If True and item is a DataObject, raises a ValueError.
 
     Returns:
         True if the metadata and permissions were as expected.
     """
-    return has_consent_withdrawn_metadata(item) and has_consent_withdrawn_permissions(
-        item
-    )
+    return has_consent_withdrawn_metadata(
+        item, recurse=recurse
+    ) and has_consent_withdrawn_permissions(item, recurse=recurse)
 
 
-def ensure_consent_withdrawn(item: Collection | DataObject) -> bool:
-    """Ensure that a data object has its metadata and permissions in the correct state
-    for having consent withdrawn. All read permissions are withdrawn except for:
+def ensure_consent_withdrawn(item: Collection | DataObject, recurse=False) -> bool:
+    """Ensure that a data object or collection has its metadata and permissions in the
+    correct state for having consent withdrawn. All read permissions are withdrawn
+    except for:
 
     - The current user making these changes.
     - Any rodsadmin.
 
     Args:
         item: The collection or data object to check.
+        recurse: Apply to collection contents recursively. Defaults to False. If True
+            and item is a DataObject, raises a ValueError.
 
     Returns:
         True if the metadata and/or permissions were updated.
     """
-    if has_consent_withdrawn(item):
-        return False
-
-    if ensure_consent_withdrawn_metadata(item):
-        log.info(
-            "Updated metadata",
-            path=item,
-            has_withdrawn_meta=has_consent_withdrawn_metadata(item),
+    if item.rods_type == DataObject and recurse:
+        raise ValueError(
+            f"Cannot recursively withdraw permissions on a data object: {item}"
         )
 
-    to_remove = []
+    if has_consent_withdrawn(item, recurse=recurse):
+        return False
+
+    updated_meta = ensure_consent_withdrawn_metadata(item, recurse=recurse)
+    if updated_meta:
+        log.info(
+            "Updated consent withdrawn metadata",
+            path=item,
+            has_withdrawn_meta=has_consent_withdrawn_metadata(item, recurse=recurse),
+        )
+
     curr_user = current_user()
-    for ac in item.permissions():
-        u = rods_user(ac.user)
 
-        if u is None:
-            log.info("Removing permissions (non-local user)", path=item, ac=ac)
+    def withdraw(x):  # Withdraw perms from a single path, return True if changes made
+        to_remove = []
+
+        for ac in x.permissions():
+            u = rods_user(ac.user)
+
+            if u is None:
+                log.info("Removing permissions (non-local user)", path=x, ac=ac)
+                to_remove.append(ac)
+                continue
+            if u == curr_user:
+                log.info(
+                    "Not removing permissions for self", path=x, user=str(u), ac=ac
+                )
+                continue
+            if u.is_rodsadmin():
+                log.info(
+                    "Not removing permissions for rodsadmin", path=x, user=str(u), ac=ac
+                )
+                continue
+
+            log.info("Removing permissions", path=x, user=str(u), ac=ac)
             to_remove.append(ac)
-            continue
 
-        if u == curr_user:
-            log.info("Not removing permissions for self", path=item, user=str(u), ac=ac)
-            continue
+        num_removed = item.remove_permissions(*to_remove)
+        log.info(
+            "Removed permissions",
+            path=x,
+            num_removed=num_removed,
+            has_withdrawn_perm=has_consent_withdrawn_permissions(x),
+        )
 
-        if u.is_rodsadmin():
-            log.info(
-                "Not removing permissions for rodsadmin", path=item, user=str(u), ac=ac
-            )
-            continue
+        return num_removed > 0
 
-        log.info("Removing permissions", path=item, user=str(u), ac=ac)
-        to_remove.append(ac)
+    updated_perms_root = withdraw(item)
+    updated_perms_child = False
 
-    num_removed = item.remove_permissions(*to_remove)
-    log.info(
-        "Removed permissions",
-        path=item,
-        num_removed=num_removed,
-        has_withdrawn_perm=has_consent_withdrawn_permissions(item),
-    )
-    return True
+    if item.rods_type == Collection and recurse:
+        for it in item.iter_contents(recurse=True):
+            if withdraw(it):
+                updated_perms_child = True
+
+    return updated_meta or updated_perms_root or updated_perms_child
 
 
 def has_id_product_metadata(obj: DataObject):

@@ -28,12 +28,13 @@ from sqlalchemy import asc
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
-from npg_irods.common import do_metadata_update, do_permissions_update, infer_zone
+from npg_irods.common import infer_zone, update_metadata, update_permissions
 from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics, Sample, Study
 from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
+    has_consent_withdrawn_metadata,
     make_sample_acl,
     make_sample_metadata,
     make_study_metadata,
@@ -190,7 +191,6 @@ def ensure_secondary_metadata_updated(
        True if updated.
     """
     zone = infer_zone(item)
-    updated = False
     secondary_metadata, acl = [], []
 
     components = [
@@ -205,14 +205,19 @@ def ensure_secondary_metadata_updated(
             secondary_metadata.extend(make_study_metadata(fc.study))
             acl.extend(make_sample_acl(fc.sample, fc.study, zone=zone))
 
-    updated = True if do_metadata_update(item, secondary_metadata) else updated
+    meta_update = update_metadata(item, secondary_metadata)
 
-    if any(c.contains_nonconsented_human() for c in components):  # Illumina specific
-        updated = True if ensure_consent_withdrawn(item) else updated
+    cons_update = xahu_update = perm_update = False
+    if has_consent_withdrawn_metadata(item):
+        log.info("Consent withdrawn", path=item)
+        cons_update = ensure_consent_withdrawn(item)
+    elif any(c.contains_nonconsented_human() for c in components):  # Illumina specific
+        log.info("Non-consented human data", path=item)
+        xahu_update = ensure_consent_withdrawn(item)
     else:
-        updated = True if do_permissions_update(item, acl) else updated
+        perm_update = update_permissions(item, acl)
 
-    return updated
+    return any([meta_update, cons_update, xahu_update, perm_update])
 
 
 def find_flowcells_by_component(
