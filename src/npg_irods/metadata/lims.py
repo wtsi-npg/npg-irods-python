@@ -197,7 +197,7 @@ def has_consent_withdrawn_metadata(
     Args:
         item: The collection or data object to check.
         recurse: Include a check of collection contents recursively. Defaults to False.
-
+            If True and item is a DataObject, raises a ValueError.
     Returns:
         True if consent was withdrawn.
     """
@@ -230,7 +230,8 @@ def ensure_consent_withdrawn_metadata(
 
     Args:
         item: The collection or data object to update.
-        recurse: Apply to collection contents recursively. Defaults to False.
+        recurse: Apply to collection contents recursively. Defaults to False. If True
+            and item is a DataObject, raises a ValueError.
 
     Returns:
         True if metadata were added.
@@ -288,7 +289,7 @@ def has_consent_withdrawn_permissions(
     Args:
         item: The collection or data object to check.
         recurse: Include a check of collection contents recursively. Defaults to False.
-
+            If True and item is a DataObject, raises a ValueError.
     Returns:
         True if the permissions were as expected.
     """
@@ -322,7 +323,7 @@ def has_consent_withdrawn(item: Collection | DataObject, recurse=False) -> bool:
     Args:
         item: The collection or data object to check.
         recurse: Include a check of the collection contents recursively. Defaults to
-        False.
+        False. If True and item is a DataObject, raises a ValueError.
 
     Returns:
         True if the metadata and permissions were as expected.
@@ -342,7 +343,8 @@ def ensure_consent_withdrawn(item: Collection | DataObject, recurse=False) -> bo
 
     Args:
         item: The collection or data object to check.
-        recurse: Apply to collection contents recursively. Defaults to False.
+        recurse: Apply to collection contents recursively. Defaults to False. If True
+            and item is a DataObject, raises a ValueError.
 
     Returns:
         True if the metadata and/or permissions were updated.
