@@ -191,8 +191,8 @@ def has_consent_withdrawn_metadata(
     the collection or data object "fails closed" (unreadable), rather than "fails open"
     (readable).
 
-    A collection having has consent withdrawn metadata may imply that its contents,
-    should be likewise, recursively. This can be checked with the recurse keyword.
+    A collection having consent withdrawn metadata may imply that its contents
+    should have permissions removed recursively. This can be checked with the recurse keyword.
 
     Args:
         item: The collection or data object to check.
