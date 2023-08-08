@@ -132,7 +132,7 @@ def consent_withdrawn(cli_args):
                     print(obj)
             except Exception as e:
                 num_errors += 1
-                log.error(e, item=i, sample=s)
+                log.exception(e, item=i, sample=s)
 
     log.info(f"Processed {num_processed} with {num_errors} errors")
     if num_errors:
@@ -224,7 +224,7 @@ def illumina_updates(cli_args):
 
             except Exception as e:
                 num_errors += 1
-                log.error(e, item=i, component=c)
+                log.exception(e, item=i, component=c)
 
         log.info(f"Processed {num_processed} with {num_errors} errors")
         if num_errors:
@@ -280,7 +280,7 @@ def ont_updates(cli_args):
 
             except Exception as e:
                 num_errors += 1
-                log.error(e, item=i, component=c)
+                log.exception(e, item=i, component=c)
 
         log.info(f"Processed {num_processed} with {num_errors} errors")
         if num_errors:
