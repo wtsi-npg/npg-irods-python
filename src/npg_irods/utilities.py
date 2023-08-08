@@ -180,11 +180,9 @@ def repair_checksums(
       moved to history.
 
     The following states are not repaired automatically because they require an
-    assessment on which, if any, replicas are correct.
+    assessment on which, if any, replicas are correct:
 
     - The checksums across all valid replicas are not identical.
-    - The checksum metadata AVU does not concur with the checksum(s) of the valid
-      replicas.
 
     Args:
         reader: A file supplying iRODS data object paths to repair, one per line.
@@ -590,6 +588,30 @@ def repair_common_metadata(
 def update_secondary_metadata(
     reader, writer, mlwh_session, print_update=True, print_fail=False
 ) -> (int, int, int):
+    """Update secondary metadata, including access permissions, on specified iRODS
+    paths, according to current information in the ML warehouse.
+
+    This function is sequencing platform-agnostic and accepts both collection and data
+    object paths. The implementation of the updates varies per-platform and respects
+    those limits. That means while you can pass in a mixture of ONT collections and
+    Illumina data objects, you will see errors if you e.g. pass in Illumina collections
+    because Illumina metadata is managed by data objects.
+
+    Args:
+        reader: A file supplying iRODS collection and/or data object paths to update,
+            one per line.
+        writer: A file where updated paths will be written, one per line.
+        mlwh_session: An open SQL session (ML warehouse).
+        print_update: Print the paths of objects that required updates and were
+            updated successfully. Defaults to True.
+        print_fail: Print the paths that required updates where the update failed.
+            Defaults to False.
+
+    Returns:
+       A tuple of the number of paths checked, the number of paths whose metadata
+       were updated and the number of errors (paths that could not be updated and/or
+       failed to be updated because of an exception).
+    """
     num_processed, num_updated, num_errors = 0, 0, 0
 
     for i, path in enumerate(reader):

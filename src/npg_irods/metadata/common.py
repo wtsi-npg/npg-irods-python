@@ -229,8 +229,9 @@ def ensure_matching_checksum_metadata(obj: DataObject) -> bool:
     that concurs with the current checksum, this function does nothing and returns
     False.
 
-    If there is already checksum metadata that does not concur with the
-    current checksum, a ChecksumError is raised.
+    If there is already checksum metadata that does not concur with the current
+    checksum, the checksum metadata value is updated and the previous value added
+    to metadata history.
 
     Args:
         obj: The data object to repair.

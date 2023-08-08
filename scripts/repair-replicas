@@ -32,9 +32,16 @@ Reads iRODS data object paths from a file or STDIN, one per line and repairs the
 replicas, if necessary. This means trimming any invalid replicas and/or excess valid
 replicas.
 
-If any of the paths initially fail their replica check and could not be repaired,   
-the exit code will be non-zero and an error message summarising the results will be 
-sent to STDERR.
+The possible repairs are:
+
+ - Invalid replicas: if the data object has invalid replicas, these are trimmed.
+   This is the most common type of repair.
+
+ - Valid replicas: if the data object has more valid replicas than the number
+   required, the excess replicas are trimmed.
+
+If any of the paths could not be repaired, the exit code will be non-zero and an
+error message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(

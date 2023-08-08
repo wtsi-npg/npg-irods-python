@@ -50,6 +50,7 @@ build-backend = "setuptools.build_meta"
 # "project.scripts", but that only supports automatcially generating wrapper scripts
 # for entry points, not installing existing scripts.
 script-files = [
+    "scripts/apply-ont-metadata",
     "scripts/backfill_illumina_locations.py",
     "scripts/backfill_pacbio_ids",
     "scripts/check-checksums",
@@ -62,7 +63,6 @@ script-files = [
     "scripts/repair-common-metadata",
     "scripts/repair-replicas",
     "scripts/safe-remove-script",
-    "scripts/update-ont-metadata",
     "scripts/update-secondary-metadata",
     "scripts/withdraw-consent",
 ]

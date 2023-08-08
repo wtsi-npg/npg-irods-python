@@ -31,12 +31,15 @@ from npg_irods.ont import apply_metadata
 from npg_irods.version import version
 
 description = """
-Updates metadata and data access permissions on ONT run collections in iRODS, to reflect
+Applies metadata and data access permissions on ONT run collections in iRODS, to reflect
 information in the Multi-LIMS warehouse.
 
-The metadata updated are "secondary" i.e. sample- and study-related information which
-may be subject to change when tracking information in the ML warehouse is updated e.g.
-to correct an error. 
+This script differs from `update-secondary-metadata` in that it is designed to be run
+on newly created ONT data where it detects multiplexed runs and adds extra primary
+metadata to results that have been deplexed on the instrument. It also updates
+secondary metadata (like `update-secondary-metadata` does), but that is purely as an
+optimisation to make the data available without waiting for an
+`update-secondary-metadata` to be scheduled. 
 
 Only runs whose ML warehouse records have been updated recently are updated. The default
 window for detecting changes is the 14 days prior to the time when the script is run.

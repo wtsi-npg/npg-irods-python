@@ -45,7 +45,41 @@ description = """
 A utility for locating sets of data objects in iRODS.
 
 Each sub-command runs canned queries first on the ML warehouse and then, using that
-result, on iRODS to locate relevant data objects.
+result, on iRODS to locate relevant data objects. The available sub-commands are
+described below.
+
+Usage:
+
+To see the CLI options available for the base command, use:
+
+    locate-data-objects --help
+
+each sub-command provides additional options which may be seen using:
+
+    locate-data-objects <sub-command> --help
+
+Note that the sub-command available options may differ between sub-commands.
+
+Examples:
+
+    locate-data-objects --verbose --colour --database-config db.ini --zone seq \\
+        consent-withdrawn
+
+    locate-data-objects --verbose --json  --database-config db.ini --zone seq \\
+        illumina-updates --begin-date `date --iso --date=-7day` \\
+        --skip-absent-runs
+    
+    locate-data-objects --verbose --colour --database-config db.ini --zone seq \\
+        ont-updates --begin-date `date --iso --date=-7day`
+
+The database config file must be an INI format file as follows:
+
+[mlwh_ro]
+host = <hostname>
+port = <port number>
+schema = <database schema name>
+user = <database user name>
+password = <database password>
 
 The paths of the data objects located are printed to STDOUT.
 """
@@ -57,7 +91,7 @@ add_logging_arguments(parser)
 parser.add_argument(
     "--database-config",
     "--database_config",
-    help="Configuration file for database connection.",
+    help="Configuration file for database connection",
     type=argparse.FileType("r"),
     required=True,
 )
@@ -70,9 +104,7 @@ parser.add_argument(
 )
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
 
-subparsers = parser.add_subparsers(
-    title="queries", help="Data object location queries", required=True
-)
+subparsers = parser.add_subparsers(title="Sub-commands", required=True)
 
 
 def consent_withdrawn(cli_args):

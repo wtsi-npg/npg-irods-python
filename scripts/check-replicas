@@ -31,6 +31,19 @@ description = """
 Reads iRODS data object paths from a file or STDIN, one per line and performs
 consistency checks on their iRODS replicas.
 
+The conditions for replicas of a data object to be correct are:
+
+ - The data object has the number of replicas expected for its location in the
+   iRODS resource tree. This is typically 2 replicas, but some trees may be
+   unreplicated, so there will be 1 "replica" in those cases.
+ - All replicas must be in the "valid" state.
+ - The conditions for correct checksums must apply for all replicas (see
+   `check_checksums`).
+
+This script will never change any values. To repair replicas, use the --print-fail
+option to print failed paths to STDOUT and pipe them to the desired repair script
+e.g. `repair-replicas`.
+
 If any of the paths fail their replica check, the exit code will be non-zero and an 
 error message summarising the results will be sent to STDERR.
 """

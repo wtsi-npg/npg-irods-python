@@ -32,10 +32,20 @@ from npg_irods.version import version
 
 description = """
 Reads iRODS data object and/or collection paths from a file or STDIN, one per line and
-updates any standard sample and/or study metadata.
+updates any standard sample and/or study metadata and access permissions to reflect
+the current state in the ML warehouse.
 
-Currently this script supports only Illumina sequencing data that has not been through
-the library-merge process.
+To generate a list of paths to be updated, see `locate-data-objects` in this package.
+
+Currently this script supports:
+
+ - Illumina sequencing data objects for data that have not been through the
+   library-merge process.
+
+ - Oxford nanopore sequencing data collections.
+
+If any of the paths could not be updated, the exit code will be non-zero and an
+error message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(

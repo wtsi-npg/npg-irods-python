@@ -85,7 +85,9 @@ def apply_metadata(
     zone=None,
 ) -> (int, int, int):
     """Apply iRODS metadata on ONT run collections whose corresponding ML warehouse
-    records have been updated at, or more recently than, the specified time.
+    records have been updated at, or more recently than, the specified time. This
+    function detects runs that are multiplexed and adds relevant tag identifier and
+    tag index primary metadata to the deplexed collections.
 
     Collections to annotate are identified by having ont:experiment_name and
     ont:instrument_slot metadata already attached to them. This is done for example,
