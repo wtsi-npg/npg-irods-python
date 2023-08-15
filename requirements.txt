@@ -3,7 +3,7 @@ npg_id_generation@https://github.com/wtsi-npg/npg_id_generation/releases/downloa
 partisan@https://github.com/wtsi-npg/partisan/releases/download/2.5.1/partisan-2.5.1.tar.gz
 pymysql==1.1.0
 rich==13.4.2
-setuptools==68.0.0
+setuptools==68.1.0
 setuptools-git-versioning==1.13.3
 sqlalchemy==2.0.17
 structlog==23.1.0
