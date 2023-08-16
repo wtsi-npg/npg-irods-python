@@ -26,8 +26,17 @@ from partisan.metadata import AsValueEnum, with_namespace
 class Instrument(AsValueEnum, metaclass=with_namespace("ont")):
     """Oxford Nanopore platform metadata"""
 
+    DEVICE_ID = "device_id"
+    DEVICE_TYPE = "device_type"
+    DISTRIBUTION_VERSION = "distribution_version"
     EXPERIMENT_NAME = "experiment_name"
+    FLOWCELL_ID = "flowcell_id"
+    GUPPY_VERSION = "guppy_version"
+    HOSTNAME = "hostname"
     INSTRUMENT_SLOT = "instrument_slot"
+    PROTOCOL_GROUP_ID = "protocol_group_id"
+    RUN_ID = "run_id"
+    SAMPLE_ID = "sample_id"
     TAG_IDENTIFIER = "tag_identifier"
 
     def __repr__(self):

@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 
 import sqlalchemy
 import structlog
-from partisan.irods import AVU, query_metadata
+from partisan.irods import AVU, Collection, query_metadata
 from sqlalchemy.orm import Session
 
 from npg_irods import illumina, ont
@@ -39,6 +39,7 @@ from npg_irods.db.mlwh import find_consent_withdrawn_samples
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import TrackedSample
+from npg_irods.ont import barcode_collections, barcode_name_from_id
 from npg_irods.version import version
 
 description = """
@@ -68,7 +69,7 @@ Examples:
     locate-data-objects --verbose --json  --database-config db.ini --zone seq \\
         illumina-updates --begin-date `date --iso --date=-7day` \\
         --skip-absent-runs
-    
+
     locate-data-objects --verbose --colour --database-config db.ini --zone seq \\
         ont-updates --begin-date `date --iso --date=-7day`
 
@@ -81,7 +82,12 @@ schema = <database schema name>
 user = <database user name>
 password = <database password>
 
-The paths of the data objects located are printed to STDOUT.
+The paths of the data objects and/or collections located are printed to STDOUT.
+Whether data objects or collection paths are printed depends on which of these
+the matched iRODS metadata are attached to. If the metadata are directly attached
+to a data object, its path is printed, while if the metadata are attached to a
+collection containing a data object, directly or as a root collection, the
+collection path is printed.
 """
 
 parser = argparse.ArgumentParser(
@@ -236,17 +242,23 @@ ilup_parser.set_defaults(func=illumina_updates)
 
 ontup_parser = subparsers.add_parser(
     "ont-updates",
-    help="Find data objects, which are components of ONT runs, whose tracking metadata "
-    "in the ML warehouse have changed since a specified time.",
+    help="Find collections, containing data objects for ONT runs, whose tracking"
+    "metadata in the ML warehouse have changed since a specified time.",
 )
 ontup_parser.add_argument(
     "--begin-date",
     "--begin_date",
-    help="Limit data objects found to those changed after this date. Defaults to 14 "
+    help="Limit collections found to those changed after this date. Defaults to 14 "
     "days ago. The argument must be an ISO8601 UTC date or date and time e.g. "
     "2022-01-30, 2022-01-30T11:11:03Z",
     type=parse_iso_date,
     default=datetime.now(timezone.utc) - timedelta(days=14),
+)
+ontup_parser.add_argument(
+    "--report-tags",
+    "--report_tags",
+    help="Include barcode sub-collections of runs containing de-multiplexed data.",
+    action="store_true",
 )
 
 
@@ -256,10 +268,11 @@ def ont_updates(cli_args):
     with Session(engine) as session:
         num_processed = num_errors = 0
         iso_date = cli_args.begin_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        report_tags = cli_args.report_tags
 
         for i, c in enumerate(
             ont.find_components_changed(
-                session, include_tags=False, since=cli_args.begin_date
+                session, include_tags=report_tags, since=cli_args.begin_date
             )
         ):
             num_processed += 1
@@ -270,13 +283,16 @@ def ont_updates(cli_args):
                     AVU(ont.Instrument.EXPERIMENT_NAME, c.experiment_name),
                     AVU(ont.Instrument.INSTRUMENT_SLOT, c.instrument_slot),
                 ]
-                if c.tag_identifier is not None:
-                    avus.append(AVU(ont.Instrument.TAG_IDENTIFIER, c.tag_identifier))
-
                 for coll in query_metadata(
                     *avus, data_object=False, zone=cli_args.zone
                 ):
-                    print(coll)
+                    # Report only the run folder collection for multiplexed runs
+                    # unless requested to report the deplexed collections
+                    if report_tags and c.tag_identifier is not None:
+                        for bcoll in barcode_collections(coll, c.tag_identifier):
+                            print(bcoll)
+                    else:
+                        print(coll)
 
             except Exception as e:
                 num_errors += 1

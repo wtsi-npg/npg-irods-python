@@ -194,8 +194,7 @@ def ensure_secondary_metadata_updated(
     secondary_metadata, acl = [], []
 
     components = [
-        Component.from_avu(avu)
-        for avu in item.metadata(attr=SeqConcept.COMPONENT.value)
+        Component.from_avu(avu) for avu in item.metadata(SeqConcept.COMPONENT)
     ]  # Illumina specific
     for c in components:
         for fc in find_flowcells_by_component(

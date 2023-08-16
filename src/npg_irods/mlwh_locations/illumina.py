@@ -83,7 +83,7 @@ def has_phix_reference(obj: DataObject) -> bool:
     Returns: bool
     """
     for meta in obj.metadata():
-        if meta.attribute == str(SeqConcept.REFERENCE) and "PhiX" in meta.value:
+        if meta.attribute == SeqConcept.REFERENCE.value and "PhiX" in meta.value:
             return True
 
     return False
@@ -102,7 +102,7 @@ def has_subset(obj: DataObject) -> bool:
     """
     for meta in obj.metadata():
         # subset is not present alone, but is part of the component metadata
-        if meta.attribute == str(SeqConcept.COMPONENT) and "subset" in meta.value:
+        if meta.attribute == SeqConcept.COMPONENT.value and "subset" in meta.value:
             return True
 
     return False

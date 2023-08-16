@@ -203,7 +203,7 @@ def has_matching_checksum_metadata(obj: DataObject) -> bool:
     # It's possible, technically, for there to be multiple checksum AVUs in an
     # object's metadata because iRODS is permissive on this. If we find more than
     # one, we consider that the checksum metadata do not match.
-    checksum_meta = obj.metadata(DataFile.MD5.value)
+    checksum_meta = obj.metadata(DataFile.MD5)
     if len(checksum_meta) > 1:
         return False
 
@@ -269,9 +269,7 @@ def ensure_matching_checksum_metadata(obj: DataObject) -> bool:
         return True
 
     expected_avu = AVU(DataFile.MD5, obj.checksum())
-    observed_avus = [
-        avu for avu in obj.metadata() if avu.attribute == DataFile.MD5.value
-    ]
+    observed_avus = obj.metadata(DataFile.MD5)
 
     num_added, num_removed = obj.supersede_metadata(expected_avu, history=True)
     if num_added and expected_avu in obj.metadata():
@@ -497,7 +495,7 @@ def has_checksum_metadata(obj: DataObject) -> bool:
     Returns:
         True if the metadata are present, or False otherwise.
     """
-    return len(obj.metadata(DataFile.MD5.value)) > 0
+    return len(obj.metadata(DataFile.MD5)) > 0
 
 
 def make_checksum_metadata(checksum: str) -> list[AVU]:
@@ -555,7 +553,7 @@ def has_type_metadata(obj: DataObject) -> bool:
     Returns:
         True if the metadata are present, or False otherwise.
     """
-    return len(obj.metadata(DataFile.TYPE.value)) > 0
+    return len(obj.metadata(DataFile.TYPE)) > 0
 
 
 def make_type_metadata(obj: DataObject) -> list[AVU]:
