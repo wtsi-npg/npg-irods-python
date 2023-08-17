@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 
 import sqlalchemy
 import structlog
-from partisan.irods import AVU, Collection, query_metadata
+from partisan.irods import AVU, query_metadata
 from sqlalchemy.orm import Session
 
 from npg_irods import illumina, ont
@@ -39,7 +39,7 @@ from npg_irods.db.mlwh import find_consent_withdrawn_samples
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import TrackedSample
-from npg_irods.ont import barcode_collections, barcode_name_from_id
+from npg_irods.ont import barcode_collections
 from npg_irods.version import version
 
 description = """
