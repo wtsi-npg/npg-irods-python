@@ -1,6 +1,6 @@
 # npg-irods-python
 
-[![Unit tests](https://github.com/wtsi-npg/npg-irods-python/actions/workflows/ci.yml/badge.svg)](https://github.com/wtsi-npg/npg-irods-python/actions/workflows/run-tests.yml)
+[![Unit tests](https://github.com/wtsi-npg/npg-irods-python/actions/workflows/run-tests.yml/badge.svg)](https://github.com/wtsi-npg/npg-irods-python/actions/workflows/run-tests.yml)
 
 ## Overview
 
