@@ -143,7 +143,7 @@ def check_checksums(
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
-                log.error(e)
+                log.exception(e)
                 if print_fail:
                     _print(p, writer)
 
@@ -234,7 +234,7 @@ def repair_checksums(
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
-                log.error(e, item=i)
+                log.exception(e, item=i)
                 if print_fail:
                     _print(p, writer)
 
@@ -321,7 +321,7 @@ def check_replicas(
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
-                log.error(e, item=i)
+                log.exception(e, item=i)
                 if print_fail:
                     _print(p, writer)
 
@@ -423,7 +423,7 @@ def repair_replicas(
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
-                log.error(e, item=i)
+                log.exception(e, item=i)
                 if print_fail:
                     _print(p, writer)
 
@@ -491,7 +491,7 @@ def check_common_metadata(
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
-                log.error(e, item=i)
+                log.exception(e, item=i)
                 if print_fail:
                     _print(p, writer)
 
@@ -573,7 +573,7 @@ def repair_common_metadata(
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
-                log.error(e, item=i)
+                log.exception(e, item=i)
                 if print_fail:
                     _print(p, writer)
 
@@ -652,7 +652,7 @@ def update_secondary_metadata(
                 _print(path, writer)
         except Exception as e:
             num_errors += 1
-            log.error(e, item=i)
+            log.exception(e, item=i)
             if print_fail:
                 _print(path, writer)
 
@@ -713,7 +713,7 @@ def check_consent_withdrawn(
             if print_fail:
                 _print(p, writer)
         except Exception as e:
-            log.error(e, item=i)
+            log.exception(e, item=i)
             num_errors += 1
             if print_fail:
                 _print(p, writer)
@@ -770,7 +770,7 @@ def withdraw_consent(
             if print_fail:
                 _print(p, writer)
         except Exception as e:
-            log.error(e, item=i)
+            log.exception(e, item=i)
             num_errors += 1
             if print_fail:
                 _print(p, writer)

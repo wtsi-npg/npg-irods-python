@@ -149,6 +149,7 @@ def configure_logging(
         # sys.exc_info() tuple, remove "exc_info" and render the exception
         # with traceback into the "exception" key.
         structlog.processors.format_exc_info,
+        # structlog.processors.dict_tracebacks,
         # If some value is in bytes, decode it to a unicode str.
         structlog.processors.UnicodeDecoder(),
         # Add call site parameters.
