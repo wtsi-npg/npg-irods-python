@@ -4,6 +4,6 @@ partisan@https://github.com/wtsi-npg/partisan/releases/download/2.7.0/partisan-2
 pymysql==1.1.0
 rich==13.4.2
 setuptools==68.1.2
-setuptools-git-versioning==1.13.3
+setuptools-git-versioning==1.13.5
 sqlalchemy==2.0.17
 structlog==23.1.0
