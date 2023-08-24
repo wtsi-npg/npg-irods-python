@@ -21,7 +21,7 @@ from datetime import timedelta
 
 from pytest import mark as m
 
-from conftest import BEGIN, EARLY, LATE, LATEST
+from conftest import BEGIN, EARLY, LATE, LATEST, ont_tag_identifier
 from npg_irods.metadata import illumina
 from npg_irods.metadata.lims import TrackedSample, TrackedStudy
 from npg_irods.ont import Component, find_components_changed, find_recent_expt
@@ -125,6 +125,37 @@ class TestONTMLWarehouseQueries(object):
             c
             for c in find_components_changed(
                 ont_synthetic_mlwh, after_latest, include_tags=False
+            )
+        ] == []
+
+    @m.describe(
+        "Finding updated experiments, positions and tag identifiers by datetime"
+    )
+    @m.context("When a query date is provided")
+    @m.it("Finds the correct experiment, slot, tag identifier tuples")
+    def test_find_recent_component_tag(self, ont_synthetic_mlwh):
+        before_latest = LATEST - timedelta(days=1)
+        odd_positions = []
+
+        # Odd slot multiplexed experiments were done at LATEST time
+        for expt_name in ["multiplexed_experiment_001", "multiplexed_experiment_003"]:
+            for slot in [1, 3, 5]:
+                # Tag identifiers NB01 - NB12
+                for tag_id in [ont_tag_identifier(i + 1) for i in range(12)]:
+                    odd_positions.append(Component(expt_name, slot, tag_id))
+
+        assert [
+            c
+            for c in find_components_changed(
+                ont_synthetic_mlwh, before_latest, include_tags=True
+            )
+        ] == odd_positions
+
+        after_latest = LATEST + timedelta(days=1)
+        assert [
+            c
+            for c in find_components_changed(
+                ont_synthetic_mlwh, after_latest, include_tags=True
             )
         ] == []
 

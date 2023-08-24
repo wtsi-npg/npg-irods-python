@@ -213,6 +213,8 @@ def update_metadata(item: Collection | DataObject, avus: list[AVU]) -> bool:
         True if any changes were made, False if the desired metadata were already
         present.
     """
+    avus = sorted(set(avus))  # Ensure no duplicates, sort for reproducibility
+
     log.info("Updating metadata", path=item, meta=avus)
     num_removed, num_added = item.supersede_metadata(*avus, history=True)
     log.info(
@@ -247,6 +249,8 @@ def update_permissions(
         raise ValueError(
             f"Cannot recursively update permissions on a data object: {item}"
         )
+
+    acl = sorted(set(acl))  # Ensure no duplicates, sort for reproducibility
 
     if has_mixed_ownership(acl):
         log.warn("Mixed-study data", path=item, acl=acl)

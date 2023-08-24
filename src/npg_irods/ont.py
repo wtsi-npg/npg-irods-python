@@ -31,7 +31,7 @@ from sqlalchemy import asc, distinct
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
-from npg_irods.common import update_metadata, update_permissions, infer_zone
+from npg_irods.common import infer_zone, update_metadata, update_permissions
 from npg_irods.db.mlwh import OseqFlowcell, Sample, Study
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.lims import (
@@ -55,6 +55,8 @@ TAG_IDENTIFIER_REGEX = re.compile(r"(?P<tag_id>\d+)$")
 # Directories ignored when searching the run folder for directories containing deplexed
 # data. Examples of sibling directories that are not ignored: fast5_fail, fast5_pass
 IGNORED_DIRECTORIES = ["other_reports"]
+
+SQL_CHUNK_SIZE = 100
 
 
 @dataclass(order=True)
@@ -215,31 +217,16 @@ def annotate_results_collection(
     # multiplexed runs, their permissions must be set explicitly
     num_errors += _set_minknow_reports_public(coll)
 
-    sub_colls = [item for item in coll.contents() if item.rods_type == Collection]
-
     # This expects the barcode directory naming style created by current ONT's
     # Guppy de-multiplexer which creates several subdirectories e.g. "fast5_pass",
     # "fast_fail". Each of these subdirectories contains another directory for each
     # barcode, plus miscellaneous directories such as "mixed" and "unclassified".
 
-    for sc in sub_colls:  # fast5_fail, fast5_pass etc
-        # These are some known special cases that don't have barcode directories
-        if sc.path.name in IGNORED_DIRECTORIES:
-            log.debug("Ignoring", path=sc)
-            continue
+    for fc in flowcells:
+        try:
+            bcomp = Component(c.experiment_name, c.instrument_slot, fc.tag_identifier)
 
-        # Multiple fc records (one per plex of multiplexed data)
-        for fc in flowcells:
-            try:
-                bpath = sc.path / barcode_name_from_id(fc.tag_identifier)
-                bcoll = Collection(bpath)
-                bcomp = Component(
-                    c.experiment_name, c.instrument_slot, fc.tag_identifier
-                )
-                if not bcoll.exists():
-                    log.warn("Collection missing", path=bpath, comp=bcomp)
-                    continue
-
+            for bcoll in barcode_collections(coll, fc.tag_identifier):
                 log.info(
                     "Annotating",
                     path=bcoll,
@@ -263,9 +250,9 @@ def annotate_results_collection(
                 # cron job to call `ensure_secondary_metadata_updated`.
                 _do_secondary_metadata_and_perms_update(bcoll, [fc])
 
-            except RodsError as e:
-                log.error(e.message, code=e.code)
-                num_errors += 1
+        except RodsError as e:
+            log.error(e.message, code=e.code)
+            num_errors += 1
 
     return num_errors == 0
 
@@ -283,11 +270,15 @@ def ensure_secondary_metadata_updated(
     Returns:
         True if any changes were made.
     """
-    expt = item.avu(Instrument.EXPERIMENT_NAME.value)
-    slot = item.avu(Instrument.INSTRUMENT_SLOT.value)
-    tag_id = item.avu(Instrument.TAG_IDENTIFIER.value)
+    expt = item.avu(Instrument.EXPERIMENT_NAME).value
+    slot = item.avu(Instrument.INSTRUMENT_SLOT).value
+    tag_id = (
+        item.avu(Instrument.TAG_IDENTIFIER).value
+        if item.has_metadata_attrs(Instrument.TAG_IDENTIFIER)
+        else None
+    )
 
-    component = Component(expt.value, slot.value, tag_id.value)
+    component = Component(expt, slot, tag_id)
     flowcells = find_flowcells_by_component(mlwh_session, component)
 
     return _do_secondary_metadata_and_perms_update(item, flowcells)
@@ -339,7 +330,7 @@ def find_components_changed(
     if include_tags:
         columns.append(OseqFlowcell.tag_identifier)
 
-    for cols in (
+    query = (
         sess.query(*columns)
         .distinct()
         .join(OseqFlowcell.sample)
@@ -349,9 +340,15 @@ def find_components_changed(
             | (Study.recorded_at >= since)
             | (OseqFlowcell.recorded_at >= since)
         )
-        .group_by(OseqFlowcell.experiment_name, OseqFlowcell.instrument_slot)
-        .order_by(asc(OseqFlowcell.experiment_name), asc(OseqFlowcell.instrument_slot))
-    ):
+        .group_by(*columns)
+    )
+
+    order = [asc(OseqFlowcell.experiment_name), asc(OseqFlowcell.instrument_slot)]
+    if include_tags:
+        order.append(asc(OseqFlowcell.tag_identifier))
+    query = query.order_by(*order)
+
+    for cols in query.yield_per(SQL_CHUNK_SIZE):
         yield Component(*cols)
 
 
@@ -416,6 +413,55 @@ def barcode_name_from_id(tag_identifier: str) -> str:
         f"Invalid ONT tag identifier '{tag_identifier}'. "
         f"Expected a value matching {TAG_IDENTIFIER_REGEX}"
     )
+
+
+def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
+    """Return the barcode-specific sub-collections that exist under the specified
+    collection.
+
+    The arrangement of these collections mirrors the directory structure created by the
+    guppy basecaller. E.g. for tag identifier NB01:
+
+        <coll>/fast5_pass/barcode01
+        ...
+        <coll>/fast5_fail/barcode01
+        ...
+        <coll>/fastq_pass/barcode01
+        ...
+        <coll>/fastq_fail/barcode01
+
+    etc.
+
+    Args:
+        coll: A collection to search.
+        *tag_identifier: One or more tag identifiers. Only barcode collections for
+           these identifiers will be returned.
+
+    Returns:
+        A sorted list of existing collections.
+    """
+    bcolls = []
+
+    sub_colls = [item for item in coll.contents() if item.rods_type == Collection]
+    for sc in sub_colls:  # fast5_fail, fast5_pass etc
+        # These are some known special cases that don't have barcode directories
+        if sc.path.name in IGNORED_DIRECTORIES:
+            log.debug("Ignoring", path=sc)
+            continue
+
+        for tag_id in tag_identifier:
+            bpath = sc.path / barcode_name_from_id(tag_id)
+            bcoll = Collection(bpath)
+            if bcoll.exists():
+                bcolls.append(bcoll)
+            else:
+                # LIMS says there is a tag identifier, but there is no sub-collection,
+                # so possibly this was not deplexed on-instrument for some reason e.g.
+                # a non-standard tag set was used
+                log.warn("No barcode sub-collection", path=bcoll, tag_identifier=tag_id)
+    bcolls.sort()
+
+    return bcolls
 
 
 def is_minknow_report(obj: DataObject) -> bool:

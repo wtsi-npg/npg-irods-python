@@ -421,4 +421,4 @@ def has_id_product_metadata(obj: DataObject):
     Returns:
         True if the object has id product metadata, False otherwise.
     """
-    return len(obj.metadata(SeqConcept.ID_PRODUCT.value)) > 0
+    return len(obj.metadata(SeqConcept.ID_PRODUCT)) > 0
