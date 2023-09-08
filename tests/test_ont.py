@@ -17,25 +17,26 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+from datetime import datetime
 
+import pytest
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
-
 from pytest import mark as m
 
-from datetime import datetime
+from conftest import LATEST, history_in_meta, ont_tag_identifier, tests_have_admin
 from npg_irods import ont
-from conftest import LATEST, ont_tag_identifier, tests_have_admin, history_in_meta
+from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.lims import (
     TrackedSample,
     TrackedStudy,
     ensure_consent_withdrawn,
 )
-from npg_irods.metadata.common import SeqConcept
-
 from npg_irods.ont import (
     Component,
+    Instrument,
     annotate_results_collection,
     apply_metadata,
+    ensure_secondary_metadata_updated,
     is_minknow_report,
 )
 
@@ -158,7 +159,7 @@ class TestONTMetadataCreation(object):
 
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell011_69126024"
         c = Component(experiment_name=expt, instrument_slot=slot)
-        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+        assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         coll = Collection(path)
         for avu in [
@@ -246,7 +247,7 @@ class TestONTMetadataCreation(object):
 
 
 class TestONTMetadataUpdate(object):
-    @m.context("When ONT metadata are updated")
+    @m.context("When ONT metadata are applied")
     @m.context("When the metadata are absent")
     @m.it("Adds the metadata")
     def test_updates_absent_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
@@ -256,15 +257,18 @@ class TestONTMetadataUpdate(object):
         )
         assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
 
-        apply_metadata(
+        num_found, num_updated, num_errors = apply_metadata(
             experiment_name="simple_experiment_001",
             instrument_slot=1,
             mlwh_session=ont_synthetic_mlwh,
         )
 
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
+        assert num_found == 1
+        assert num_updated == 1
+        assert num_errors == 0
 
-    @m.context("When ONT metadata are updated")
+    @m.context("When ONT metadata are applied")
     @m.context("When correct metadata are already present")
     @m.it("Leaves the metadata unchanged")
     def test_updates_present_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
@@ -274,15 +278,18 @@ class TestONTMetadataUpdate(object):
         )
         coll.add_metadata(AVU(TrackedSample.NAME, "name1"))
 
-        apply_metadata(
+        num_found, num_updated, num_errors = apply_metadata(
             experiment_name="simple_experiment_001",
             instrument_slot=1,
             mlwh_session=ont_synthetic_mlwh,
         )
 
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
+        assert num_found == 1
+        assert num_updated == 1
+        assert num_errors == 0
 
-    @m.context("When ONT metadata are updated")
+    @m.context("When ONT metadata are applied")
     @m.context("When incorrect metadata are present")
     @m.it("Changes the metadata and adds history metadata")
     def test_updates_changed_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
@@ -292,7 +299,7 @@ class TestONTMetadataUpdate(object):
         )
         coll.add_metadata(AVU(TrackedSample.NAME, "name0"))
 
-        apply_metadata(
+        num_found, num_updated, num_errors = apply_metadata(
             experiment_name="simple_experiment_001",
             instrument_slot=1,
             mlwh_session=ont_synthetic_mlwh,
@@ -303,8 +310,11 @@ class TestONTMetadataUpdate(object):
         assert history_in_meta(
             AVU.history(AVU(TrackedSample.NAME, "name0")), coll.metadata()
         )
+        assert num_found == 1
+        assert num_updated == 1
+        assert num_errors == 0
 
-    @m.context("When ONT metadata are updated")
+    @m.context("When ONT metadata are applied")
     @m.context("When an attribute has multiple incorrect values")
     @m.it("Groups those values in the history metadata")
     def test_updates_multiple_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
@@ -315,11 +325,12 @@ class TestONTMetadataUpdate(object):
         coll.add_metadata(AVU(TrackedStudy.NAME, "Study A"))
         coll.add_metadata(AVU(TrackedStudy.NAME, "Study B"))
 
-        apply_metadata(
+        num_found, num_updated, num_errors = apply_metadata(
             experiment_name="simple_experiment_001",
             instrument_slot=1,
             mlwh_session=ont_synthetic_mlwh,
         )
+
         assert AVU(TrackedStudy.NAME, "Study Y") in coll.metadata()
         assert AVU(TrackedStudy.NAME, "Study A") not in coll.metadata()
         assert AVU(TrackedStudy.NAME, "Study B") not in coll.metadata()
@@ -330,6 +341,28 @@ class TestONTMetadataUpdate(object):
             ),
             coll.metadata(),
         )
+        assert num_found == 1
+        assert num_updated == 1
+        assert num_errors == 0
+
+    @m.context("When ONT metadata are updated")
+    @m.context("When an iRODS path has metadata identifying its run component")
+    @m.it("Updates the metadata")
+    def test_updates_annotated_collection(
+        self, ont_synthetic_irods, ont_synthetic_mlwh
+    ):
+        coll = Collection(
+            ont_synthetic_irods
+            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
+        )
+        coll.add_metadata(
+            AVU(Instrument.EXPERIMENT_NAME, "simple_experiment_001"),
+            AVU(Instrument.INSTRUMENT_SLOT, 1),
+        )
+
+        assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
+        assert ensure_secondary_metadata_updated(coll, mlwh_session=ont_synthetic_mlwh)
+        assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
 
 
 class TestONTPermissionsUpdate:
@@ -347,7 +380,7 @@ class TestONTPermissionsUpdate:
             AC("public", Permission.READ, zone="testZone"),
         ]
 
-        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+        assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         for ext in ["html", "md", "json.gz"]:
             assert (
@@ -372,7 +405,7 @@ class TestONTPermissionsUpdate:
         assert ensure_consent_withdrawn(coll)
         assert coll.acl() == expected_acl
 
-        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+        assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         assert coll.acl() == expected_acl, f"ACL of {coll} is {expected_acl}"
         for item in coll.contents(acl=True, recurse=True):
@@ -421,7 +454,7 @@ class TestONTPermissionsUpdate:
                     item.acl() == expected_acl
                 ), f"ACL of barcode collection member {item} is {expected_acl}"
 
-        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+        assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         for bc_coll in bc_colls:
             assert bc_coll.acl() == expected_acl, f"ACL of {c} is {expected_acl}"
