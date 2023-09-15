@@ -279,9 +279,8 @@ def ensure_secondary_metadata_updated(
     )
 
     component = Component(expt, slot, tag_id)
-    flowcells = find_flowcells_by_component(mlwh_session, component)
 
-    return _do_secondary_metadata_and_perms_update(item, flowcells)
+    return annotate_results_collection(item, component, mlwh_session=mlwh_session)
 
 
 def find_recent_expt(sess: Session, since: datetime) -> list[str]:
