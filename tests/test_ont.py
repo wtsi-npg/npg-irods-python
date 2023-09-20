@@ -19,7 +19,6 @@
 
 from datetime import datetime
 
-import pytest
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
 from pytest import mark as m
 
@@ -387,6 +386,91 @@ class TestONTPermissionsUpdate:
                 DataObject(path / f"report_multiplexed_synthetic.{ext}").acl()
                 == expected_acl
             )
+
+    @m.context("When ONT permissions are updated")
+    @m.context("When the experiment is single-sample")
+    @m.context("When permissions are absent")
+    @m.it("Add study-specific permissions")
+    def test_updates_absent_study_permissions(
+        self, ont_synthetic_irods, ont_synthetic_mlwh
+    ):
+        zone = "testZone"
+        expt = "simple_experiment_001"
+        slot = 1
+
+        coll = Collection(
+            ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        )
+        coll.add_metadata(
+            AVU(Instrument.EXPERIMENT_NAME, "simple_experiment_001"),
+            AVU(Instrument.INSTRUMENT_SLOT, slot),
+        )
+
+        assert coll.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+        assert ensure_secondary_metadata_updated(coll, mlwh_session=ont_synthetic_mlwh)
+        assert coll.permissions() == [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_2000", perm=Permission.READ, zone=zone),
+        ]
+
+    @m.context("When ONT permissions are updated")
+    @m.context("When data are single-sample")
+    @m.context("When the permissions are already present")
+    @m.it("Leaves the permissions unchanged")
+    def test_updates_present_study_permissions(
+        self, ont_synthetic_irods, ont_synthetic_mlwh
+    ):
+        zone = "testZone"
+        expt = "simple_experiment_001"
+        slot = 1
+
+        coll = Collection(
+            ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        )
+        coll.add_metadata(
+            AVU(Instrument.EXPERIMENT_NAME, "simple_experiment_001"),
+            AVU(Instrument.INSTRUMENT_SLOT, slot),
+        )
+        expected_acl = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_2000", perm=Permission.READ, zone=zone),
+        ]
+        coll.add_permissions(*expected_acl)
+
+        assert coll.permissions() == expected_acl
+        assert ensure_secondary_metadata_updated(coll, mlwh_session=ont_synthetic_mlwh)
+        assert coll.permissions() == expected_acl
+
+    @m.context("When ONT permissions are updated")
+    @m.context("When the experiment is single-sample")
+    @m.context("When incorrect permissions are present")
+    @m.it("Updated the permissions")
+    def test_updates_changed_study_permissions(
+        self, ont_synthetic_irods, ont_synthetic_mlwh
+    ):
+        zone = "testZone"
+        expt = "simple_experiment_001"
+        slot = 1
+
+        coll = Collection(
+            ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        )
+        coll.add_metadata(
+            AVU(Instrument.EXPERIMENT_NAME, "simple_experiment_001"),
+            AVU(Instrument.INSTRUMENT_SLOT, slot),
+        )
+
+        coll.add_permissions(AC("ss_1000", Permission.READ, zone=zone), recurse=True)
+        assert coll.permissions() == [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_1000", Permission.READ, zone=zone),
+        ]
+
+        assert ensure_secondary_metadata_updated(coll, mlwh_session=ont_synthetic_mlwh)
+        assert coll.permissions() == [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_2000", perm=Permission.READ, zone=zone),
+        ]
 
     @m.context("When ONT permissions are updated")
     @m.context("When the experiment is single-sample")
