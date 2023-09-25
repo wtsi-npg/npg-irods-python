@@ -25,7 +25,7 @@ from os import PathLike
 from pathlib import PurePath
 from typing import Tuple
 
-from partisan.irods import AC, AVU, Collection, DataObject, Permission
+from partisan.irods import AC, AVU, Collection, DataObject, Permission, rods_user
 from structlog import get_logger
 
 from npg_irods.metadata.lims import has_mixed_ownership, is_managed_access
@@ -258,10 +258,33 @@ def update_permissions(
             if is_managed_access(ac):
                 ac.perm = Permission.NULL
 
-    keep = [ac for ac in item.permissions() if not is_managed_access(ac)]
+    # Gather some of the current permissions that we want to keep, while we supersede
+    # all the rest with our new ACL:
+
+    # Don't try to remove current admin permissions (this would fail)
+    admin_acl = item.permissions(user_type="rodsadmin")
+
+    # Don't remove current group permissions, other than those we manage
+    not_managed_acl = [
+        ac
+        for ac in item.permissions(user_type="rodsgroup")
+        if not is_managed_access(ac)
+    ]
+
+    # Don't remove current permissions of ourselves (service user)
+    user = rods_user()
+    user_acl = [ac for ac in item.permissions() if ac.user == user.name]
+
+    keep = sorted(set(admin_acl + not_managed_acl + user_acl))
+    log.debug(
+        "Found permissions to keep",
+        path=item,
+        user=user_acl,
+        admin=admin_acl,
+        not_managed=not_managed_acl,
+    )
 
     log.info("Updating permissions", path=item, keep=keep, acl=acl)
-
     kwargs = {"recurse": recurse} if recurse else {}
     num_removed, num_added = item.supersede_permissions(*keep, *acl, **kwargs)
     log.info(
