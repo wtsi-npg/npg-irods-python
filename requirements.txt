@@ -2,7 +2,7 @@ cryptography==41.0.3
 npg_id_generation@https://github.com/wtsi-npg/npg_id_generation/releases/download/3.0.0/npg_id_generation-3.0.0.tar.gz
 partisan@https://github.com/wtsi-npg/partisan/releases/download/2.8.1/partisan-2.8.1.tar.gz
 pymysql==1.1.0
-rich==13.5.2
+rich==13.5.3
 setuptools==68.2.2
 setuptools-git-versioning==1.13.5
 sqlalchemy==2.0.20
