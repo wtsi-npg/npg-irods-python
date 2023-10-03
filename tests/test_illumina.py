@@ -38,6 +38,7 @@ class TestIlluminaMetadataUpdate(object):
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345.cram"
+
         obj = DataObject(path)
         expected_avus = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
@@ -66,8 +67,9 @@ class TestIlluminaMetadataUpdate(object):
     def test_updates_present_metadata(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345.cram"
         zone = "testZone"
+        path = illumina_synthetic_irods / "12345/12345.cram"
+
         obj = DataObject(path)
         expected_avus = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
@@ -101,6 +103,7 @@ class TestIlluminaMetadataUpdate(object):
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345.cram"
+
         obj = DataObject(path)
         old_avus = [AVU(TrackedSample.NAME, "sample 99"), AVU(TrackedStudy.ID, "9999")]
         obj.add_metadata(*old_avus)
@@ -135,6 +138,7 @@ class TestIlluminaMetadataUpdate(object):
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345.cram"
+
         obj = DataObject(path)
         old_avus = [
             AVU(TrackedSample.NAME, "sample 99"),
@@ -164,6 +168,7 @@ class TestIlluminaMetadataUpdate(object):
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345#1.cram"
+
         obj = DataObject(path)
         expected_avus = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
@@ -197,6 +202,7 @@ class TestIlluminaMetadataUpdate(object):
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345#888.cram"
+
         obj = DataObject(path)
 
         with pytest.raises(ValueError):
@@ -212,6 +218,7 @@ class TestIlluminaMetadataUpdate(object):
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345#0.cram"
+
         obj = DataObject(path)
         expected_avus = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
@@ -248,6 +255,7 @@ class TestIlluminaMetadataUpdate(object):
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345#0.cram"
+
         obj = DataObject(path)
         expected_avus = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
@@ -287,8 +295,9 @@ class TestIlluminaPermissionsUpdate:
     def test_updates_absent_study_permissions(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345.cram"
         zone = "testZone"
+        path = illumina_synthetic_irods / "12345/12345.cram"
+
         obj = DataObject(path)
 
         assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
@@ -306,8 +315,9 @@ class TestIlluminaPermissionsUpdate:
     def test_updates_present_study_permissions(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345.cram"
         zone = "testZone"
+        path = illumina_synthetic_irods / "12345/12345.cram"
+
         obj = DataObject(path)
 
         expected_metadata = [
@@ -340,8 +350,9 @@ class TestIlluminaPermissionsUpdate:
     def test_updates_changed_study_permissions(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345.cram"
         zone = "testZone"
+        path = illumina_synthetic_irods / "12345/12345.cram"
+
         obj = DataObject(path)
         obj.add_permissions(AC("ss_1000", Permission.READ, zone=zone))
         old_permissions = [
@@ -365,8 +376,9 @@ class TestIlluminaPermissionsUpdate:
     def test_updates_human_permissions_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345#1_human.cram"
         zone = "testZone"
+        path = illumina_synthetic_irods / "12345/12345#1_human.cram"
+
         obj = DataObject(path)
         expected_acl = [
             AC("irods", perm=Permission.OWN, zone=zone),
@@ -386,8 +398,9 @@ class TestIlluminaPermissionsUpdate:
     def test_updates_xahuman_permissions_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345#1_xahuman.cram"
         zone = "testZone"
+        path = illumina_synthetic_irods / "12345/12345#1_xahuman.cram"
+
         obj = DataObject(path)
         expected_acl = [
             AC("irods", perm=Permission.OWN, zone=zone),
@@ -407,8 +420,9 @@ class TestIlluminaPermissionsUpdate:
     def test_multiple_study_permissions_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345#2.cram"
         zone = "testZone"
+        path = illumina_synthetic_irods / "12345/12345#2.cram"
+
         obj = DataObject(path)
         obj.add_permissions(
             AC("ss_4000", Permission.READ, zone=zone),
@@ -426,8 +440,9 @@ class TestIlluminaPermissionsUpdate:
     def test_retains_consent_withdrawn(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345.cram"
         zone = "testZone"
+        path = illumina_synthetic_irods / "12345/12345.cram"
+
         obj = DataObject(path)
 
         assert ensure_consent_withdrawn(obj)
@@ -443,8 +458,9 @@ class TestIlluminaPermissionsUpdate:
     def test_updates_human_permissions_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345#1_human.cram"
         zone = "testZone"
+        path = illumina_synthetic_irods / "12345/12345#1_human.cram"
+
         obj = DataObject(path)
 
         assert ensure_consent_withdrawn(obj)

@@ -97,8 +97,11 @@ class TestONTFindUpdates:
     @m.context("When an experiment name is specified")
     @m.it("Finds only collections with that experiment name")
     def test_find_updates_for_experiment(self, ont_synthetic_irods, ont_synthetic_mlwh):
+        expt = "simple_experiment_001"
+        slot = 1
+
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name="simple_experiment_001", mlwh_session=ont_synthetic_mlwh
+            experiment_name=expt, mlwh_session=ont_synthetic_mlwh
         )
 
         expected_colls = [
@@ -126,18 +129,15 @@ class TestONTFindUpdates:
     def test_find_updates_for_experiment_slot(
         self, ont_synthetic_irods, ont_synthetic_mlwh
     ):
+        expt = "simple_experiment_001"
+        slot = 1
+        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name="simple_experiment_001",
-            instrument_slot=1,
-            mlwh_session=ont_synthetic_mlwh,
+            experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
         )
 
-        expected_colls = [
-            Collection(
-                ont_synthetic_irods
-                / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
-            )
-        ]
+        expected_colls = [Collection(path)]
         num_expected = len(expected_colls)
 
         assert (
@@ -153,11 +153,13 @@ class TestONTMetadataCreation(object):
     @m.context("When the experiment is single-sample")
     @m.it("Adds sample and study metadata to the run-folder collection")
     def test_add_new_sample_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
+        zone = "testZone"
         expt = "simple_experiment_001"
         slot = 1
-
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell011_69126024"
+
         c = Component(experiment_name=expt, instrument_slot=slot)
+
         assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         coll = Collection(path)
@@ -175,8 +177,8 @@ class TestONTMetadataCreation(object):
             assert avu in coll.metadata(), f"{avu} is in {coll} metadata"
 
         expected_acl = [
-            AC("irods", Permission.OWN, zone="testZone"),
-            AC("ss_2000", Permission.READ, zone="testZone"),
+            AC("irods", Permission.OWN, zone=zone),
+            AC("ss_2000", Permission.READ, zone=zone),
         ]
         assert coll.acl() == expected_acl, f"ACL of {coll} is { expected_acl}"
         for item in coll.contents():
@@ -189,10 +191,11 @@ class TestONTMetadataCreation(object):
     def test_add_new_plex_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
         expt = "multiplexed_experiment_001"
         slot = 1
-
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+
         c = Component(experiment_name=expt, instrument_slot=slot)
-        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+
+        assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         for subcoll in ["fast5_fail", "fast5_pass", "fastq_fail", "fastq_pass"]:
             for tag_index in range(1, 12):
@@ -210,12 +213,14 @@ class TestONTMetadataCreation(object):
     def test_add_new_plex_sample_metadata(
         self, ont_synthetic_irods, ont_synthetic_mlwh
     ):
+        zone = "testZone"
         expt = "multiplexed_experiment_001"
         slot = 1
-
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+
         c = Component(experiment_name=expt, instrument_slot=slot)
-        annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+
+        assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         for subcoll in ["fast5_fail", "fast5_pass", "fastq_fail", "fastq_pass"]:
             for tag_index in range(1, 12):
@@ -236,8 +241,8 @@ class TestONTMetadataCreation(object):
                     assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
 
                 expected_acl = [
-                    AC("irods", Permission.OWN, zone="testZone"),
-                    AC("ss_3000", Permission.READ, zone="testZone"),
+                    AC("irods", Permission.OWN, zone=zone),
+                    AC("ss_3000", Permission.READ, zone=zone),
                 ]
 
                 assert bc_coll.acl() == expected_acl
@@ -250,16 +255,16 @@ class TestONTMetadataUpdate(object):
     @m.context("When the metadata are absent")
     @m.it("Adds the metadata")
     def test_updates_absent_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        coll = Collection(
-            ont_synthetic_irods
-            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
-        )
+        expt = "simple_experiment_001"
+        slot = 1
+        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+
+        coll = Collection(path)
+
         assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
 
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name="simple_experiment_001",
-            instrument_slot=1,
-            mlwh_session=ont_synthetic_mlwh,
+            experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
         )
 
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
@@ -271,16 +276,15 @@ class TestONTMetadataUpdate(object):
     @m.context("When correct metadata are already present")
     @m.it("Leaves the metadata unchanged")
     def test_updates_present_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        coll = Collection(
-            ont_synthetic_irods
-            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
-        )
+        expt = "simple_experiment_001"
+        slot = 1
+        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+
+        coll = Collection(path)
         coll.add_metadata(AVU(TrackedSample.NAME, "name1"))
 
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name="simple_experiment_001",
-            instrument_slot=1,
-            mlwh_session=ont_synthetic_mlwh,
+            experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
         )
 
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
@@ -292,16 +296,15 @@ class TestONTMetadataUpdate(object):
     @m.context("When incorrect metadata are present")
     @m.it("Changes the metadata and adds history metadata")
     def test_updates_changed_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        coll = Collection(
-            ont_synthetic_irods
-            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
-        )
+        expt = "simple_experiment_001"
+        slot = 1
+        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+
+        coll = Collection(path)
         coll.add_metadata(AVU(TrackedSample.NAME, "name0"))
 
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name="simple_experiment_001",
-            instrument_slot=1,
-            mlwh_session=ont_synthetic_mlwh,
+            experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
         )
 
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
@@ -317,17 +320,16 @@ class TestONTMetadataUpdate(object):
     @m.context("When an attribute has multiple incorrect values")
     @m.it("Groups those values in the history metadata")
     def test_updates_multiple_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        coll = Collection(
-            ont_synthetic_irods
-            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
-        )
+        expt = "simple_experiment_001"
+        slot = 1
+        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+
+        coll = Collection(path)
         coll.add_metadata(AVU(TrackedStudy.NAME, "Study A"))
         coll.add_metadata(AVU(TrackedStudy.NAME, "Study B"))
 
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name="simple_experiment_001",
-            instrument_slot=1,
-            mlwh_session=ont_synthetic_mlwh,
+            experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
         )
 
         assert AVU(TrackedStudy.NAME, "Study Y") in coll.metadata()
@@ -350,13 +352,13 @@ class TestONTMetadataUpdate(object):
     def test_updates_annotated_collection(
         self, ont_synthetic_irods, ont_synthetic_mlwh
     ):
-        coll = Collection(
-            ont_synthetic_irods
-            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
-        )
+        expt = "simple_experiment_001"
+        slot = 1
+        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+
+        coll = Collection(path)
         coll.add_metadata(
-            AVU(Instrument.EXPERIMENT_NAME, "simple_experiment_001"),
-            AVU(Instrument.INSTRUMENT_SLOT, 1),
+            AVU(Instrument.EXPERIMENT_NAME, expt), AVU(Instrument.INSTRUMENT_SLOT, slot)
         )
 
         assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
@@ -369,14 +371,15 @@ class TestONTPermissionsUpdate:
     @m.context("When ONT permissions are updated")
     @m.it("Makes report files publicly readable")
     def test_public_read_reports(self, ont_synthetic_irods, ont_synthetic_mlwh):
+        zone = "testZone"
         expt = "multiplexed_experiment_001"
         slot = 1
-
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+
         c = Component(experiment_name=expt, instrument_slot=slot)
         expected_acl = [
-            AC("irods", Permission.OWN, zone="testZone"),
-            AC("public", Permission.READ, zone="testZone"),
+            AC("irods", Permission.OWN, zone=zone),
+            AC("public", Permission.READ, zone=zone),
         ]
 
         assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
@@ -397,13 +400,11 @@ class TestONTPermissionsUpdate:
         zone = "testZone"
         expt = "simple_experiment_001"
         slot = 1
+        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
 
-        coll = Collection(
-            ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
-        )
+        coll = Collection(path)
         coll.add_metadata(
-            AVU(Instrument.EXPERIMENT_NAME, "simple_experiment_001"),
-            AVU(Instrument.INSTRUMENT_SLOT, slot),
+            AVU(Instrument.EXPERIMENT_NAME, expt), AVU(Instrument.INSTRUMENT_SLOT, slot)
         )
 
         assert coll.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
@@ -423,13 +424,11 @@ class TestONTPermissionsUpdate:
         zone = "testZone"
         expt = "simple_experiment_001"
         slot = 1
+        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
 
-        coll = Collection(
-            ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
-        )
+        coll = Collection(path)
         coll.add_metadata(
-            AVU(Instrument.EXPERIMENT_NAME, "simple_experiment_001"),
-            AVU(Instrument.INSTRUMENT_SLOT, slot),
+            AVU(Instrument.EXPERIMENT_NAME, expt), AVU(Instrument.INSTRUMENT_SLOT, slot)
         )
         expected_acl = [
             AC("irods", perm=Permission.OWN, zone=zone),
@@ -451,21 +450,18 @@ class TestONTPermissionsUpdate:
         zone = "testZone"
         expt = "simple_experiment_001"
         slot = 1
+        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
 
-        coll = Collection(
-            ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
-        )
+        coll = Collection(path)
         coll.add_metadata(
-            AVU(Instrument.EXPERIMENT_NAME, "simple_experiment_001"),
-            AVU(Instrument.INSTRUMENT_SLOT, slot),
+            AVU(Instrument.EXPERIMENT_NAME, expt), AVU(Instrument.INSTRUMENT_SLOT, slot)
         )
-
         coll.add_permissions(AC("ss_1000", Permission.READ, zone=zone), recurse=True)
+
         assert coll.permissions() == [
             AC("irods", perm=Permission.OWN, zone=zone),
             AC("ss_1000", Permission.READ, zone=zone),
         ]
-
         assert ensure_secondary_metadata_updated(coll, mlwh_session=ont_synthetic_mlwh)
         assert coll.permissions() == [
             AC("irods", perm=Permission.OWN, zone=zone),
@@ -480,8 +476,8 @@ class TestONTPermissionsUpdate:
         zone = "testZone"
         expt = "simple_experiment_001"
         slot = 1
-
         path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+
         c = Component(experiment_name=expt, instrument_slot=slot)
         expected_acl = [AC("irods", perm=Permission.OWN, zone=zone)]
 
@@ -505,10 +501,8 @@ class TestONTPermissionsUpdate:
         zone = "testZone"
         expt = "multiplexed_experiment_001"
         slot = 1
-        path = (
-            ont_synthetic_irods
-            / "multiplexed_experiment_001/20190904_1514_GA10000_flowcell101_cf751ba1"
-        )
+        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+
         c = Component(experiment_name=expt, instrument_slot=slot)
         expected_acl = [AC("irods", perm=Permission.OWN, zone=zone)]
         expected_report_acl = [
