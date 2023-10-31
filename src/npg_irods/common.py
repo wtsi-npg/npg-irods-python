@@ -220,7 +220,6 @@ def update_metadata(item: Collection | DataObject, avus: list[AVU]) -> bool:
     log.info(
         "Updated metadata",
         path=item,
-        meta=avus,
         num_added=num_added,
         num_removed=num_removed,
     )
