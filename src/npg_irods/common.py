@@ -220,7 +220,6 @@ def update_metadata(item: Collection | DataObject, avus: list[AVU]) -> bool:
     log.info(
         "Updated metadata",
         path=item,
-        meta=avus,
         num_added=num_added,
         num_removed=num_removed,
     )
@@ -275,23 +274,21 @@ def update_permissions(
     user = rods_user()
     user_acl = [ac for ac in item.permissions() if ac.user == user.name]
 
-    keep = sorted(set(admin_acl + not_managed_acl + user_acl))
+    preserve = sorted(set(admin_acl + not_managed_acl + user_acl))
     log.debug(
-        "Found permissions to keep",
+        "Found permissions to preserve",
         path=item,
         user=user_acl,
         admin=admin_acl,
         not_managed=not_managed_acl,
     )
 
-    log.info("Updating permissions", path=item, keep=keep, acl=acl)
+    log.info("Updating permissions", path=item, preserve=preserve, acl=acl)
     kwargs = {"recurse": recurse} if recurse else {}
-    num_removed, num_added = item.supersede_permissions(*keep, *acl, **kwargs)
+    num_removed, num_added = item.supersede_permissions(*preserve, *acl, **kwargs)
     log.info(
         "Updated permissions",
         path=item,
-        keep=keep,
-        acl=acl,
         num_added=num_added,
         num_removed=num_removed,
     )
