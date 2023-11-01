@@ -227,8 +227,8 @@ def find_flowcells_by_component(
     Args:
         sess: An open SQL session.
         component: A component
-        include_controls: If True, add parameters to the query to include spiked-in
-        controls in the result.
+        include_controls: If False, include query arguments to exclude spiked-in
+            controls in the result. Defaults to False.
 
     Returns:
         The associated flowcells.
@@ -244,14 +244,23 @@ def find_flowcells_by_component(
         query = query.filter(IseqProductMetrics.position == component.position)
 
     match component.tag_index:
-        case TagIndex.CONTROL_198.value | TagIndex.CONTROL_888.value if include_controls:
-            query = query.filter(IseqProductMetrics.tag_index == component.tag_index)
         case TagIndex.CONTROL_198.value | TagIndex.CONTROL_888.value:
-            raise ValueError(
-                "Attempted to exclude controls for a query specifically requesting "
-                f"control tag index {component.tag_index}"
-            )
+            if not include_controls:
+                query = query.filter(
+                    IseqProductMetrics.tag_index.notin_(
+                        [TagIndex.CONTROL_198.value, TagIndex.CONTROL_888.value]
+                    )
+                )
+
+            query = query.filter(IseqProductMetrics.tag_index == component.tag_index)
         case TagIndex.BIN.value:
+            if not include_controls:
+                query = query.filter(
+                    IseqProductMetrics.tag_index.notin_(
+                        [TagIndex.CONTROL_198.value, TagIndex.CONTROL_888.value]
+                    )
+                )
+
             query = query.filter(IseqProductMetrics.tag_index.is_not(None))
         case int():
             query = query.filter(IseqProductMetrics.tag_index == component.tag_index)
