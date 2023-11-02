@@ -625,7 +625,7 @@ def update_secondary_metadata(
                 case Platform.ILLUMINA, AnalysisType.NUCLEIC_ACID_SEQUENCING:
                     log.info("Illumina", item=i, path=p)
                     updated = illumina.ensure_secondary_metadata_updated(
-                        rods_item, mlwh_session
+                        rods_item, mlwh_session, include_controls=False
                     )
                 case Platform.OXFORD_NANOPORE_TECHNOLOGIES, AnalysisType.NUCLEIC_ACID_SEQUENCING:
                     log.info("ONT", item=i, path=p)

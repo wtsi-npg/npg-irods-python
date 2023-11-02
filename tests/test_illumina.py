@@ -194,21 +194,36 @@ class TestIlluminaMetadataUpdate(object):
             assert avu in obj.metadata()
 
     @m.context("When the data are multiplexed")
-    @m.context(
-        "When spike-in controls are excluded, but the tag index is for a control"
-    )
-    @m.it("Raises an exception")
+    @m.context("When the tag index is for a control")
+    @m.it("Adds metadata while respecting the include_controls option")
     def test_updates_control_metadata_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         path = illumina_synthetic_irods / "12345/12345#888.cram"
 
         obj = DataObject(path)
+        expected_avus = [
+            AVU(TrackedSample.NAME, "Phi X"),
+            AVU(TrackedStudy.ID, "888"),
+            AVU(TrackedStudy.NAME, "Control Study"),
+        ]
 
-        with pytest.raises(ValueError):
-            ensure_secondary_metadata_updated(
-                obj, mlwh_session=illumina_synthetic_mlwh, include_controls=False
-            )
+        for avu in expected_avus:
+            assert avu not in obj.metadata()
+
+        assert not ensure_secondary_metadata_updated(
+            obj, mlwh_session=illumina_synthetic_mlwh, include_controls=False
+        )
+
+        for avu in expected_avus:
+            assert avu not in obj.metadata()
+
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=illumina_synthetic_mlwh, include_controls=True
+        )
+
+        for avu in expected_avus:
+            assert avu in obj.metadata()
 
     @m.context("When the data are multiplexed")
     @m.context("When the data are associated with the computationally created tag 0")
@@ -249,8 +264,10 @@ class TestIlluminaMetadataUpdate(object):
 
     @m.context("When the data are multiplexed")
     @m.context("When the data are associated with the computationally created tag 0")
-    @m.context("When spike-in controls are requested")
-    @m.it("Adds extra spike-in control metadata")
+    @m.it(
+        "Adds extra spike-in control metadata while respecting "
+        "the include_controls option"
+    )
     def test_updates_control_metadata_mx_tag0(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
@@ -266,25 +283,37 @@ class TestIlluminaMetadataUpdate(object):
             AVU(TrackedSample.ID, "id_sample_lims2"),
             AVU(TrackedSample.NAME, "name1"),
             AVU(TrackedSample.NAME, "name2"),
-            AVU(TrackedSample.NAME, "Phi X"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name2"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name2"),
             AVU(TrackedStudy.ID, "4000"),
-            AVU(TrackedStudy.ID, "888"),
             AVU(TrackedStudy.NAME, "Study A"),
+        ]
+        control_avus = [
+            AVU(TrackedSample.NAME, "Phi X"),
+            AVU(TrackedStudy.ID, "888"),
             AVU(TrackedStudy.NAME, "Control Study"),
         ]
 
         for avu in expected_avus:
             assert avu not in obj.metadata()
 
+        # Not False because some changes do take effect, aside from the controls
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=illumina_synthetic_mlwh, include_controls=False
+        )
+
+        for avu in expected_avus:
+            assert avu in obj.metadata()
+        for avu in control_avus:
+            assert avu not in obj.metadata()
+
         assert ensure_secondary_metadata_updated(
             obj, mlwh_session=illumina_synthetic_mlwh, include_controls=True
         )
 
-        for avu in expected_avus:
+        for avu in expected_avus + control_avus:
             assert avu in obj.metadata()
 
 
