@@ -84,12 +84,13 @@ def apply_metadata(
     experiment_name=None,
     instrument_slot=None,
     since: datetime = None,
+    until: datetime = None,
     zone=None,
 ) -> (int, int, int):
     """Apply iRODS metadata on ONT run collections whose corresponding ML warehouse
-    records have been updated at, or more recently than, the specified time. This
-    function detects runs that are multiplexed and adds relevant tag identifier and
-    tag index primary metadata to the deplexed collections.
+    records have been updated within a specified time range. This function detects
+    runs that are multiplexed and adds relevant tag identifier and tag index primary
+    metadata to the deplexed collections.
 
     Collections to annotate are identified by having ont:experiment_name and
     ont:instrument_slot metadata already attached to them. This is done for example,
@@ -101,6 +102,7 @@ def apply_metadata(
         instrument_slot: Limit updates to this instrument slot. Optional, requires
           an experiment_name to be supplied.
         since: A datetime. Limit updates to experiments changed at this time or later.
+        until: A datetime. Limit updates to experiments before at this time or earlier.
         zone: The iRODS zone to search for metadata to update.
 
     Returns:
@@ -109,6 +111,8 @@ def apply_metadata(
     """
     if since is None:
         since = datetime.fromtimestamp(0)  # Everything since the Epoch
+    if until is None:
+        until = datetime.now()
 
     if experiment_name is None and instrument_slot is not None:
         raise ValueError(
@@ -119,7 +123,9 @@ def apply_metadata(
     num_found, num_updated, num_errors = 0, 0, 0
 
     for i, c in enumerate(
-        find_components_changed(mlwh_session, include_tags=False, since=since)
+        find_updated_components(
+            mlwh_session, include_tags=False, since=since, until=until
+        )
     ):
         if experiment_name is not None and c.experiment_name != experiment_name:
             continue
@@ -309,8 +315,8 @@ def find_recent_expt(sess: Session, since: datetime) -> list[str]:
     return [val for val, in rows]
 
 
-def find_components_changed(
-    sess: Session, since: datetime, include_tags=True
+def find_updated_components(
+    sess: Session, since: datetime, until: datetime, include_tags=True
 ) -> Iterator[Component]:
     """Return the components of runs whose ML warehouse metadata has been updated
     at or since the given date and time.
@@ -318,6 +324,7 @@ def find_components_changed(
     Args:
         sess: An open SQL session.
         since: A datetime.
+        until: A datetime.
         include_tags: Resolve the components to the granularity of individual tags,
           rather than as whole runs. Optional, defaults to True.
 
@@ -335,9 +342,9 @@ def find_components_changed(
         .join(OseqFlowcell.sample)
         .join(OseqFlowcell.study)
         .filter(
-            (Sample.recorded_at >= since)
-            | (Study.recorded_at >= since)
-            | (OseqFlowcell.recorded_at >= since)
+            Sample.recorded_at.between(since, until)
+            | Study.recorded_at.between(since, until)
+            | OseqFlowcell.recorded_at.between(since, until)
         )
         .group_by(*columns)
     )

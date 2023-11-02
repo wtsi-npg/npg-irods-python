@@ -24,7 +24,11 @@ from pytest import mark as m
 from conftest import BEGIN, EARLY, LATE, LATEST, ont_tag_identifier
 from npg_irods.metadata import illumina
 from npg_irods.metadata.lims import TrackedSample, TrackedStudy
-from npg_irods.ont import Component, find_components_changed, find_recent_expt
+from npg_irods.ont import Component, find_updated_components, find_recent_expt
+
+# Even-numbered experiments were done EARLY. Odd-numbered experiments were done LATE
+# if they were on an even instrument position, or LATEST if they were on an odd
+# instrument position.
 
 
 @m.describe("Finding updated ONT experiments by datetime")
@@ -44,7 +48,6 @@ class TestONTMLWarehouseQueries(object):
         ]
         assert find_recent_expt(ont_synthetic_mlwh, EARLY) == all_expts
 
-        # Odd-numbered experiments were done late or latest
         before_late = LATE - timedelta(days=1)
         odd_expts = [
             "simple_experiment_001",
@@ -60,10 +63,37 @@ class TestONTMLWarehouseQueries(object):
         assert none == []
 
     @m.describe("Finding updated experiments and positions by datetime")
-    @m.context("When a query date is provided")
+    @m.context("When a query dates are provided")
     @m.it("Finds the correct experiment, slot tuples")
-    def test_find_recent_component(self, ont_synthetic_mlwh):
+    def test_find_updated_components(self, ont_synthetic_mlwh):
         before_late = LATE - timedelta(days=1)
+        even_expts = [
+            Component(*args)
+            for args in [
+                ("multiplexed_experiment_002", 1),
+                ("multiplexed_experiment_002", 2),
+                ("multiplexed_experiment_002", 3),
+                ("multiplexed_experiment_002", 4),
+                ("multiplexed_experiment_002", 5),
+                ("simple_experiment_002", 1),
+                ("simple_experiment_002", 2),
+                ("simple_experiment_002", 3),
+                ("simple_experiment_002", 4),
+                ("simple_experiment_002", 5),
+                ("simple_experiment_004", 1),
+                ("simple_experiment_004", 2),
+                ("simple_experiment_004", 3),
+                ("simple_experiment_004", 4),
+                ("simple_experiment_004", 5),
+            ]
+        ]
+        assert [
+            c
+            for c in find_updated_components(
+                ont_synthetic_mlwh, EARLY, before_late, include_tags=False
+            )
+        ] == even_expts
+
         odd_expts = [
             Component(*args)
             for args in [
@@ -96,8 +126,8 @@ class TestONTMLWarehouseQueries(object):
         ]
         assert [
             c
-            for c in find_components_changed(
-                ont_synthetic_mlwh, before_late, include_tags=False
+            for c in find_updated_components(
+                ont_synthetic_mlwh, before_late, LATEST, include_tags=False
             )
         ] == odd_expts
 
@@ -115,25 +145,26 @@ class TestONTMLWarehouseQueries(object):
         ]
         assert [
             c
-            for c in find_components_changed(
-                ont_synthetic_mlwh, before_latest, include_tags=False
+            for c in find_updated_components(
+                ont_synthetic_mlwh, before_latest, LATEST, include_tags=False
             )
         ] == odd_positions
 
-        after_latest = LATEST + timedelta(days=1)
+        after_latest1 = LATEST + timedelta(days=1)
+        after_latest100 = LATEST + timedelta(days=100)
         assert [
             c
-            for c in find_components_changed(
-                ont_synthetic_mlwh, after_latest, include_tags=False
+            for c in find_updated_components(
+                ont_synthetic_mlwh, after_latest1, after_latest100, include_tags=False
             )
         ] == []
 
     @m.describe(
         "Finding updated experiments, positions and tag identifiers by datetime"
     )
-    @m.context("When a query date is provided")
+    @m.context("When query dates are provided")
     @m.it("Finds the correct experiment, slot, tag identifier tuples")
-    def test_find_recent_component_tag(self, ont_synthetic_mlwh):
+    def test_find_updated_components_tag(self, ont_synthetic_mlwh):
         before_latest = LATEST - timedelta(days=1)
         odd_positions = []
 
@@ -146,16 +177,17 @@ class TestONTMLWarehouseQueries(object):
 
         assert [
             c
-            for c in find_components_changed(
-                ont_synthetic_mlwh, before_latest, include_tags=True
+            for c in find_updated_components(
+                ont_synthetic_mlwh, before_latest, LATEST, include_tags=True
             )
         ] == odd_positions
 
-        after_latest = LATEST + timedelta(days=1)
+        after_latest1 = LATEST + timedelta(days=1)
+        after_latest100 = LATEST + timedelta(days=100)
         assert [
             c
-            for c in find_components_changed(
-                ont_synthetic_mlwh, after_latest, include_tags=True
+            for c in find_updated_components(
+                ont_synthetic_mlwh, after_latest1, after_latest100, include_tags=True
             )
         ] == []
 
