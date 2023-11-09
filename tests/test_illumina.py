@@ -484,7 +484,7 @@ class TestIlluminaPermissionsUpdate:
     @m.context("When data are multiplexed")
     @m.context("When data have had consent withdrawn")
     @m.it("Does not restore access permissions")
-    def test_updates_human_permissions_mx(
+    def test_retains_consent_withdrawn_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         zone = "testZone"
