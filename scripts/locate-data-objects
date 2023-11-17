@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 
 import sqlalchemy
 import structlog
-from partisan.irods import AVU, query_metadata
+from partisan.irods import AVU, DataObject, query_metadata
 from sqlalchemy.orm import Session
 
 from npg_irods import illumina, ont
@@ -128,14 +128,20 @@ def consent_withdrawn(cli_args):
                 log.error("Missing id_sample_lims", item=i, sample=s)
                 continue
 
+            query = AVU(TrackedSample.ID, s.id_sample_lims)
+            zone = cli_args.zone
+
             try:
                 for obj in query_metadata(
-                    AVU(TrackedSample.ID, s.id_sample_lims),
-                    data_object=True,
-                    collection=False,
-                    zone=cli_args.zone,
+                    query, data_object=True, collection=False, zone=zone
                 ):
                     print(obj)
+                for coll in query_metadata(
+                    query, data_object=False, collection=True, zone=zone
+                ):
+                    for item in coll.iter_contents(recurse=True):
+                        if item.rods_type == DataObject:
+                            print(item)
             except Exception as e:
                 num_errors += 1
                 log.exception(e, item=i, sample=s)
