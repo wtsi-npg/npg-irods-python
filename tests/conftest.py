@@ -80,10 +80,12 @@ TEST_GROUPS = ["ss_1000", "ss_2000", "ss_3000", "ss_4000", "ss_5000", "ss_888"]
 TEST_SQL_STALE_REPLICATE = "setObjectReplStale"
 TEST_SQL_INVALID_CHECKSUM = "setObjectChecksumInvalid"
 
+# Counts of test fixture experiments
 NUM_SIMPLE_EXPTS = 5
 NUM_MULTIPLEXED_EXPTS = 3
 NUM_INSTRUMENT_SLOTS = 5
 
+# Dates when test fixture experiments were done
 BEGIN = datetime(year=2020, month=1, day=1, hour=0, minute=0, second=0)
 EARLY = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0)
 LATE = datetime(year=2020, month=6, day=14, hour=0, minute=0, second=0)

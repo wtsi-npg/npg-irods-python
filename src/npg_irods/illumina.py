@@ -272,9 +272,11 @@ def find_flowcells_by_component(
     return query.order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp)).all()
 
 
-def find_components_changed(sess: Session, since: datetime) -> Iterator[Component]:
+def find_updated_components(
+    sess: Session, since: datetime, until: datetime
+) -> Iterator[Component]:
     """Find in the ML warehouse any Illumina sequence components whose tracking
-    metadata has been changed since a given time.
+    metadata has been changed within a specified time range
 
     A change is defined as the "recorded_at" column (Sample, Study, IseqFlowcell) or
     "last_changed" colum (IseqProductMetrics) having a timestamp more recent than the
@@ -282,7 +284,8 @@ def find_components_changed(sess: Session, since: datetime) -> Iterator[Componen
 
     Args:
         sess: An open SQL session.
-        since: A datetime query argument.
+        since: A datetime.
+        until: A datetime.
 
     Returns:
         An iterator over Components whose tracking metadata have changed.
@@ -296,10 +299,10 @@ def find_components_changed(sess: Session, since: datetime) -> Iterator[Componen
         .join(IseqFlowcell.study)
         .join(IseqFlowcell.iseq_product_metrics)
         .filter(
-            (Sample.recorded_at >= since)
-            | (Study.recorded_at >= since)
-            | (IseqFlowcell.recorded_at >= since)
-            | (IseqProductMetrics.last_changed >= since)
+            Sample.recorded_at.between(since, until)
+            | Study.recorded_at.between(since, until)
+            | IseqFlowcell.recorded_at.between(since, until)
+            | IseqProductMetrics.last_changed.between(since, until)
         )
         .order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp))
     ):
