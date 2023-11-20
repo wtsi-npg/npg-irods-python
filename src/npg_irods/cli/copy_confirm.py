@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
@@ -25,7 +24,7 @@ from partisan.exception import RodsError
 
 from npg_irods.exception import ChecksumError
 from npg_irods.utilities import copy
-from npg_irods.cli import add_logging_arguments, configure_logging, rods_path
+from npg_irods.cli.util import add_logging_arguments, configure_logging, rods_path
 from npg_irods.version import version
 
 description = """
@@ -126,7 +125,3 @@ def main():
     except Exception as e:
         log.error(e)
         exit(1)
-
-
-if __name__ == "__main__":
-    main()

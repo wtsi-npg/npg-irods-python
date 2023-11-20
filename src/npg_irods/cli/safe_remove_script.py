@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
@@ -23,7 +22,7 @@ import argparse
 import structlog
 
 from npg_irods.utilities import write_safe_remove_script
-from npg_irods.cli import add_logging_arguments, configure_logging
+from npg_irods.cli.util import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
@@ -100,7 +99,3 @@ def main():
     except Exception as e:
         log.error(e)
         exit(1)
-
-
-if __name__ == "__main__":
-    main()

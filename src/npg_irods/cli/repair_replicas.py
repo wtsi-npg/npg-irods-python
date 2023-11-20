@@ -1,7 +1,6 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,30 +22,22 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import repair_checksums
-from npg_irods.cli import add_logging_arguments, configure_logging
+from npg_irods.utilities import repair_replicas
+from npg_irods.cli.util import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
-Reads iRODS data object paths from a file or STDIN, one per line and repairs
-their checksums and checksum metadata, if necessary.
+Reads iRODS data object paths from a file or STDIN, one per line and repairs their
+replicas, if necessary. This means trimming any invalid replicas and/or excess valid
+replicas.
 
 The possible repairs are:
 
- - Data object checksums: valid replicas that have no checksum are updated to have
-   their current checksum according to their state on disk, using the iRODS API.
+ - Invalid replicas: if the data object has invalid replicas, these are trimmed.
+   This is the most common type of repair.
 
- - Data object metadata: if all valid replicas have the same checksum and there is
-   no checksum metadata AVU, then one is added.
-
- - Data object metadata: if all valid replicas have the same checksum and current
-   checksum metadata are incorrect, a new AVU is added and any previous metadata
-   moved to history.
-
-The following states are not repaired automatically because they require an
-assessment on which, if any, replicas are correct:
-
- - The checksums across all valid replicas are not identical.
+ - Valid replicas: if the data object has more valid replicas than the number
+   required, the excess replicas are trimmed.
 
 If any of the paths could not be repaired, the exit code will be non-zero and an
 error message summarising the results will be sent to STDERR.
@@ -69,6 +60,13 @@ parser.add_argument(
     help="Output filename.",
     type=argparse.FileType("w"),
     default=sys.stdout,
+)
+parser.add_argument(
+    "-n",
+    "--num-replicas",
+    help="The number of valid replicas expected. Defaults to 2.",
+    type=int,
+    default=2,
 )
 parser.add_argument(
     "--print-repair",
@@ -115,18 +113,19 @@ def main():
         print(version())
         exit(0)
 
-    num_processed, num_repaired, num_errors = repair_checksums(
+    num_processed, num_repaired, num_errors = repair_replicas(
         args.input,
         args.output,
-        num_threads=args.threads,
-        num_clients=args.clients,
+        num_replicas=args.num_replicas,
         print_repair=args.print_repair,
         print_fail=args.print_fail,
+        num_clients=args.clients,
+        num_threads=args.threads,
     )
 
     if num_errors:
         log.error(
-            "Some repairs failed",
+            "Some replicas failed",
             num_processed=num_processed,
             num_repaired=num_repaired,
             num_errors=num_errors,
@@ -140,7 +139,3 @@ def main():
         num_repaired=num_repaired,
         num_errors=num_errors,
     )
-
-
-if __name__ == "__main__":
-    main()

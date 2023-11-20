@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright © 2023 Genome Research Ltd. All rights reserved.
@@ -23,25 +22,28 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import repair_replicas
-from npg_irods.cli import add_logging_arguments, configure_logging
+from npg_irods.utilities import (
+    withdraw_consent,
+)
+from npg_irods.cli.util import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
-Reads iRODS data object paths from a file or STDIN, one per line and repairs their
-replicas, if necessary. This means trimming any invalid replicas and/or excess valid
-replicas.
+Reads iRODS data object paths from a file or STDIN, one per line and ensures that each
+one is in a state consistent with sample consent being withdrawn.
 
-The possible repairs are:
+The conditions for data objects to be in the correct state for having had consent
+withdrawn are: 
 
- - Invalid replicas: if the data object has invalid replicas, these are trimmed.
-   This is the most common type of repair.
+ - The data object has the correct metadata. Either:
+     - sample_consent = 0 (data managed by the GAPI codebase)
+     - sample_consent_withdrawn = 1 (data managed by the NPG codebase)
 
- - Valid replicas: if the data object has more valid replicas than the number
-   required, the excess replicas are trimmed.
+ - Read permission for any SequenceScape study iRODS groups (named ss_<Study ID>)
+   absent.
 
-If any of the paths could not be repaired, the exit code will be non-zero and an
-error message summarising the results will be sent to STDERR.
+If any of the paths could not have consent withdrawn, the exit code will be non-zero
+and an error message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(
@@ -63,40 +65,18 @@ parser.add_argument(
     default=sys.stdout,
 )
 parser.add_argument(
-    "-n",
-    "--num-replicas",
-    help="The number of valid replicas expected. Defaults to 2.",
-    type=int,
-    default=2,
-)
-parser.add_argument(
-    "--print-repair",
-    help="Print to output those paths that were repaired. Defaults to True.",
+    "--print-pass",
+    help="Print to output those paths that pass the check. Defaults to True.",
     action="store_true",
 )
+
 parser.add_argument(
     "--print-fail",
-    help="Print to output those paths that require repair, where the repair failed. "
-    "Defaults to False.",
+    help="Print to output those paths that fail the check. Defaults to False.",
     action="store_true",
 )
-parser.add_argument(
-    "-c",
-    "--clients",
-    help="Number of baton clients to use. Defaults to 4.",
-    type=int,
-    default=4,
-)
-parser.add_argument(
-    "-t",
-    "--threads",
-    help="Number of threads to use. Defaults to 4.",
-    type=int,
-    default=4,
-)
-parser.add_argument(
-    "--version", help="Print the version and exit.", action="store_true"
-)
+parser.add_argument("--version", help="Print the version and exit", action="store_true")
+
 
 args = parser.parse_args()
 configure_logging(
@@ -114,33 +94,26 @@ def main():
         print(version())
         exit(0)
 
-    num_processed, num_repaired, num_errors = repair_replicas(
+    num_processed, num_withdrawn, num_errors = withdraw_consent(
         args.input,
         args.output,
-        num_replicas=args.num_replicas,
-        print_repair=args.print_repair,
+        print_withdrawn=args.print_pass,
         print_fail=args.print_fail,
-        num_clients=args.clients,
-        num_threads=args.threads,
     )
 
     if num_errors:
         log.error(
-            "Some replicas failed",
+            "Some updates were not successful",
             num_processed=num_processed,
-            num_repaired=num_repaired,
+            num_withdrawn=num_withdrawn,
             num_errors=num_errors,
         )
         exit(1)
 
-    msg = "All repairs were successful" if num_repaired else "No paths required repair"
+    msg = "All updates were successful" if num_withdrawn else "No updates were required"
     log.info(
         msg,
         num_processed=num_processed,
-        num_repaired=num_repaired,
+        num_withdrawn=num_withdrawn,
         num_errors=num_errors,
     )
-
-
-if __name__ == "__main__":
-    main()

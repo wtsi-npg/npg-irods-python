@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
@@ -23,27 +22,33 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import check_common_metadata
-from npg_irods.cli import add_logging_arguments, configure_logging
+from npg_irods.utilities import repair_checksums
+from npg_irods.cli.util import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
-Reads iRODS data object paths from a file or STDIN, one per line and performs
-consistency checks on their metadata.
+Reads iRODS data object paths from a file or STDIN, one per line and repairs
+their checksums and checksum metadata, if necessary.
 
-The conditions for common metadata of a data object to be correct are:
+The possible repairs are:
 
- - Creation date must be present under a "dcterms:created" attribute.
- - Creator (user or agent) must be present under a "dcterms:creator" attribute.
- - An MD5 checksum must be present under an "md5" attribute.
- - File type must be present under a "type" attribute.
+ - Data object checksums: valid replicas that have no checksum are updated to have
+   their current checksum according to their state on disk, using the iRODS API.
 
-This script will never change any values. To repair metadata, use the --print-fail
-option to print failed paths to STDOUT and pipe them to the desired repair script
-e.g. `repair-common-metadata`.
+ - Data object metadata: if all valid replicas have the same checksum and there is
+   no checksum metadata AVU, then one is added.
 
-If any of the paths fail their check, the exit code will be non-zero and an error
-message summarising the results will be sent to STDERR.
+ - Data object metadata: if all valid replicas have the same checksum and current
+   checksum metadata are incorrect, a new AVU is added and any previous metadata
+   moved to history.
+
+The following states are not repaired automatically because they require an
+assessment on which, if any, replicas are correct:
+
+ - The checksums across all valid replicas are not identical.
+
+If any of the paths could not be repaired, the exit code will be non-zero and an
+error message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(
@@ -65,13 +70,14 @@ parser.add_argument(
     default=sys.stdout,
 )
 parser.add_argument(
-    "--print-pass",
-    help="Print to output those paths that pass the check. Defaults to True.",
+    "--print-repair",
+    help="Print to output those paths that were repaired. Defaults to True.",
     action="store_true",
 )
 parser.add_argument(
     "--print-fail",
-    help="Print to output those paths that fail the check. Defaults to False.",
+    help="Print to output those paths that require repair, where the repair failed. "
+    "Defaults to False.",
     action="store_true",
 )
 parser.add_argument(
@@ -88,7 +94,9 @@ parser.add_argument(
     type=int,
     default=4,
 )
-parser.add_argument("--version", help="Print the version and exit", action="store_true")
+parser.add_argument(
+    "--version", help="Print the version and exit.", action="store_true"
+)
 
 args = parser.parse_args()
 configure_logging(
@@ -106,31 +114,28 @@ def main():
         print(version())
         exit(0)
 
-    num_processed, num_passed, num_errors = check_common_metadata(
+    num_processed, num_repaired, num_errors = repair_checksums(
         args.input,
         args.output,
-        print_pass=args.print_pass,
-        print_fail=args.print_fail,
-        num_clients=args.clients,
         num_threads=args.threads,
+        num_clients=args.clients,
+        print_repair=args.print_repair,
+        print_fail=args.print_fail,
     )
 
     if num_errors:
         log.error(
-            "Some checks did not pass",
+            "Some repairs failed",
             num_processed=num_processed,
-            num_passed=num_passed,
+            num_repaired=num_repaired,
             num_errors=num_errors,
         )
         exit(1)
 
+    msg = "All repairs were successful" if num_repaired else "No paths required repair"
     log.info(
-        "All checks passed",
+        msg,
         num_processed=num_processed,
-        num_passed=num_passed,
+        num_repaired=num_repaired,
         num_errors=num_errors,
     )
-
-
-if __name__ == "__main__":
-    main()

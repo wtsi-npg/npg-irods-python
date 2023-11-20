@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright © 2023 Genome Research Ltd. All rights reserved.
@@ -18,6 +17,7 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+
 import argparse
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -28,7 +28,7 @@ from partisan.irods import AVU, DataObject, query_metadata
 from sqlalchemy.orm import Session
 
 from npg_irods import illumina, ont
-from npg_irods.cli import (
+from npg_irods.cli.util import (
     add_logging_arguments,
     configure_logging,
     integer_in_range,
@@ -41,6 +41,7 @@ from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import TrackedSample
 from npg_irods.ont import barcode_collections
 from npg_irods.version import version
+
 
 description = """
 A utility for locating sets of data objects in iRODS.
@@ -359,7 +360,3 @@ def main():
         print(version())
         exit(0)
     args.func(args)
-
-
-if __name__ == "__main__":
-    main()

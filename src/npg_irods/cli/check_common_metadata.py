@@ -1,7 +1,6 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,28 +22,27 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import (
-    withdraw_consent,
-)
-from npg_irods.cli import add_logging_arguments, configure_logging
+from npg_irods.utilities import check_common_metadata
+from npg_irods.cli.util import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
-Reads iRODS data object paths from a file or STDIN, one per line and ensures that each
-one is in a state consistent with sample consent being withdrawn.
+Reads iRODS data object paths from a file or STDIN, one per line and performs
+consistency checks on their metadata.
 
-The conditions for data objects to be in the correct state for having had consent
-withdrawn are: 
+The conditions for common metadata of a data object to be correct are:
 
- - The data object has the correct metadata. Either:
-     - sample_consent = 0 (data managed by the GAPI codebase)
-     - sample_consent_withdrawn = 1 (data managed by the NPG codebase)
+ - Creation date must be present under a "dcterms:created" attribute.
+ - Creator (user or agent) must be present under a "dcterms:creator" attribute.
+ - An MD5 checksum must be present under an "md5" attribute.
+ - File type must be present under a "type" attribute.
 
- - Read permission for any SequenceScape study iRODS groups (named ss_<Study ID>)
-   absent.
+This script will never change any values. To repair metadata, use the --print-fail
+option to print failed paths to STDOUT and pipe them to the desired repair script
+e.g. `repair-common-metadata`.
 
-If any of the paths could not have consent withdrawn, the exit code will be non-zero
-and an error message summarising the results will be sent to STDERR.
+If any of the paths fail their check, the exit code will be non-zero and an error
+message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(
@@ -70,14 +68,26 @@ parser.add_argument(
     help="Print to output those paths that pass the check. Defaults to True.",
     action="store_true",
 )
-
 parser.add_argument(
     "--print-fail",
     help="Print to output those paths that fail the check. Defaults to False.",
     action="store_true",
 )
+parser.add_argument(
+    "-c",
+    "--clients",
+    help="Number of baton clients to use. Defaults to 4.",
+    type=int,
+    default=4,
+)
+parser.add_argument(
+    "-t",
+    "--threads",
+    help="Number of threads to use. Defaults to 4.",
+    type=int,
+    default=4,
+)
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
-
 
 args = parser.parse_args()
 configure_logging(
@@ -95,30 +105,27 @@ def main():
         print(version())
         exit(0)
 
-    num_processed, num_withdrawn, num_errors = withdraw_consent(
+    num_processed, num_passed, num_errors = check_common_metadata(
         args.input,
         args.output,
-        print_withdrawn=args.print_pass,
+        print_pass=args.print_pass,
         print_fail=args.print_fail,
+        num_clients=args.clients,
+        num_threads=args.threads,
     )
 
     if num_errors:
         log.error(
-            "Some updates were not successful",
+            "Some checks did not pass",
             num_processed=num_processed,
-            num_withdrawn=num_withdrawn,
+            num_passed=num_passed,
             num_errors=num_errors,
         )
         exit(1)
 
-    msg = "All updates were successful" if num_withdrawn else "No updates were required"
     log.info(
-        msg,
+        "All checks passed",
         num_processed=num_processed,
-        num_withdrawn=num_withdrawn,
+        num_passed=num_passed,
         num_errors=num_errors,
     )
-
-
-if __name__ == "__main__":
-    main()

@@ -34,14 +34,29 @@ test = [
 homepage = "https://github.com/wtsi-npg/npg-irods-python"
 repository = "https://github.com/wtsi-npg/npg-irods-python.git"
 
+[project.scripts]
+"apply-ont-metadata" = "npg_irods.cli.apply_ont_metadata:main"
+"check-checksums" = "npg_irods.cli.check_checksums:main"
+"check-common-metadata" = "npg_irods.cli.check_common_metadata:main"
+"check-consent-withdrawn" = "npg_irods.cli.check_consent_withdrawn:main"
+"check-replicas" = "npg_irods.cli.check_replicas:main"
+"copy-confirm" = "npg_irods.cli.copy_confirm:main"
+"locate-data-objects" = "npg_irods.cli.locate_data_objects:main"
+"repair-common-metadata" = "npg_irods.cli.repair_common_metadata:main"
+"repair-checksums" = "npg_irods.cli.repair_checksums:main"
+"repair-replicas" = "npg_irods.cli.repair_replicas:main"
+"safe-remove-script" = "npg_irods.cli.safe_remove_script:main"
+"update-secondary-metadata" = "npg_irods.cli.update_secondary_metadata:main"
+"withdraw-consent" = "npg_irods.cli.withdraw_consent:main"
+
 [build-system]
 requires = ["setuptools>=41", "wheel", "setuptools-git-versioning<2"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 # Note: we are relying on setuptools' automatic package discovery, so no further
-# configuration is required. This is possible because partisan uses a standard src
-# layout. See the following for more information:
+# configuration is required. This is possible because npg-irods-python uses a standard
+# src layout. See the following for more information:
 #
 # https://setuptools.pypa.io/en/latest/userguide/package_discovery.html#src-layout
 
@@ -50,21 +65,8 @@ build-backend = "setuptools.build_meta"
 # "project.scripts", but that only supports automatcially generating wrapper scripts
 # for entry points, not installing existing scripts.
 script-files = [
-    "scripts/apply-ont-metadata",
     "scripts/backfill_illumina_locations.py",
     "scripts/backfill_pacbio_ids",
-    "scripts/check-checksums",
-    "scripts/check-common-metadata",
-    "scripts/check-consent-withdrawn",
-    "scripts/check-replicas",
-    "scripts/copy-confirm",
-    "scripts/locate-data-objects",
-    "scripts/repair-checksums",
-    "scripts/repair-common-metadata",
-    "scripts/repair-replicas",
-    "scripts/safe-remove-script",
-    "scripts/update-secondary-metadata",
-    "scripts/withdraw-consent",
 ]
 
 [tool.setuptools-git-versioning]
