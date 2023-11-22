@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright © 2023 Genome Research Ltd. All rights reserved.
@@ -23,29 +22,36 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import check_replicas
-from npg_irods.cli import add_logging_arguments, configure_logging
+from npg_irods.utilities import (
+    check_consent_withdrawn,
+)
+from npg_irods.cli.util import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
-Reads iRODS data object paths from a file or STDIN, one per line and performs
-consistency checks on their iRODS replicas.
+Reads iRODS data object paths from a file or STDIN, one per line and checks that each
+one is in a state consistent with sample consent being withdrawn.
 
-The conditions for replicas of a data object to be correct are:
+The conditions for data objects to be in the correct state for having had consent
+withdrawn are: 
 
- - The data object has the number of replicas expected for its location in the
-   iRODS resource tree. This is typically 2 replicas, but some trees may be
-   unreplicated, so there will be 1 "replica" in those cases.
- - All replicas must be in the "valid" state.
- - The conditions for correct checksums must apply for all replicas (see
-   `check_checksums`).
+ - The data object has the correct metadata. Either:
+     - sample_consent = 0 (data managed by the GAPI codebase)
+     - sample_consent_withdrawn = 1 (data managed by the NPG codebase)
 
-This script will never change any values. To repair replicas, use the --print-fail
-option to print failed paths to STDOUT and pipe them to the desired repair script
-e.g. `repair-replicas`.
+ - Read permission for any SequenceScape study iRODS groups (named ss_<Study ID>)
+   absent.
 
-If any of the paths fail their replica check, the exit code will be non-zero and an 
-error message summarising the results will be sent to STDERR.
+N.B. having this consent withdrawn state is only the first step in handling consent
+removal. Subsequent steps, including redaction of data within data objects are not
+handled.
+
+This script will never change any values. To withdraw consent, use the --print-fail
+option to print failed paths to STDOUT and pipe them to the `withdraw-consent` script
+included in this package.
+
+If any of the paths fail their check, the exit code will be non-zero and an error
+message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(
@@ -67,13 +73,6 @@ parser.add_argument(
     default=sys.stdout,
 )
 parser.add_argument(
-    "-n",
-    "--num-replicas",
-    help="The number of valid replicas expected. Defaults to 2.",
-    type=int,
-    default=2,
-)
-parser.add_argument(
     "--print-pass",
     help="Print to output those paths that pass the check. Defaults to True.",
     action="store_true",
@@ -83,21 +82,8 @@ parser.add_argument(
     help="Print to output those paths that fail the check. Defaults to False.",
     action="store_true",
 )
-parser.add_argument(
-    "-c",
-    "--clients",
-    help="Number of baton clients to use. Defaults to 4.",
-    type=int,
-    default=4,
-)
-parser.add_argument(
-    "-t",
-    "--threads",
-    help="Number of threads to use. Defaults to 4.",
-    type=int,
-    default=4,
-)
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
+
 
 args = parser.parse_args()
 configure_logging(
@@ -115,14 +101,11 @@ def main():
         print(version())
         exit(0)
 
-    num_processed, num_passed, num_errors = check_replicas(
+    num_processed, num_passed, num_errors = check_consent_withdrawn(
         args.input,
         args.output,
-        num_replicas=args.num_replicas,
         print_pass=args.print_pass,
         print_fail=args.print_fail,
-        num_clients=args.clients,
-        num_threads=args.threads,
     )
 
     if num_errors:
@@ -140,7 +123,3 @@ def main():
         num_passed=num_passed,
         num_errors=num_errors,
     )
-
-
-if __name__ == "__main__":
-    main()

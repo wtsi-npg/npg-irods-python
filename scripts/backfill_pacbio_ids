@@ -22,7 +22,7 @@ import argparse
 import logging
 import structlog
 
-from npg_irods.cli import configure_logging, add_logging_arguments
+from npg_irods.cli.util import configure_logging, add_logging_arguments
 from npg_irods.metadata.pacbio import backfill_id_products
 from npg_irods.version import version
 

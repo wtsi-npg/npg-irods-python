@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
@@ -23,27 +22,23 @@ import sys
 
 import structlog
 
-from npg_irods.utilities import check_checksums
-from npg_irods.cli import add_logging_arguments, configure_logging
+from npg_irods.utilities import repair_common_metadata
+from npg_irods.cli.util import add_logging_arguments, configure_logging
 from npg_irods.version import version
 
 description = """
-Reads iRODS data object paths from a file or STDIN, one per line and performs
-consistency checks on their iRODS checksums and checksum metadata.
+Reads iRODS data object paths from a file or STDIN, one per line and repairs
+their metadata, if necessary.
 
-The conditions for checksums and checksum metadata of a data object to be correct
-are:
+The possible repairs are:
 
-- The data object must have a checksum set for each valid replica.
-- The checksums for all replicas must have the same value.
-- The data object must have one, and only one, checksum AVU in its metadata.
-- The checksum AVU must have the same value as the replica checksums.
+ - Creation metadata: the creation time is estimated from iRODS' internal record of
+   creation time of one of the object's replicas. The creator is set to the current
+   user.
+ - Checksum metadata: the checksum is taken from the object's replicas.
+ - Type metadata: the type is taken from the object's path.
 
-This script will never change any values. To repair checksums, use the --print-fail
-option to print failed paths to STDOUT and pipe them to the desired repair script
-e.g. `repair-checksums`.
-
-If any of the paths fail their checksum check, the exit code will be non-zero and an 
+If any of the paths could not be repaired, the exit code will be non-zero and an
 error message summarising the results will be sent to STDERR.
 """
 
@@ -66,16 +61,22 @@ parser.add_argument(
     default=sys.stdout,
 )
 parser.add_argument(
-    "--print-pass",
-    help="Print to output those paths that pass the check. Defaults to True.",
+    "--print-repair",
+    help="Print to output those paths that were repaired. Defaults to True.",
     action="store_true",
 )
 parser.add_argument(
     "--print-fail",
-    help="Print to output those paths that fail the check. Defaults to False.",
+    help="Print to output those paths that require repair, where the repair failed. "
+    "Defaults to False.",
     action="store_true",
 )
-
+parser.add_argument(
+    "--creator",
+    help="The data creator name to use in any metadata generated. "
+    "Defaults to a placeholder value.",
+    type=str,
+)
 parser.add_argument(
     "-c",
     "--clients",
@@ -90,7 +91,9 @@ parser.add_argument(
     type=int,
     default=4,
 )
-parser.add_argument("--version", help="Print the version and exit", action="store_true")
+parser.add_argument(
+    "--version", help="Print the version and exit.", action="store_true"
+)
 
 args = parser.parse_args()
 configure_logging(
@@ -108,28 +111,30 @@ def main():
         print(version())
         exit(0)
 
-    num_processed, num_passed, num_errors = check_checksums(
+    num_processed, num_repaired, num_errors = repair_common_metadata(
         args.input,
         args.output,
-        print_pass=args.print_pass,
-        print_fail=args.print_fail,
-        num_clients=args.clients,
+        creator=args.creator,
         num_threads=args.threads,
+        num_clients=args.clients,
+        print_repair=args.print_repair,
+        print_fail=args.print_fail,
     )
 
     if num_errors:
         log.error(
-            "Some checks did not pass",
+            "Some repairs failed",
             num_processed=num_processed,
-            num_passed=num_passed,
+            num_repaired=num_repaired,
             num_errors=num_errors,
         )
         exit(1)
 
+    msg = "All repairs were successful" if num_repaired else "No paths required repair"
     log.info(
-        "All checks passed",
+        msg,
         num_processed=num_processed,
-        num_passed=num_passed,
+        num_repaired=num_repaired,
         num_errors=num_errors,
     )
 

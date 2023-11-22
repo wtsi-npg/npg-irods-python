@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright © 2023 Genome Research Ltd. All rights reserved.
@@ -16,34 +15,36 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# @author Marco M. Mosca <mm51@sanger.ac.uk>
+# @author Keith James <kdj@sanger.ac.uk>
 
 import argparse
-from datetime import datetime, timedelta
+import sys
 
 import sqlalchemy
 import structlog
 from sqlalchemy.orm import Session
 
-from npg_irods.cli import add_logging_arguments, configure_logging, parse_iso_date
+from npg_irods.cli.util import add_logging_arguments, configure_logging
 from npg_irods.db import DBConfig
-from npg_irods.ont import apply_metadata
+from npg_irods.utilities import update_secondary_metadata
 from npg_irods.version import version
 
 description = """
-Applies metadata and data access permissions on ONT run collections in iRODS, to reflect
-information in the Multi-LIMS warehouse.
+Reads iRODS data object and/or collection paths from a file or STDIN, one per line and
+updates any standard sample and/or study metadata and access permissions to reflect
+the current state in the ML warehouse.
 
-This script differs from `update-secondary-metadata` in that it is designed to be run
-on newly created ONT data where it detects multiplexed runs and adds extra primary
-metadata to results that have been deplexed on the instrument. It also updates
-secondary metadata (like `update-secondary-metadata` does), but that is purely as an
-optimisation to make the data available without waiting for an
-`update-secondary-metadata` to be scheduled. 
+To generate a list of paths to be updated, see `locate-data-objects` in this package.
 
-Only runs whose ML warehouse records have been updated within the specified date range.
-The default window for detecting changes is the 14 days prior to the time when the
-script is run. This can be changed using the --begin-date and --end-date CLI options.
+Currently this script supports:
+
+ - Illumina sequencing data objects for data that have not been through the
+   library-merge process.
+
+ - Oxford nanopore sequencing data collections.
+
+If any of the paths could not be updated, the exit code will be non-zero and an
+error message summarising the results will be sent to STDERR.
 """
 
 parser = argparse.ArgumentParser(
@@ -51,31 +52,6 @@ parser = argparse.ArgumentParser(
 )
 add_logging_arguments(parser)
 
-parser.add_argument(
-    "--begin-date",
-    "--begin_date",
-    help="Limit runs found to those changed at, or after this date. Defaults to "
-    "14 days ago. The argument must be an ISO8601 UTC date or date and time "
-    "e.g. 2022-01-30, 2022-01-30T11:11:03Z",
-    type=parse_iso_date,
-    default=datetime.now() - timedelta(days=14),
-)
-parser.add_argument(
-    "--end-date",
-    "--end_date",
-    help="Limit runs found to those changed at, or before this date. Defaults to "
-    "the current time. The argument must be an ISO8601 UTC date or date and time "
-    "e.g. 2022-01-30, 2022-01-30T11:11:03Z",
-    type=parse_iso_date,
-    default=datetime.now(),
-)
-parser.add_argument(
-    "--zone",
-    help="Specify a federated iRODS zone in which to find "
-    "collections to update. This is not required if the target "
-    "collections are in the local zone.",
-    type=str,
-)
 parser.add_argument(
     "--database-config",
     "--database_config",
@@ -85,8 +61,55 @@ parser.add_argument(
     type=argparse.FileType("r"),
     required=True,
 )
-
-parser.add_argument("--version", help="Print the version and exit", action="store_true")
+parser.add_argument(
+    "-i",
+    "--input",
+    help="Input filename.",
+    type=argparse.FileType("r"),
+    default=sys.stdin,
+)
+parser.add_argument(
+    "-o",
+    "--output",
+    help="Output filename.",
+    type=argparse.FileType("w"),
+    default=sys.stdout,
+)
+parser.add_argument(
+    "--print-update",
+    help="Print to output those paths that were updated. Defaults to True.",
+    action="store_true",
+)
+parser.add_argument(
+    "--print-fail",
+    help="Print to output those paths that require updating, where the update failed. "
+    "Defaults to False.",
+    action="store_true",
+)
+parser.add_argument(
+    "-c",
+    "--clients",
+    help="Number of baton clients to use. Defaults to 4.",
+    type=int,
+    default=4,
+)
+parser.add_argument(
+    "-t",
+    "--threads",
+    help="Number of threads to use. Defaults to 4.",
+    type=int,
+    default=4,
+)
+parser.add_argument(
+    "--version", help="Print the version and exit.", action="store_true"
+)
+parser.add_argument(
+    "--zone",
+    help="Specify a federated iRODS zone in which to find data objects and/or "
+    "collections to update. This is not required if the target paths "
+    "are on the local zone.",
+    type=str,
+)
 
 args = parser.parse_args()
 configure_logging(
@@ -108,8 +131,12 @@ def main():
 
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
-        num_processed, num_updated, num_errors = apply_metadata(
-            session, since=args.begin_date, zone=args.zone
+        num_processed, num_updated, num_errors = update_secondary_metadata(
+            args.input,
+            args.output,
+            session,
+            print_update=args.print_update,
+            print_fail=args.print_fail,
         )
 
         if num_errors:
@@ -130,7 +157,3 @@ def main():
             num_updated=num_updated,
             num_errors=num_errors,
         )
-
-
-if __name__ == "__main__":
-    main()
