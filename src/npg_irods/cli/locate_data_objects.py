@@ -362,12 +362,12 @@ def main():
         "--skip-absent-runs",
         "--skip_absent_runs",
         help="Skip runs that cannot be found in iRODS after the number of attempts given "
-        "as an argument to this option. The argument may be an integer from 1 to 100, "
-        "inclusive and defaults to 10.",
+        "as an argument to this option. The argument may be an integer from 1 to 10, "
+        "inclusive and defaults to 3.",
         nargs="?",
         action="store",
-        type=integer_in_range(1, 100),
-        default=10,
+        type=integer_in_range(1, 10),
+        default=3,
     )
     ilup_parser.set_defaults(func=illumina_updates_cli)
 
