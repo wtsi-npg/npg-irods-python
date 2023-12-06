@@ -75,7 +75,15 @@ tests_have_admin = pytest.mark.skipif(
 TEST_INI = os.path.join(os.path.dirname(__file__), "testdb.ini")
 INI_SECTION = "dev"
 
-TEST_GROUPS = ["ss_1000", "ss_2000", "ss_3000", "ss_4000", "ss_5000", "ss_888"]
+# The following iRODS groups manage permissions for data belonging to the corresponding
+# study.
+STUDY_GROUPS = ["ss_1000", "ss_2000", "ss_3000", "ss_4000", "ss_5000", "ss_888"]
+# The following iRODS groups manage permissions for human contamination identified in
+# data belonging to the corresponding study.
+HUMAN_STUDY_GROUPS = [g + "_human" for g in STUDY_GROUPS]
+
+# The following iRODS groups are created by the iRODS test fixture.
+TEST_GROUPS = STUDY_GROUPS + HUMAN_STUDY_GROUPS
 
 TEST_SQL_STALE_REPLICATE = "setObjectReplStale"
 TEST_SQL_INVALID_CHECKSUM = "setObjectChecksumInvalid"
