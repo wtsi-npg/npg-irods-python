@@ -30,6 +30,7 @@ from structlog import get_logger
 
 from npg_irods.common import infer_zone, update_metadata, update_permissions
 from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics, Sample, Study
+from npg_irods.exception import CollectionNotFound
 from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import (
@@ -219,6 +220,13 @@ def ensure_secondary_metadata_updated(
     return any([meta_update, cons_update, xahu_update, perm_update])
 
 
+def find_qc_collection(path: Collection | DataObject) -> Collection:
+    qc = Collection(path.path / "qc")
+    if not qc.exists():
+        raise CollectionNotFound(qc, path=qc)
+    return qc
+
+
 def find_flowcells_by_component(
     sess: Session, component: Component, include_controls=False
 ) -> list[Type[IseqFlowcell]]:
@@ -304,6 +312,10 @@ def find_updated_components(
             | IseqFlowcell.recorded_at.between(since, until)
             | IseqProductMetrics.last_changed.between(since, until)
         )
-        .order_by(asc(IseqFlowcell.id_iseq_flowcell_tmp))
+        .order_by(
+            asc(IseqProductMetrics.id_run),
+            asc(IseqFlowcell.position),
+            asc(IseqFlowcell.tag_index),
+        )
     ):
         yield Component(*rpt)

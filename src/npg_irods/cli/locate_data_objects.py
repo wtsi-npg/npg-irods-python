@@ -19,7 +19,6 @@
 
 
 import argparse
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import sqlalchemy
@@ -33,15 +32,17 @@ from npg_irods.cli.util import (
     configure_logging,
     integer_in_range,
     parse_iso_date,
+    with_previous,
 )
 from npg_irods.db import DBConfig
 from npg_irods.db.mlwh import find_consent_withdrawn_samples
+from npg_irods.exception import CollectionNotFound
+from npg_irods.illumina import find_qc_collection
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import TrackedSample
 from npg_irods.ont import barcode_collections
 from npg_irods.version import version
-
 
 description = """
 A utility for locating sets of data objects in iRODS.
@@ -91,29 +92,7 @@ collection containing a data object, directly or as a root collection, the
 collection path is printed.
 """
 
-parser = argparse.ArgumentParser(
-    description=description, formatter_class=argparse.RawDescriptionHelpFormatter
-)
-add_logging_arguments(parser)
-parser.add_argument(
-    "--database-config",
-    "--database_config",
-    "--db-config",
-    "--db_config",
-    help="Configuration file for database connection",
-    type=argparse.FileType("r"),
-    required=True,
-)
-
-parser.add_argument(
-    "--zone",
-    help="Specify a federated iRODS zone in which to find data objects to check. "
-    "This is not required if the target collections are in the local zone.",
-    type=str,
-)
-parser.add_argument("--version", help="Print the version and exit", action="store_true")
-
-subparsers = parser.add_subparsers(title="Sub-commands", required=True)
+log = structlog.get_logger("main")
 
 
 def consent_withdrawn(cli_args):
@@ -154,145 +133,125 @@ def consent_withdrawn(cli_args):
         exit(1)
 
 
-cwdr_parser = subparsers.add_parser(
-    "consent-withdrawn",
-    help="Find data objects related to samples whose consent for data use has "
-    "been withdrawn.",
-)
-cwdr_parser.set_defaults(func=consent_withdrawn)
+def illumina_updates_cli(cli_args):
+    """Process the command line arguments for finding Illumina data objects and execute
+    the command.
 
-ilup_parser = subparsers.add_parser(
-    "illumina-updates",
-    help="Find data objects, which are components of Illumina runs, whose tracking "
-    "metadata in the ML warehouse have changed since a specified time.",
-)
-ilup_parser.add_argument(
-    "--begin-date",
-    "--begin_date",
-    help="Limit data objects found to those whose metadata was changed in the ML "
-    "warehouse at, or after after this date. Defaults to 14 days ago. The argument "
-    "must be an ISO8601 UTC date or date and time e.g. 2022-01-30, 2022-01-30T11:11:03Z",
-    type=parse_iso_date,
-    default=datetime.now(timezone.utc) - timedelta(days=14),
-)
-ilup_parser.add_argument(
-    "--end-date",
-    "--end_date",
-    help="Limit data objects found to those whose metadata was changed in the ML "
-    "warehouse at, or before this date. Defaults to the current time. The argument "
-    "must be an ISO8601 UTC date or date and time e.g. 2022-01-30, 2022-01-30T11:11:03Z",
-    type=parse_iso_date,
-    default=datetime.now(),
-)
-ilup_parser.add_argument(
-    "--skip-absent-runs",
-    "--skip_absent_runs",
-    help="Skip runs that cannot be found in iRODS after the number of attempts given "
-    "as an argument to this option. The argument may be an integer from 1 to 100, "
-    "inclusive and defaults to 10.",
-    nargs="?",
-    action="store",
-    type=integer_in_range(1, 100),
-    default=10,
-)
+    Args:
+        cli_args: ArgumentParser
 
-
-def illumina_updates(cli_args):
+    Returns:
+        None
+    """
     dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(dbconfig.url)
+    since = cli_args.begin_date
+    until = cli_args.end_date
+    skip_absent_runs = cli_args.skip_absent_runs
+    zone = cli_args.zone
+
     with Session(engine) as session:
-        num_processed = num_errors = 0
+        num_proc, num_errors = illumina_updates(
+            session, since, until, skip_absent_runs=skip_absent_runs, zone=zone
+        )
 
-        iso_begin = cli_args.begin_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-        iso_end = cli_args.end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-        skip_absent_runs = cli_args.skip_absent_runs
-
-        attempts_per_run = defaultdict(int)
-        success_per_run = defaultdict(int)
-
-        for i, c in enumerate(
-            illumina.find_updated_components(
-                session, since=cli_args.begin_date, until=cli_args.end_date
-            )
-        ):
-            num_processed += 1
-            log.info(
-                "Finding data objects", item=i, comp=c, since=iso_begin, until=iso_end
-            )
-
-            try:
-                avus = [
-                    AVU(Instrument.RUN, c.id_run),
-                    AVU(Instrument.LANE, c.position),
-                    AVU(SeqConcept.TAG_INDEX, c.tag_index),
-                ]
-
-                if (
-                    skip_absent_runs
-                    and success_per_run[c.id_run] == 0
-                    and attempts_per_run[c.id_run] == skip_absent_runs
-                ):
-                    log.info(
-                        "Skipping run after unsuccessful attempts to find it",
-                        item=i,
-                        comp=c,
-                        since=iso_begin,
-                        until=iso_end,
-                        attempts=attempts_per_run[c.id_run],
-                    )
-                    continue
-
-                result = query_metadata(*avus, collection=False, zone=cli_args.zone)
-                if not result:
-                    attempts_per_run[c.id_run] += 1
-                    continue
-
-                success_per_run[c.id_run] += 1
-
-                for obj in result:
-                    print(obj)
-
-            except Exception as e:
-                num_errors += 1
-                log.exception(e, item=i, component=c)
-
-        log.info(f"Processed {num_processed} with {num_errors} errors")
         if num_errors:
             exit(1)
 
 
-ilup_parser.set_defaults(func=illumina_updates)
+def illumina_updates(
+    session: Session,
+    since: datetime,
+    until: datetime,
+    skip_absent_runs=True,
+    zone: str = None,
+) -> (int, int):
+    """Find recently updated Illumina data in the ML warehouse, locate corresponding
+    data objects in iRODS and print their paths.
 
+    Args:
+        session: SQLAlchemy session
+        since: Earliest changes to find
+        until: Latest changes to find
+        skip_absent_runs: Skip any runs that have no data in iRODS. Defaults to True.
+        zone: iRODS zone to query
 
-ontup_parser = subparsers.add_parser(
-    "ont-updates",
-    help="Find collections, containing data objects for ONT runs, whose tracking"
-    "metadata in the ML warehouse have changed since a specified time.",
-)
-ontup_parser.add_argument(
-    "--begin-date",
-    "--begin_date",
-    help="Limit collections found to those changed after this date. Defaults to 14 "
-    "days ago. The argument must be an ISO8601 UTC date or date and time e.g. "
-    "2022-01-30, 2022-01-30T11:11:03Z",
-    type=parse_iso_date,
-    default=datetime.now(timezone.utc) - timedelta(days=14),
-)
-ontup_parser.add_argument(
-    "--end-date",
-    "--end_date",
-    help="Limit collections found to those changed before date. Defaults to the"
-    "current time. The argument must be an ISO8601 UTC date or date and time e.g."
-    " 2022-01-30, 2022-01-30T11:11:03Z",
-    type=parse_iso_date,
-    default=datetime.now(),
-)
-ontup_parser.add_argument(
-    "--report-tags",
-    "--report_tags",
-    help="Include barcode sub-collections of runs containing de-multiplexed data.",
-    action="store_true",
-)
+    Returns:
+        The number of ML warehouse records processed, the number of errors encountered.
+    """
+
+    num_proc = num_err = 0
+
+    iso_since = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+    iso_until = until.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    attempts = 0
+    successes = 0
+    to_print = set()
+
+    for prev, curr in with_previous(
+        illumina.find_updated_components(session, since=since, until=until)
+    ):
+        if curr is None:  # Last item when this is reached
+            continue
+
+        num_proc += 1
+
+        avus = [
+            AVU(Instrument.RUN, curr.id_run),
+            AVU(Instrument.LANE, curr.position),
+        ]
+        if curr.tag_index is not None:
+            avus.append(AVU(SeqConcept.TAG_INDEX, curr.tag_index))
+
+        log_kwargs = {
+            "item": num_proc,
+            "comp": curr,
+            "query": avus,
+            "since": iso_since,
+            "until": iso_until,
+        }
+
+        if skip_absent_runs and successes == 0 and attempts == skip_absent_runs:
+            msg = "Skipping run after unsuccessful attempts to find it"
+            log.info(msg, attempts=attempts, **log_kwargs)
+            continue
+
+        try:
+            log.info("Searching iRODS", **log_kwargs)
+
+            result = query_metadata(*avus, collection=False, zone=zone)
+            if not result:
+                attempts += 1
+                continue
+            successes += 1
+
+            for obj in result:
+                to_print.add(str(obj))
+
+                try:
+                    qc_coll = find_qc_collection(obj)
+                    for item in qc_coll.iter_contents(recurse=True):
+                        to_print.add(str(item))
+                except CollectionNotFound as e:
+                    log.warning("QC collection missing", path=e.path)
+
+            if prev is not None and curr.id_run != prev.id_run:  # Reached next run
+                for obj in sorted(to_print):
+                    print(obj)
+                to_print.clear()
+                successes = attempts = 0
+
+        except Exception as e:
+            num_err += 1
+            log.exception(e, item=num_proc, comp=curr)
+
+    for obj in sorted(to_print):
+        print(obj)
+
+    log.info(f"Processed {num_proc} with {num_err} errors")
+
+    return num_proc, num_err
 
 
 def ont_updates(cli_args):
@@ -342,20 +301,116 @@ def ont_updates(cli_args):
             exit(1)
 
 
-ontup_parser.set_defaults(func=ont_updates)
-
-args = parser.parse_args()
-configure_logging(
-    config_file=args.log_config,
-    debug=args.debug,
-    verbose=args.verbose,
-    colour=args.colour,
-    json=args.json,
-)
-log = structlog.get_logger("main")
-
-
 def main():
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    add_logging_arguments(parser)
+    parser.add_argument(
+        "--database-config",
+        "--database_config",
+        "--db-config",
+        "--db_config",
+        help="Configuration file for database connection",
+        type=argparse.FileType("r"),
+        required=True,
+    )
+
+    parser.add_argument(
+        "--zone",
+        help="Specify a federated iRODS zone in which to find data objects to check. "
+        "This is not required if the target collections are in the local zone.",
+        type=str,
+    )
+    parser.add_argument(
+        "--version", help="Print the version and exit", action="store_true"
+    )
+
+    subparsers = parser.add_subparsers(title="Sub-commands", required=True)
+
+    cwdr_parser = subparsers.add_parser(
+        "consent-withdrawn",
+        help="Find data objects related to samples whose consent for data use has "
+        "been withdrawn.",
+    )
+    cwdr_parser.set_defaults(func=consent_withdrawn)
+
+    ilup_parser = subparsers.add_parser(
+        "illumina-updates",
+        help="Find data objects, which are components of Illumina runs, whose tracking "
+        "metadata in the ML warehouse have changed since a specified time.",
+    )
+    ilup_parser.add_argument(
+        "--begin-date",
+        "--begin_date",
+        help="Limit data objects found to those whose metadata was changed in the ML "
+        "warehouse at, or after after this date. Defaults to 14 days ago. The argument "
+        "must be an ISO8601 UTC date or date and time e.g. 2022-01-30, 2022-01-30T11:11:03Z",
+        type=parse_iso_date,
+        default=datetime.now(timezone.utc) - timedelta(days=14),
+    )
+    ilup_parser.add_argument(
+        "--end-date",
+        "--end_date",
+        help="Limit data objects found to those whose metadata was changed in the ML "
+        "warehouse at, or before this date. Defaults to the current time. The argument "
+        "must be an ISO8601 UTC date or date and time e.g. 2022-01-30, 2022-01-30T11:11:03Z",
+        type=parse_iso_date,
+        default=datetime.now(),
+    )
+    ilup_parser.add_argument(
+        "--skip-absent-runs",
+        "--skip_absent_runs",
+        help="Skip runs that cannot be found in iRODS after the number of attempts given "
+        "as an argument to this option. The argument may be an integer from 1 to 10, "
+        "inclusive and defaults to 3.",
+        nargs="?",
+        action="store",
+        type=integer_in_range(1, 10),
+        default=3,
+    )
+    ilup_parser.set_defaults(func=illumina_updates_cli)
+
+    ontup_parser = subparsers.add_parser(
+        "ont-updates",
+        help="Find collections, containing data objects for ONT runs, whose tracking"
+        "metadata in the ML warehouse have changed since a specified time.",
+    )
+    ontup_parser.add_argument(
+        "--begin-date",
+        "--begin_date",
+        help="Limit collections found to those changed after this date. Defaults to 14 "
+        "days ago. The argument must be an ISO8601 UTC date or date and time e.g. "
+        "2022-01-30, 2022-01-30T11:11:03Z",
+        type=parse_iso_date,
+        default=datetime.now(timezone.utc) - timedelta(days=14),
+    )
+    ontup_parser.add_argument(
+        "--end-date",
+        "--end_date",
+        help="Limit collections found to those changed before date. Defaults to the"
+        "current time. The argument must be an ISO8601 UTC date or date and time e.g."
+        " 2022-01-30, 2022-01-30T11:11:03Z",
+        type=parse_iso_date,
+        default=datetime.now(),
+    )
+    ontup_parser.add_argument(
+        "--report-tags",
+        "--report_tags",
+        help="Include barcode sub-collections of runs containing de-multiplexed data.",
+        action="store_true",
+    )
+    ontup_parser.set_defaults(func=ont_updates)
+
+    args = parser.parse_args()
+    configure_logging(
+        config_file=args.log_config,
+        debug=args.debug,
+        verbose=args.verbose,
+        colour=args.colour,
+        json=args.json,
+    )
+
     if args.version:
         print(version())
         exit(0)

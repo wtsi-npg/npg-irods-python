@@ -35,7 +35,7 @@ class ChecksumError(DataManagementError):
     Args:
         args: Optional positional arguments, the first of which should be a message
         string.
-        path: The path of the affected data object in iRODS
+        path: The path of the affected data object in iRODS.
         observed: The observed checksum(s), if any.
         expected: The expected checksum(s), if known.
     """
@@ -48,3 +48,18 @@ class ChecksumError(DataManagementError):
         self.path = path
         self.expected = expected
         self.observed = observed
+
+
+class CollectionNotFound(DataManagementError):
+    """Exception raised when an iRODS collection is expected to exist, but is not found.
+
+    Args:
+       args: Optional positional arguments, the first of which should be a message
+       string.
+       path: The path of the affected collection in iRODS.
+    """
+
+    def __init__(self, *args, path: Any = None):
+        super().__init__(*args)
+        self.message = args[0] if len(args) > 0 else ""
+        self.path = path

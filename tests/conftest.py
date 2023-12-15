@@ -960,6 +960,8 @@ def illumina_synthetic_irods(tmp_path):
     cmp = SeqConcept.COMPONENT
     ref = SeqConcept.REFERENCE
 
+    run_pos = [AVU(run, 12345), AVU(pos, 1), AVU(pos, 2)]
+
     metadata = {
         "12345/12345.cram": (
             AVU(cmp, '{"id_run":12345, "position":1}'),
@@ -972,24 +974,23 @@ def illumina_synthetic_irods(tmp_path):
             AVU(cmp, '{"id_run":12345, "position":1, "tag_index":1}'),
             AVU(cmp, '{"id_run":12345, "position":2, "tag_index":1}'),
             AVU(ref, "Any/other/reference"),
-            AVU(run, 12345),
-            AVU(pos, 1),
-            AVU(pos, 2),
+            *run_pos,
             AVU(tag, 1),
         ),
         "12345/12345#1_human.cram": (
             AVU(idp, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
             AVU(cmp, '{"id_run":12345, "position":1, "tag_index":1, "subset":"human"}'),
             AVU(cmp, '{"id_run":12345, "position":2, "tag_index":1, "subset":"human"}'),
-            AVU(run, 12345),
-            AVU(pos, 1),
-            AVU(pos, 2),
+            *run_pos,
             AVU(tag, 1),
         ),
         "12345/12345#2.cram": (
             AVU(idp, "0b3bd00f1d186247f381aa87e213940b8c7ab7e5"),
             AVU(cmp, '{"id_run":12345, "position":1, "tag_index":2}'),
             AVU(cmp, '{"id_run":12345, "position":2, "tag_index":2}'),
+            AVU(run, 12345),
+            AVU(pos, 1),
+            AVU(pos, 2),
             AVU(tag, 2),
             AVU(SeqConcept.ALT_PROCESS, "Alternative Process"),
         ),
@@ -997,6 +998,7 @@ def illumina_synthetic_irods(tmp_path):
             AVU(idp, "31a3d460bb3c7d98845187c716a30db81c44b615"),
             AVU(cmp, '{"id_run":12345, "position":1, "subset":"phix", "tag_index":1}'),
             AVU(cmp, '{"id_run":12345, "position":2, "subset":"phix", "tag_index":1}'),
+            *run_pos,
             AVU(tag, 1),
         ),
         "12345/12345#888.cram": (
@@ -1004,12 +1006,14 @@ def illumina_synthetic_irods(tmp_path):
             AVU(cmp, '{"id_run":12345, "position":1, "tag_index":888}'),
             AVU(cmp, '{"id_run":12345, "position":2, "tag_index":888}'),
             AVU(ref, "A/reference/with/PhiX/present"),
+            *run_pos,
             AVU(tag, 888),
         ),
         "12345/12345#0.cram": (
             AVU(idp, "f54f4a5c3eba5bdf302c1ce4a7c18add33a04315"),
             AVU(cmp, '{"id_run":12345, "position":1, "tag_index":0}'),
             AVU(cmp, '{"id_run":12345, "position":2, "tag_index":0}'),
+            *run_pos,
             AVU(tag, 0),
         ),
         "12345/cellranger/12345.cram": (),
@@ -1017,11 +1021,13 @@ def illumina_synthetic_irods(tmp_path):
             AVU(idp, "1a08a7027d9f9c20d01909989370ea6b70a5bccc"),
             AVU(cmp, '{"id_run":54321, "position":1, "tag_index":1}'),
             AVU(cmp, '{"id_run":54321, "position":2, "tag_index":1}'),
+            AVU(run, 54321),
             AVU(tag, 1),
         ),
         "67890/67890#1.cram": (
             AVU(cmp, '{"id_run":54321, "position":1, "tag_index":1}'),
             AVU(cmp, '{"id_run":54321, "position":2, "tag_index":1}'),
+            AVU(run, 67890),
             AVU(tag, 1),
         ),
     }

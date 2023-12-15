@@ -18,11 +18,13 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import argparse
+import itertools
 import json as json_parser
 import logging
 import logging.config
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime
+from typing import Iterable
 
 import dateutil.parser
 import structlog
@@ -213,3 +215,23 @@ def integer_in_range(minimum: int, maximum: int):
         return val
 
     return check_range
+
+
+def with_previous(iterable: Iterable) -> Iterable:
+    """Return an iterable that yields pairs of items from the argument iterable, each
+    pair consisting of the previous item and the current item. The first tuple contains
+    a pair of None and the first item, the last tuple contains the pair of the last item
+    and None. e.g.
+
+        [x for x in with_previous(range(3)] => [(None, 1), (1, 2), (2, None)]
+
+    Args:
+        iterable: An iterable to wrap.
+
+    Returns:
+        An iterable of tuples.
+    """
+    lead, lag = itertools.tee(iterable, 2)
+    return itertools.zip_longest(
+        itertools.chain(iter([None]), lead), lag, fillvalue=None
+    )

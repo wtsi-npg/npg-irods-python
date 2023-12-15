@@ -17,7 +17,6 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-import pytest
 from partisan.irods import AC, AVU, DataObject, Permission
 from pytest import mark as m
 
