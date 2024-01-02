@@ -50,13 +50,44 @@ class ChecksumError(DataManagementError):
         self.observed = observed
 
 
+class NonUniqueError(DataManagementError):
+    """Exception raised when a unique constraint is violated.
+
+    Args:
+        args: Optional positional arguments, the first of which should be a message
+        string.
+        observed: The observed non-unique objects, if any.
+    """
+
+    def __init__(self, *args, path: Any = None, observed: Any = None):
+        super().__init__(*args)
+        self.message = args[0] if len(args) > 0 else ""
+        self.observed = observed
+
+
 class CollectionNotFound(DataManagementError):
     """Exception raised when an iRODS collection is expected to exist, but is not found.
 
     Args:
        args: Optional positional arguments, the first of which should be a message
        string.
-       path: The path of the affected collection in iRODS.
+       path: The path of the missing collection in iRODS.
+    """
+
+    def __init__(self, *args, path: Any = None):
+        super().__init__(*args)
+        self.message = args[0] if len(args) > 0 else ""
+        self.path = path
+
+
+class DataObjectNotFound(DataManagementError):
+    """Exception raised when an iRODS data object is expected to exist, but is not
+    found.
+
+    Args:
+       args: Optional positional arguments, the first of which should be a message
+       string.
+       path: The path of the missing data object in iRODS.
     """
 
     def __init__(self, *args, path: Any = None):

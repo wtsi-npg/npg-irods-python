@@ -60,6 +60,14 @@ class TestIlluminaMetadataUpdate(object):
         for avu in expected_avus:
             assert avu in obj.metadata()
 
+        qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345#1.genotype.json"
+        qc_obj = DataObject(qc_path)
+
+        assert ensure_secondary_metadata_updated(
+            qc_obj, mlwh_session=illumina_synthetic_mlwh
+        )
+        assert qc_obj.metadata() == [AVU(TrackedStudy.ID, "4000")]
+
     @m.context("When the data are not multiplexed")
     @m.context("When correct metadata are already present")
     @m.it("Leaves the metadata unchanged")
@@ -80,10 +88,12 @@ class TestIlluminaMetadataUpdate(object):
             AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.NAME, "Study A"),
         ]
+        expected_permissions = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_4000", perm=Permission.READ, zone=zone),
+        ]
         obj.add_metadata(*expected_avus)
-
-        expected_acl = [AC("ss_4000", perm=Permission.READ, zone=zone)]
-        obj.add_permissions(*expected_acl)
+        obj.add_permissions(*expected_permissions)
 
         for avu in expected_avus:
             assert avu in obj.metadata()
@@ -325,17 +335,19 @@ class TestIlluminaPermissionsUpdate:
     ):
         zone = "testZone"
         path = illumina_synthetic_irods / "12345/12345.cram"
-
-        obj = DataObject(path)
-
-        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
-        assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh
-        )
-        assert obj.permissions() == [
+        qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345.genotype.json"
+        old_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
+        new_permissions = [
             AC("irods", perm=Permission.OWN, zone=zone),
             AC("ss_4000", perm=Permission.READ, zone=zone),
         ]
+
+        for obj in [DataObject(path), DataObject(qc_path)]:
+            assert obj.permissions() == old_permissions
+            assert ensure_secondary_metadata_updated(
+                obj, mlwh_session=illumina_synthetic_mlwh
+            )
+            assert obj.permissions() == new_permissions
 
     @m.context("When data are not multiplexed")
     @m.context("When the permissions are already present")
@@ -345,9 +357,7 @@ class TestIlluminaPermissionsUpdate:
     ):
         zone = "testZone"
         path = illumina_synthetic_irods / "12345/12345.cram"
-
-        obj = DataObject(path)
-
+        qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345.genotype.json"
         expected_metadata = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
@@ -358,19 +368,22 @@ class TestIlluminaPermissionsUpdate:
             AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.NAME, "Study A"),
         ]
-        obj.add_metadata(*expected_metadata)
-
-        expected_acl = [
+        old_permissions = [
             AC("irods", perm=Permission.OWN, zone=zone),
             AC("ss_4000", perm=Permission.READ, zone=zone),
         ]
-        obj.add_permissions(*expected_acl)
 
-        assert obj.permissions() == expected_acl
-        assert not ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh
-        )
-        assert obj.permissions() == expected_acl
+        obj = DataObject(path)
+        obj.add_metadata(*expected_metadata)
+        qc_obj = DataObject(qc_path)
+        qc_obj.add_metadata(AVU(TrackedStudy.ID, "4000"))
+
+        for x in [obj, qc_obj]:
+            x.add_permissions(*old_permissions)
+            assert not ensure_secondary_metadata_updated(
+                x, mlwh_session=illumina_synthetic_mlwh
+            )
+            assert x.permissions() == old_permissions
 
     @m.context("When data are not multiplexed")
     @m.context("When incorrect permissions are present")
@@ -380,23 +393,22 @@ class TestIlluminaPermissionsUpdate:
     ):
         zone = "testZone"
         path = illumina_synthetic_irods / "12345/12345.cram"
-
-        obj = DataObject(path)
-        obj.add_permissions(AC("ss_1000", Permission.READ, zone=zone))
+        qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345.genotype.json"
         old_permissions = [
             AC("irods", perm=Permission.OWN, zone=zone),
             AC("ss_1000", Permission.READ, zone=zone),
         ]
-
-        assert obj.permissions() == old_permissions
-        assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh
-        )
         new_permissions = [
             AC("irods", perm=Permission.OWN, zone=zone),
             AC("ss_4000", perm=Permission.READ, zone=zone),
         ]
-        assert obj.permissions() == new_permissions
+
+        for obj in [DataObject(path), DataObject(qc_path)]:
+            obj.add_permissions(*old_permissions)
+            assert ensure_secondary_metadata_updated(
+                obj, mlwh_session=illumina_synthetic_mlwh
+            )
+            assert obj.permissions() == new_permissions
 
     @m.context("When data are multiplexed")
     @m.context("When data contain a human subset")
@@ -406,19 +418,21 @@ class TestIlluminaPermissionsUpdate:
     ):
         zone = "testZone"
         path = illumina_synthetic_irods / "12345/12345#1_human.cram"
-
-        obj = DataObject(path)
-        expected_acl = [
+        qc_path = (
+            illumina_synthetic_irods / "12345" / "qc" / "12345#1_human.genotype.json"
+        )
+        old_permissions = [
             AC("irods", perm=Permission.OWN, zone=zone),
             AC("ss_4000", perm=Permission.READ, zone=zone),
         ]
-        obj.add_permissions(*expected_acl)
+        new_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
 
-        assert obj.permissions() == expected_acl
-        assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh
-        )
-        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+        for obj in [DataObject(path), DataObject(qc_path)]:
+            obj.add_permissions(*old_permissions)
+            assert ensure_secondary_metadata_updated(
+                obj, mlwh_session=illumina_synthetic_mlwh
+            )
+            assert obj.permissions() == new_permissions
 
     @m.context("When data are multiplexed")
     @m.context("When data contain a human X chromosome/autosome subset")
@@ -428,19 +442,21 @@ class TestIlluminaPermissionsUpdate:
     ):
         zone = "testZone"
         path = illumina_synthetic_irods / "12345/12345#1_xahuman.cram"
-
-        obj = DataObject(path)
-        expected_acl = [
+        qc_path = (
+            illumina_synthetic_irods / "12345" / "qc" / "12345#1_xahuman.genotype.json"
+        )
+        old_permissions = [
             AC("irods", perm=Permission.OWN, zone=zone),
             AC("ss_4000", perm=Permission.READ, zone=zone),
         ]
-        obj.add_permissions(*expected_acl)
+        new_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
 
-        assert obj.permissions() == expected_acl
-        assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh
-        )
-        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+        for obj in [DataObject(path), DataObject(qc_path)]:
+            obj.add_permissions(*old_permissions)
+            assert ensure_secondary_metadata_updated(
+                obj, mlwh_session=illumina_synthetic_mlwh
+            )
+            assert obj.permissions() == new_permissions
 
     @m.context("When data are multiplexed")
     @m.context("When data are from multiple studies")
@@ -450,17 +466,19 @@ class TestIlluminaPermissionsUpdate:
     ):
         zone = "testZone"
         path = illumina_synthetic_irods / "12345/12345#2.cram"
-
-        obj = DataObject(path)
-        obj.add_permissions(
+        qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345#2.genotype.json"
+        old_permissions = [
             AC("ss_4000", Permission.READ, zone=zone),
             AC("ss_5000", Permission.READ, zone=zone),
-        )
+        ]
+        new_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
 
-        assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh
-        )
-        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+        for obj in [DataObject(path), DataObject(qc_path)]:
+            obj.add_permissions(*old_permissions)
+            assert ensure_secondary_metadata_updated(
+                obj, mlwh_session=illumina_synthetic_mlwh
+            )
+            assert obj.permissions() == new_permissions
 
     @m.context("When data are not multiplexed")
     @m.context("When data have had consent withdrawn")
@@ -470,15 +488,16 @@ class TestIlluminaPermissionsUpdate:
     ):
         zone = "testZone"
         path = illumina_synthetic_irods / "12345/12345.cram"
+        qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345.genotype.json"
+        old_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
 
-        obj = DataObject(path)
-
-        assert ensure_consent_withdrawn(obj)
-        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
-        assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh
-        )
-        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+        for obj in [DataObject(path), DataObject(qc_path)]:
+            assert ensure_consent_withdrawn(obj)
+            assert obj.permissions() == old_permissions
+            assert ensure_secondary_metadata_updated(
+                obj, mlwh_session=illumina_synthetic_mlwh
+            )
+            assert obj.permissions() == old_permissions
 
     @m.context("When data are multiplexed")
     @m.context("When data have had consent withdrawn")
@@ -488,12 +507,15 @@ class TestIlluminaPermissionsUpdate:
     ):
         zone = "testZone"
         path = illumina_synthetic_irods / "12345/12345#1_human.cram"
-
-        obj = DataObject(path)
-
-        assert ensure_consent_withdrawn(obj)
-        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
-        assert ensure_secondary_metadata_updated(
-            obj, mlwh_session=illumina_synthetic_mlwh
+        qc_path = (
+            illumina_synthetic_irods / "12345" / "qc" / "12345#1_human.genotype.json"
         )
-        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+        old_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
+
+        for obj in [DataObject(path), DataObject(qc_path)]:
+            assert ensure_consent_withdrawn(obj)
+            assert obj.permissions() == old_permissions
+            assert ensure_secondary_metadata_updated(
+                obj, mlwh_session=illumina_synthetic_mlwh
+            )
+            assert obj.permissions() == old_permissions
