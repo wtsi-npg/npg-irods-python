@@ -57,6 +57,7 @@ from npg_irods.db.mlwh import (
     Sample,
     Study,
 )
+from npg_irods.illumina import EntityType
 from npg_irods.metadata import illumina, ont
 from npg_irods.metadata.common import DataFile, SeqConcept
 from npg_irods.metadata.lims import TrackedSample
@@ -413,34 +414,78 @@ def initialize_mlwh_illumina_synthetic(session: Session):
 
     sample_info = [
         # Not multiplexed
-        {"study": study_a, "sample": sample1, "position": 1, "tag_index": None},
+        {
+            "study": study_a,
+            "sample": sample1,
+            "position": 1,
+            "tag_index": None,
+            "entity_type": EntityType.LIBRARY.value,
+        },
         # Multiplexed, samples from the same study
-        {"study": study_a, "sample": sample1, "position": 1, "tag_index": 1},
-        {"study": study_a, "sample": sample2, "position": 1, "tag_index": 2},
-        {"study": study_a, "sample": sample1, "position": 2, "tag_index": 1},
-        {"study": study_a, "sample": sample2, "position": 2, "tag_index": 2},
+        {
+            "study": study_a,
+            "sample": sample1,
+            "position": 1,
+            "tag_index": 1,
+            "entity_type": EntityType.LIBRARY_INDEXED.value,
+        },
+        {
+            "study": study_a,
+            "sample": sample2,
+            "position": 1,
+            "tag_index": 2,
+            "entity_type": EntityType.LIBRARY_INDEXED.value,
+        },
+        {
+            "study": study_a,
+            "sample": sample1,
+            "position": 2,
+            "tag_index": 1,
+            "entity_type": EntityType.LIBRARY_INDEXED.value,
+        },
+        {
+            "study": study_a,
+            "sample": sample2,
+            "position": 2,
+            "tag_index": 2,
+            "entity_type": EntityType.LIBRARY_INDEXED.value,
+        },
         # Multiplexed, samples from different studies
-        {"study": study_a, "sample": sample1, "position": 2, "tag_index": 1},
-        {"study": study_b, "sample": sample3, "position": 2, "tag_index": 2},
+        {
+            "study": study_a,
+            "sample": sample1,
+            "position": 2,
+            "tag_index": 1,
+            "entity_type": EntityType.LIBRARY_INDEXED.value,
+        },
+        {
+            "study": study_b,
+            "sample": sample3,
+            "position": 2,
+            "tag_index": 2,
+            "entity_type": EntityType.LIBRARY_INDEXED.value,
+        },
         # Phi X
         {
             "study": control_study,
             "sample": control_sample,
             "position": 1,
             "tag_index": 888,
+            "entity_type": EntityType.LIBRARY_INDEXED_SPIKE.value,
         },
         {
             "study": control_study,
             "sample": control_sample,
             "position": 2,
             "tag_index": 888,
+            "entity_type": EntityType.LIBRARY_INDEXED_SPIKE.value,
         },
     ]
 
     flowcells = [
         IseqFlowcell(
             entity_id_lims=f"ENTITY_01",
-            entity_type=f"ENTITY_TYPE_01",
+            entity_type=info["entity_type"],
             id_flowcell_lims=f"FLOWCELL{i}",
             id_lims="LIMS_01",
             id_pool_lims=f"POOL_01",
