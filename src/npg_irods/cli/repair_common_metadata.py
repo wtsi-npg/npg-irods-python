@@ -137,7 +137,3 @@ def main():
         num_repaired=num_repaired,
         num_errors=num_errors,
     )
-
-
-if __name__ == "__main__":
-    main()

@@ -18,9 +18,11 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, unique
+from pathlib import PurePath
 from typing import Iterator, Optional, Type
 
 from partisan.irods import AVU, Collection, DataObject
@@ -30,12 +32,14 @@ from structlog import get_logger
 
 from npg_irods.common import infer_zone, update_metadata, update_permissions
 from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics, Sample, Study
-from npg_irods.exception import CollectionNotFound
+from npg_irods.exception import CollectionNotFound, DataObjectNotFound, NonUniqueError
 from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
     has_consent_withdrawn_metadata,
+    make_reduced_sample_metadata,
+    make_reduced_study_metadata,
     make_sample_acl,
     make_sample_metadata,
     make_study_metadata,
@@ -194,16 +198,36 @@ def ensure_secondary_metadata_updated(
     zone = infer_zone(item)
     secondary_metadata, acl = [], []
 
-    components = [
-        Component.from_avu(avu) for avu in item.metadata(SeqConcept.COMPONENT)
-    ]  # Illumina specific
+    def empty_acl(*args):
+        return []
+
+    if requires_full_metadata(item):
+        log.info("Requires full metadata", path=item)
+        sample_fn, study_fn = make_sample_metadata, make_study_metadata
+    else:
+        log.info("Requires reduced metadata", path=item)
+        sample_fn, study_fn = make_reduced_sample_metadata, make_reduced_study_metadata
+
+    if requires_managed_access(item):
+        log.info("Requires managed access", path=item)
+        acl_fn = make_sample_acl
+    else:
+        log.info("Does not require managed access", path=item)
+        acl_fn = empty_acl
+
+    # Each component may be associated with multiple flowcells
+    components = find_associated_components(item)
     for c in components:
         for fc in find_flowcells_by_component(
             mlwh_session, c, include_controls=include_controls
         ):
-            secondary_metadata.extend(make_sample_metadata(fc.sample))
-            secondary_metadata.extend(make_study_metadata(fc.study))
-            acl.extend(make_sample_acl(fc.sample, fc.study, zone=zone))
+            secondary_metadata.extend(sample_fn(fc.sample))
+            secondary_metadata.extend(study_fn(fc.study))
+            acl.extend(acl_fn(fc.sample, fc.study, zone=zone))
+
+    # Remove duplicates
+    secondary_metadata = sorted(set(secondary_metadata))
+    acl = sorted(set(acl))
 
     meta_update = update_metadata(item, secondary_metadata)
 
@@ -218,6 +242,204 @@ def ensure_secondary_metadata_updated(
         perm_update = update_permissions(item, acl)
 
     return any([meta_update, cons_update, xahu_update, perm_update])
+
+
+def without_suffixes(path: PurePath) -> PurePath:
+    """Return a copy of path with all suffixes removed."""
+    p = PurePath(path)
+    while p.suffix != "":
+        p = p.with_suffix("")
+    return p
+
+
+def is_qc_data_object(item: DataObject | Collection) -> bool:
+    """Return True if the given data object is in the qc sub-collection."""
+    return item.rods_type == DataObject and item.path.parent.name == "qc"
+
+
+def split_name(name: str) -> tuple[str, str]:
+    """Split the name of an Illumina data object into its stem and suffixes.
+
+    In most cases, the stem can be determined using the Python pathlib API. However,
+    there are a set of historical naming inconsistencies that require special handling.
+    This function handles those cases or delegates to the pathlib API if the name is
+    consistent with the default naming convention.
+
+    Extending this method to handle new types of file:
+
+    If your new file can be handled by the pathlib API then you do not need to extend
+    the capabilities of this function. Otherwise, you will need to add an additional
+    regular expression to parse the stem from the file name.
+
+    """
+
+    # Handle this form:
+    #
+    # 9930555.ACXX.paired158.550b751b96_F0x900.stats
+    # 9930555.ACXX.paired158.550b751b96_F0xB00.stats
+    # 9930555.ACXX.paired158.550b751b96_F0xF04_target.stats
+    if match := re.match(r"(\d+\.\w+\.\w+\.\w+)(_F0x\d+.*)$", name):
+        stem, suffixes = match.groups()
+
+    # Handle this form:
+    #
+    # 9930555.ACXX.paired158.550b751b96.flagstat
+    # 9930555.ACXX.paired158.550b751b96.g.vcf.gz
+    elif match := re.match(r"(\d+\.\w+\.\w+\.\w+)(.*)$", name):
+        stem, suffixes = match.groups()
+
+    # Handle this form:
+    #
+    # [prefix]_F0x900.stats
+    # [prefix]_F0xB00.stats
+    # [prefix]_F0xF04_target.stats
+    # [prefix]_F0xF04_target_autosome.stats
+    elif match := re.match(r"([\w#]+)(_F0x\d+.*)$", name):
+        stem, suffixes = match.groups()
+
+    # Handle this form:
+    #
+    # [prefix]_quality_cycle_caltable.txt
+    # [prefix]_quality_cycle_surv.txt
+    # [prefix]_quality_error.txt
+    elif match := re.match(r"([\w#]+)(_quality_\.txt)$", name):
+        stem, suffixes = match.groups()
+
+    else:
+        p = PurePath(name)
+        stem = without_suffixes(p)
+        suffixes = "".join(p.suffixes)
+
+    return stem, suffixes
+
+
+def find_associated_components(item: DataObject | Collection) -> list[Component]:
+    """Return a list of Illumina components associated with the given item. Components
+    allow us to look up the associated sample and study metadata in the ML Warehouse.
+
+    The iRODS metadata describing the Components may be on the item itself, or it may
+    be on another, related data object. Why is it not always on the item itself? This is
+    to work around the limited vertical scaling possible within an iRODS zone; our
+    metadata link table already contains >3 billion rows, so we cannot afford to add
+    metadata to every data that we would like, even though that would be the simplest
+    and most explicit method.
+
+    All data objects containing primary sequence data (BAM, CRAM) have Component
+    metadata attached. Ancillary files, such as JSON files containing QC metrics, do not
+    and their Components must be inferred from the file name.
+
+    In most cases the file name association is straightforward; the file stem of the
+    BAM/CRAM file and its associated ancillary files are identical. The stem can be
+    determined using the Python pathlib API. However, there are a set of historical
+    naming inconsistencies that require special handling.
+
+    Extending this function to handle new types of file:
+
+    - If your new file respects the naming convention described above (related files
+    have the same stem) and the stem can be determined using the pathlib API then you
+    can simply add the file to iRODS and whenever its path is passed to this function,
+    the correct Components will be returned.
+
+    - If your new file does not respect the default naming convention, then you will
+    need to extend the split_name() function to handle the new file type.
+
+    Args:
+        item:
+
+    Returns:
+
+    """
+    errmsg = "Failed to find an associated data object bearing component metadata"
+
+    if item.rods_type == Collection:
+        raise DataObjectNotFound(
+            f"{errmsg}. Illumina component metadata is only associated with data "
+            f"objects, while {item} is a collection"
+        )
+    item_stem, item_suffix = split_name(item.name)
+
+    # The item itself holds the associated metadata (true for BAM and CRAM files)
+    if item_suffix in [".bam", ".cram"]:
+        return [Component.from_avu(avu) for avu in item.metadata(SeqConcept.COMPONENT)]
+
+    # Try to find the associated BAM or CRAM file. This will be in the same collection,
+    # except in the case of QC data objects, where it will be in the parent collection.
+    if is_qc_data_object(item):
+        coll = Collection(item.path.parent.parent)
+    else:
+        coll = Collection(item.path.parent)
+
+    if not coll.exists():
+        raise CollectionNotFound(
+            f"{errmsg} in this collection (path does not exist)", path=coll
+        )
+
+    bams, crams = [], []
+    for obj in coll.iter_contents():
+        if obj.rods_type != DataObject:
+            continue
+
+        stem, suffix = split_name(obj.name)
+        if stem != item_stem:
+            continue
+
+        if suffix == ".bam":
+            bams.append(obj)
+        elif suffix == ".cram":
+            crams.append(obj)
+
+    associated = crams if len(crams) > 0 else bams
+
+    if len(associated) == 0:
+        raise DataObjectNotFound(f"{errmsg} for {item} in {coll}", path=item)
+    if len(associated) > 1:
+        raise NonUniqueError(
+            f"{errmsg}. Multiple associated data objects for {item} "
+            f"found in {coll}: {associated}",
+            path=item,
+            observed=associated,
+        )
+
+    obj = associated.pop()
+
+    return [Component.from_avu(avu) for avu in obj.metadata(SeqConcept.COMPONENT)]
+
+
+def requires_full_metadata(obj: DataObject) -> bool:
+    """Return True if the given data object requires full metadata.
+
+    Ideally we wouldn't have a special cases, however, we need to be economical with
+    metadata storage because the iRODS metadata link table is already >3 billion rows,
+    which is impacting query performance.
+    """
+    full = [".bam", ".cram"]
+    return any(suffix in full for suffix in PurePath(obj.name).suffixes)
+
+
+def requires_managed_access(obj: DataObject) -> bool:
+    """Return True if the given data object requires managed access control.
+
+    For example, data objects containing primary sequence or genotype data should be
+    managed.
+    """
+    managed = [
+        ".bam",
+        ".bed",
+        ".cram",
+        ".fasta",
+        ".fastq",
+        ".gatk_collecthsmetrics",
+        ".genotype",
+        ".tab",
+        ".vcf",
+        ".zip",
+    ]
+    return any(suffix in managed for suffix in PurePath(obj.name).suffixes)
+
+
+def has_component_metadata(item: Collection | DataObject) -> bool:
+    """Return True if the given item has Illumina component metadata."""
+    return len(item.metadata(SeqConcept.COMPONENT)) > 0
 
 
 def find_qc_collection(path: Collection | DataObject) -> Collection:

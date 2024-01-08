@@ -110,6 +110,25 @@ def make_sample_metadata(sample: Sample) -> list[AVU]:
     return list(filter(lambda avu: avu is not None, starmap(avu_if_value, av)))
 
 
+def make_reduced_sample_metadata(sample: Sample) -> list[AVU]:
+    """Return reduced iRODS metadata for a Sample:
+
+     - sample accession
+     - sample ID
+     - sample name
+
+    Args:
+        sample: An ML warehouse schema Sample.
+
+    Returns:
+        AVUs
+    """
+    if sample.consent_withdrawn:
+        return [avu_if_value(TrackedSample.CONSENT_WITHDRAWN, 1)]
+
+    return []
+
+
 def make_study_metadata(study: Study) -> list[AVU]:
     """Return standard iRODS metadata for a Study:
 
@@ -132,6 +151,21 @@ def make_study_metadata(study: Study) -> list[AVU]:
     ]
 
     return list(filter(lambda avu: avu is not None, starmap(avu_if_value, av)))
+
+
+def make_reduced_study_metadata(study: Study) -> list[AVU]:
+    """Return reduced iRODS metadata for a Study:
+
+    - study ID
+    - study name
+
+    Args:
+        study: An ML warehouse schema Study.
+
+    Returns:
+        AVUs
+    """
+    return [avu_if_value(TrackedStudy.ID, study.id_study_lims)]
 
 
 def make_sample_acl(sample: Sample, study: Study, zone=None) -> list[AC]:
@@ -165,7 +199,7 @@ def make_sample_acl(sample: Sample, study: Study, zone=None) -> list[AC]:
 
 
 def make_public_read_acl() -> list[AC]:
-    """Returns an ACL allowing public reads
+    """Returns an ACL allowing public reads.
 
     Returns:
         An ACL
