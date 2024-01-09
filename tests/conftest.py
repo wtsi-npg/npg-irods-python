@@ -409,7 +409,7 @@ def initialize_mlwh_illumina_synthetic(session: Session):
     control_sample = Sample(
         id_lims="LIMS_888", id_sample_lims="phix", name="Phi X", **default_timestamps
     )
-    session.add_all([sample1, sample2, control_sample])
+    session.add_all([sample1, sample2, sample3, control_sample])
     session.flush()
 
     sample_info = [
