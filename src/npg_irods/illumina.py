@@ -26,6 +26,7 @@ from pathlib import PurePath
 from typing import Iterator, Optional, Type
 
 from partisan.irods import AVU, Collection, DataObject
+from partisan.metadata import AsValueEnum
 from sqlalchemy import asc
 from sqlalchemy.orm import Session
 from structlog import get_logger
@@ -57,11 +58,17 @@ class TagIndex(Enum):
     Rather, it is a bin for reads that cannot be associated with any of the candidate
     tags in a pool after sequencing."""
 
-    CONTROL_198 = 198
 
-    CONTROL_888 = 888
-    """Tag index 888 is conventionally used to indicate a control sample e.g. Phi X
-    that has been added to a pool."""
+@unique
+class EntityType(AsValueEnum):
+    """The type of sequenced material applied to a flowcell. This related to the
+    entity_type column in the MLWH. The values are defined in the MLWH schema
+    metadata."""
+
+    LIBRARY = "library"
+    LIBRARY_CONTROL = "library_control"
+    LIBRARY_INDEXED = "library_indexed"
+    LIBRARY_INDEXED_SPIKE = "library_indexed_spike"
 
 
 @dataclass(order=True)
@@ -141,7 +148,7 @@ class Component:
         if self.tag_index is not None:
             rep[SeqConcept.TAG_INDEX.value] = self.tag_index
         if self.subset is not None:
-            rep[SeqConcept.SUBSET.value] = self.subset
+            rep[SeqConcept.SUBSET.value] = self.subset.value
 
         return json.dumps(rep, sort_keys=True, separators=(",", ":"))
 
@@ -202,25 +209,29 @@ def ensure_secondary_metadata_updated(
         return []
 
     if requires_full_metadata(item):
-        log.info("Requires full metadata", path=item)
+        log.debug("Requires full metadata", path=item)
         sample_fn, study_fn = make_sample_metadata, make_study_metadata
     else:
-        log.info("Requires reduced metadata", path=item)
+        log.debug("Requires reduced metadata", path=item)
         sample_fn, study_fn = make_reduced_sample_metadata, make_reduced_study_metadata
 
     if requires_managed_access(item):
-        log.info("Requires managed access", path=item)
+        log.debug("Requires managed access", path=item)
         acl_fn = make_sample_acl
     else:
-        log.info("Does not require managed access", path=item)
+        log.debug("Does not require managed access", path=item)
         acl_fn = empty_acl
 
     # Each component may be associated with multiple flowcells
     components = find_associated_components(item)
+    log.debug("Found associated components", path=item, comp=components)
+
     for c in components:
-        for fc in find_flowcells_by_component(
+        flowcells = find_flowcells_by_component(
             mlwh_session, c, include_controls=include_controls
-        ):
+        )
+        log.debug("Found associated flowcells", path=item, flowcells=flowcells, comp=c)
+        for fc in flowcells:
             secondary_metadata.extend(sample_fn(fc.sample))
             secondary_metadata.extend(study_fn(fc.study))
             acl.extend(acl_fn(fc.sample, fc.study, zone=zone))
@@ -467,31 +478,25 @@ def find_flowcells_by_component(
         sess.query(IseqFlowcell)
         .distinct()
         .join(IseqFlowcell.iseq_product_metrics)
-        .filter(IseqProductMetrics.id_run == component.id_run)
+        .filter(
+            IseqProductMetrics.id_run == component.id_run,
+            IseqFlowcell.position == component.position,
+        )
     )
 
-    if component.position is not None:
-        query = query.filter(IseqProductMetrics.position == component.position)
+    if not include_controls:
+        query = query.filter(
+            IseqFlowcell.entity_type.notin_(
+                [
+                    EntityType.LIBRARY_CONTROL.value,
+                    EntityType.LIBRARY_INDEXED_SPIKE.value,
+                ]
+            )
+        )
 
     match component.tag_index:
-        case TagIndex.CONTROL_198.value | TagIndex.CONTROL_888.value:
-            if not include_controls:
-                query = query.filter(
-                    IseqProductMetrics.tag_index.notin_(
-                        [TagIndex.CONTROL_198.value, TagIndex.CONTROL_888.value]
-                    )
-                )
-
-            query = query.filter(IseqProductMetrics.tag_index == component.tag_index)
         case TagIndex.BIN.value:
-            if not include_controls:
-                query = query.filter(
-                    IseqProductMetrics.tag_index.notin_(
-                        [TagIndex.CONTROL_198.value, TagIndex.CONTROL_888.value]
-                    )
-                )
-
-            query = query.filter(IseqProductMetrics.tag_index.is_not(None))
+            query = query.filter(IseqProductMetrics.tag_index.isnot(None))
         case int():
             query = query.filter(IseqProductMetrics.tag_index == component.tag_index)
         case None:
