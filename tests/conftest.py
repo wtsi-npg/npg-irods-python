@@ -1031,8 +1031,12 @@ def illumina_synthetic_irods(tmp_path):
         ),
         "12345/12345#1_xahuman.cram": (
             AVU(idp, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
-            AVU(cmp, '{"id_run":12345, "position":1, "tag_index":1, "subset":"xahuman"}'),
-            AVU(cmp, '{"id_run":12345, "position":2, "tag_index":1, "subset":"xahuman"}'),
+            AVU(
+                cmp, '{"id_run":12345, "position":1, "tag_index":1, "subset":"xahuman"}'
+            ),
+            AVU(
+                cmp, '{"id_run":12345, "position":2, "tag_index":1, "subset":"xahuman"}'
+            ),
             *run_pos,
             AVU(tag, 1),
         ),

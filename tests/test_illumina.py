@@ -427,7 +427,7 @@ class TestIlluminaPermissionsUpdate:
         ]
         new_permissions = [
             AC("irods", perm=Permission.OWN, zone=zone),
-            AC("ss_4000_human", perm=Permission.READ, zone=zone),               
+            AC("ss_4000_human", perm=Permission.READ, zone=zone),
         ]
 
         for obj in [DataObject(path), DataObject(qc_path)]:
