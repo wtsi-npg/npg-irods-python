@@ -234,7 +234,7 @@ def ensure_secondary_metadata_updated(
         for fc in flowcells:
             secondary_metadata.extend(sample_fn(fc.sample))
             secondary_metadata.extend(study_fn(fc.study))
-            acl.extend(acl_fn(fc.sample, fc.study, zone=zone))
+            acl.extend(acl_fn(c.subset, fc.sample, fc.study, zone=zone))
 
     # Remove duplicates
     secondary_metadata = sorted(set(secondary_metadata))
@@ -248,7 +248,7 @@ def ensure_secondary_metadata_updated(
         cons_update = ensure_consent_withdrawn(item)
     elif any(c.contains_nonconsented_human() for c in components):  # Illumina specific
         log.info("Non-consented human data", path=item)
-        xahu_update = ensure_consent_withdrawn(item)
+        xahu_update = update_permissions(item, acl)
     else:
         perm_update = update_permissions(item, acl)
 

@@ -168,7 +168,7 @@ def make_reduced_study_metadata(study: Study) -> list[AVU]:
     return [avu_if_value(TrackedStudy.ID, study.id_study_lims)]
 
 
-def make_sample_acl(sample: Sample, study: Study, zone=None) -> list[AC]:
+def make_sample_acl(seq:SeqConcept, sample: Sample, study: Study, zone=None) -> list[AC]:
     """Returns an ACL for a given Sample in a Study.
 
     This method takes into account all factors influencing access control, which are:
@@ -192,8 +192,12 @@ def make_sample_acl(sample: Sample, study: Study, zone=None) -> list[AC]:
     Returns:
         An ACL
     """
-    irods_group = f"{STUDY_IDENTIFIER_PREFIX}{study.id_study_lims}"
-    perm = Permission.NULL if sample.consent_withdrawn else Permission.READ
+    print(seq)
+    if seq is not None and seq.value == "human":
+        irods_group = f"{STUDY_IDENTIFIER_PREFIX}{study.id_study_lims}_human"
+    else:
+        irods_group = f"{STUDY_IDENTIFIER_PREFIX}{study.id_study_lims}"
+    perm = Permission.NULL if sample.consent_withdrawn or (seq is not None and seq.value == "xahuman") else Permission.READ
 
     return [AC(irods_group, perm, zone=zone)]
 
