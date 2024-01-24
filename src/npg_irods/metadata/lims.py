@@ -186,7 +186,7 @@ def make_sample_acl(
     Note that this function does not check that the sample is in the study.
 
     Args:
-        seq: Sequencing terminology, unique to illumina  
+        seq: Sequencing terminology, unique to illumina
         sample: A sample, which will be used to confirm consent, which modifies the
                 ACL.
         study: A study, which will provide permissions for the ACL.
