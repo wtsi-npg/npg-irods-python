@@ -234,7 +234,7 @@ def ensure_secondary_metadata_updated(
         for fc in flowcells:
             secondary_metadata.extend(sample_fn(fc.sample))
             secondary_metadata.extend(study_fn(fc.study))
-            acl.extend(acl_fn(c.subset, fc.sample, fc.study, zone=zone))
+            acl.extend(acl_fn(fc.sample, fc.study, c.subset, zone=zone))
 
     # Remove duplicates
     secondary_metadata = sorted(set(secondary_metadata))

@@ -505,7 +505,7 @@ def _do_secondary_metadata_and_perms_update(
 
     acl = []
     for fc in flowcells:
-        acl.extend(make_sample_acl(None, fc.sample, fc.study, zone=zone))
+        acl.extend(make_sample_acl(fc.sample, fc.study, zone=zone))
 
     recurse = item.rods_type == Collection
     cons_update = perm_update = False
