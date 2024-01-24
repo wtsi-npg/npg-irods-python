@@ -169,7 +169,7 @@ def make_reduced_study_metadata(study: Study) -> list[AVU]:
 
 
 def make_sample_acl(
-    sample: Sample, study: Study, subset: SeqSubset=None, zone=None
+    sample: Sample, study: Study, subset: SeqSubset = None, zone=None
 ) -> list[AC]:
     """Returns an ACL for a given Sample in a Study.
 
