@@ -20,6 +20,7 @@ class TestLocateDataObjects:
                 "12345#1.cram",
                 "12345#1_human.cram",
                 "12345#1_phix.cram",
+                "12345#1_xahuman.cram",
                 "12345#2.cram",
                 "12345#888.cram",
                 "12345.cram",
