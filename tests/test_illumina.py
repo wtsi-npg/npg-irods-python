@@ -412,7 +412,7 @@ class TestIlluminaPermissionsUpdate:
 
     @m.context("When data are multiplexed")
     @m.context("When data contain a human subset")
-    @m.it("Removes managed access permissions")
+    @m.it("Update managed access permissions to restricted human access group")
     def test_updates_human_permissions_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
