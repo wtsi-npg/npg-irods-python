@@ -37,6 +37,7 @@ from structlog import get_logger
 
 from npg_irods.db.mlwh import Sample, Study
 from npg_irods.metadata.common import (
+    SeqConcept,
     SeqSubset,
     ensure_avus_present,
     avu_if_value,
