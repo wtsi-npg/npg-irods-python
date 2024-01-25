@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -187,10 +187,10 @@ def make_sample_acl(
     Note that this function does not check that the sample is in the study.
 
     Args:
-        subset: Subset of sequence reads
         sample: A sample, which will be used to confirm consent, which modifies the
                 ACL.
         study: A study, which will provide permissions for the ACL.
+        subset: Subset of sequence reads.
         zone: The iRODS zone.
 
     Returns:

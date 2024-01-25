@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -234,7 +234,7 @@ def ensure_secondary_metadata_updated(
         for fc in flowcells:
             secondary_metadata.extend(sample_fn(fc.sample))
             secondary_metadata.extend(study_fn(fc.study))
-            acl.extend(acl_fn(fc.sample, fc.study, c.subset, zone=zone))
+            acl.extend(acl_fn(fc.sample, fc.study, subset=c.subset, zone=zone))
 
     # Remove duplicates
     secondary_metadata = sorted(set(secondary_metadata))
