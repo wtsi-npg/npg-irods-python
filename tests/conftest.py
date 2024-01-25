@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2020, 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2020, 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1026,6 +1026,17 @@ def illumina_synthetic_irods(tmp_path):
             AVU(idp, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
             AVU(cmp, '{"id_run":12345, "position":1, "tag_index":1, "subset":"human"}'),
             AVU(cmp, '{"id_run":12345, "position":2, "tag_index":1, "subset":"human"}'),
+            *run_pos,
+            AVU(tag, 1),
+        ),
+        "12345/12345#1_xahuman.cram": (
+            AVU(idp, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+            AVU(
+                cmp, '{"id_run":12345, "position":1, "tag_index":1, "subset":"xahuman"}'
+            ),
+            AVU(
+                cmp, '{"id_run":12345, "position":2, "tag_index":1, "subset":"xahuman"}'
+            ),
             *run_pos,
             AVU(tag, 1),
         ),

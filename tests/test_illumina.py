@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -412,7 +412,7 @@ class TestIlluminaPermissionsUpdate:
 
     @m.context("When data are multiplexed")
     @m.context("When data contain a human subset")
-    @m.it("Removes managed access permissions")
+    @m.it("Updates managed access permissions to restricted human access group")
     def test_updates_human_permissions_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
@@ -425,7 +425,10 @@ class TestIlluminaPermissionsUpdate:
             AC("irods", perm=Permission.OWN, zone=zone),
             AC("ss_4000", perm=Permission.READ, zone=zone),
         ]
-        new_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
+        new_permissions = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_4000_human", perm=Permission.READ, zone=zone),
+        ]
 
         for obj in [DataObject(path), DataObject(qc_path)]:
             obj.add_permissions(*old_permissions)

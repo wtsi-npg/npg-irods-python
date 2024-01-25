@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ from structlog import get_logger
 from npg_irods.db.mlwh import Sample, Study
 from npg_irods.metadata.common import (
     SeqConcept,
+    SeqSubset,
     ensure_avus_present,
     avu_if_value,
 )
@@ -168,7 +169,9 @@ def make_reduced_study_metadata(study: Study) -> list[AVU]:
     return [avu_if_value(TrackedStudy.ID, study.id_study_lims)]
 
 
-def make_sample_acl(sample: Sample, study: Study, zone=None) -> list[AC]:
+def make_sample_acl(
+    sample: Sample, study: Study, subset: SeqSubset = None, zone=None
+) -> list[AC]:
     """Returns an ACL for a given Sample in a Study.
 
     This method takes into account all factors influencing access control, which are:
@@ -187,12 +190,19 @@ def make_sample_acl(sample: Sample, study: Study, zone=None) -> list[AC]:
         sample: A sample, which will be used to confirm consent, which modifies the
                 ACL.
         study: A study, which will provide permissions for the ACL.
+        subset: Subset of sequence reads.
         zone: The iRODS zone.
 
     Returns:
         An ACL
     """
-    irods_group = f"{STUDY_IDENTIFIER_PREFIX}{study.id_study_lims}"
+    if subset is not None and subset is subset.XAHUMAN:
+        return []
+
+    if subset is not None and subset is subset.HUMAN:
+        irods_group = f"{STUDY_IDENTIFIER_PREFIX}{study.id_study_lims}_human"
+    else:
+        irods_group = f"{STUDY_IDENTIFIER_PREFIX}{study.id_study_lims}"
     perm = Permission.NULL if sample.consent_withdrawn else Permission.READ
 
     return [AC(irods_group, perm, zone=zone)]
