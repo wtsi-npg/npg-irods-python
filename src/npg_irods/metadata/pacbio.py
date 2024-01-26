@@ -46,8 +46,10 @@ lock = Lock()
 class Instrument(AsValueEnum):
     """Pac Bio platform metadata"""
 
+    PLATE_NUMBER = "plate_number"
     RUN_NAME = "run"
     WELL_LABEL = "well"
+    TAG_IDENTIFIER = "tag_index"
     TAG_SEQUENCE = "tag_sequence"
 
 

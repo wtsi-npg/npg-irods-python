@@ -264,7 +264,7 @@ def annotate_results_collection(
 
 
 def ensure_secondary_metadata_updated(
-    item: Collection | DataObject, mlwh_session
+    item: Collection | DataObject, mlwh_session: Session
 ) -> bool:
     """Update secondary metadata on an iRODS path, using information from the ML
     warehouse.

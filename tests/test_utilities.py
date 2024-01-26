@@ -27,7 +27,7 @@ from partisan.exception import RodsError
 from partisan.irods import AC, AVU, Collection, DataObject, Permission
 from pytest import mark as m
 
-from conftest import set_replicate_invalid
+from helpers import set_replicate_invalid
 from npg_irods.metadata.common import ensure_common_metadata, has_trimmable_replicas
 from npg_irods.metadata.lims import ensure_consent_withdrawn
 from npg_irods.utilities import (

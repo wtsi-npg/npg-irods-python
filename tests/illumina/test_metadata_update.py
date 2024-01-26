@@ -20,7 +20,7 @@
 from partisan.irods import AC, AVU, DataObject, Permission
 from pytest import mark as m
 
-from conftest import history_in_meta
+from helpers import history_in_meta
 from npg_irods.illumina import ensure_secondary_metadata_updated
 from npg_irods.metadata.lims import (
     TrackedSample,

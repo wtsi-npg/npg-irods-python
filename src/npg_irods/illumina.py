@@ -118,20 +118,7 @@ class Component:
         self.id_run = id_run
         self.position = position
         self.tag_index = int(tag_index) if tag_index is not None else None
-
-        match subset:
-            case SeqSubset.HUMAN.value:
-                self.subset = SeqSubset.HUMAN
-            case SeqSubset.XAHUMAN.value:
-                self.subset = SeqSubset.XAHUMAN
-            case SeqSubset.YHUMAN.value:
-                self.subset = SeqSubset.YHUMAN
-            case SeqSubset.PHIX.value:
-                self.subset = SeqSubset.PHIX
-            case None:
-                self.subset = None
-            case _:
-                raise ValueError(f"Invalid subset '{subset}'")
+        self.subset = SeqSubset.from_string(subset)
 
     def contains_nonconsented_human(self):
         """Return True if this component contains non-consented human sequence."""
@@ -154,7 +141,7 @@ class Component:
 
 
 def ensure_secondary_metadata_updated(
-    item: Collection | DataObject, mlwh_session, include_controls=False
+    item: Collection | DataObject, mlwh_session: Session, include_controls=False
 ) -> bool:
     """Update iRODS secondary metadata and permissions on Illumina run collections
     and data objects.
@@ -394,6 +381,7 @@ def find_associated_components(item: DataObject | Collection) -> list[Component]
         if stem != item_stem:
             continue
 
+        # Alternatively we could use the "type" AVU to determine the type of data
         if suffix == ".bam":
             bams.append(obj)
         elif suffix == ".cram":

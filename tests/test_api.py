@@ -24,7 +24,7 @@ import pytest
 from partisan.irods import AVU, DataObject, Replica
 from pytest import mark as m
 
-from conftest import tests_have_admin
+from helpers import tests_have_admin
 from npg_irods.exception import ChecksumError
 from npg_irods.metadata.common import (
     CompressSuffix,
@@ -49,8 +49,8 @@ from npg_irods.metadata.common import (
 from npg_irods.metadata.lims import has_consent_withdrawn_metadata
 
 
-@m.describe("Checksums")
-class TestChecksums:
+@m.describe("Checksums and checksum metadata predicate API")
+class TestChecksumPredicates:
     @m.context("When a data object has full checksum coverage")
     @m.context("When the checksums for each replica are the same as each other")
     @m.it("Returns True")
@@ -290,8 +290,8 @@ class TestChecksums:
         assert has_matching_checksum_metadata(obj)
 
 
-@m.describe("Consent metadata")
-class TestConsentMetadata:
+@m.describe("Consent metadata predicate API")
+class TestConsentMetadataPredicates:
     @m.context("When consent withdrawn metadata are present")
     @m.context("A has_ function is called")
     @m.it("Returns True")
@@ -312,7 +312,7 @@ class TestConsentMetadata:
         assert not has_consent_withdrawn_metadata(DataObject(simple_data_object))
 
 
-@m.describe("Type metadata")
+@m.describe("Type metadata API")
 class TestTypeMetadata:
     @m.context("When a data object requires type metadata")
     @m.it("Returns True")
@@ -348,8 +348,8 @@ class TestTypeMetadata:
                 )
 
 
-@m.describe("Creation metadata")
-class TestCreationMetadata:
+@m.describe("Creation metadata API")
+class TestCreationMetadataAPI:
     @m.context("When creation metadata are created")
     @m.it("Has the correct form")
     def test_make_creation_metadata(self):
@@ -361,8 +361,8 @@ class TestCreationMetadata:
         ]
 
 
-@m.describe("Common metadata")
-class TestCommonMetadata:
+@m.describe("Common metadata API")
+class TestCommonMetadataAPI:
     @tests_have_admin
     @m.context("When common metadata are present")
     @m.context("When a has_ function is called")
@@ -426,8 +426,8 @@ class TestCommonMetadata:
         assert has_checksum_metadata(obj)
 
 
-@m.describe("Target metadata")
-class TestTargetMetadata:
+@m.describe("Target metadata predicate API")
+class TestTargetMetadataPredicates:
     @m.context("When target metadata are present")
     @m.context("When has_ function is called")
     @m.it("Returns True")
