@@ -73,10 +73,8 @@ RECOGNISED_FILE_SUFFIXES = {
         "tif",
         "tsv",
         "txt",
-        "txt",
         "xls",
         "xlsx",
-        "xml",
         "xml",
     ]
 }
@@ -111,6 +109,25 @@ class SeqSubset(AsValueEnum):
 
     YHUMAN = "yhuman"
     """Human Y chromosome reads separated from X and autosomal data."""
+
+    @staticmethod
+    def from_string(s: str):
+        """Return a SeqSubset from a string.
+
+        Args:
+            s: The string to parse.
+
+        Returns:
+            A SeqSubset, or None if no match.
+        """
+        if s is None:
+            return None
+
+        for subset in SeqSubset:
+            if subset.value == s:
+                return subset
+
+        raise ValueError(f"Invalid subset '{s}'")
 
 
 @unique

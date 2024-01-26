@@ -4,7 +4,7 @@ services:
     image: mysql
     restart: always
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     environment:
       MYSQL_USER: "test"
       MYSQL_PASSWORD: "test"
@@ -21,8 +21,8 @@ services:
     image: "ghcr.io/wtsi-npg/ub-18.04-irods-${IRODS_VERSION:-4.2.11}:${DOCKER_TAG:-latest}"
     restart: always
     ports:
-      - "1247:1247"
-      - "20000-20199:20000-20199"
+      - "127.0.0.1:1247:1247"
+      - "127.0.0.1:20000-20199:20000-20199"
 
   irods-clients:
     container_name: irods-clients

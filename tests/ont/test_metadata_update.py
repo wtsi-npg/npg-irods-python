@@ -22,7 +22,8 @@ from datetime import datetime
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
 from pytest import mark as m
 
-from conftest import LATEST, history_in_meta, ont_tag_identifier, tests_have_admin
+from helpers import LATEST, history_in_meta, tests_have_admin
+from ont.conftest import ont_tag_identifier
 from npg_irods import ont
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.lims import (
