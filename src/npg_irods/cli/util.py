@@ -23,7 +23,7 @@ import json as json_parser
 import logging
 import logging.config
 from argparse import ArgumentParser, ArgumentTypeError
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
 import dateutil.parser
@@ -46,6 +46,37 @@ def rods_path(path):
         raise ArgumentTypeError(f"iRODS path does not exist '{path}'")
 
     return path
+
+
+def add_date_range_arguments(parser: argparse, begin_delta=14):
+    """Add --begin-date and --end-date arguments to the argument parser.
+
+    Args:
+        parser: The parser to modify
+        begin_delta: The time delta for the defaullt begin date relative to the default
+        end date (which is today). Defaults to 14 days i.e. --begin-date is 14 days ago.
+
+    Returns:
+        The parser.
+    """
+    parser.add_argument(
+        "--begin-date",
+        "--begin_date",
+        help="Limit to after this date. Defaults to 14 days ago. The argument must "
+        "be an ISO8601 UTC date or date and time "
+        "e.g. 2022-01-30, 2022-01-30T11:11:03Z",
+        type=parse_iso_date,
+        default=datetime.now(timezone.utc) - timedelta(days=begin_delta),
+    )
+    parser.add_argument(
+        "--end-date",
+        "--end_date",
+        help="Limit to before this date. Defaults to the current time. The argument "
+        "must be an ISO8601 UTC date or date and time "
+        "e.g. 2022-01-30, 2022-01-30T11:11:03Z",
+        type=parse_iso_date,
+        default=datetime.now(),
+    )
 
 
 def add_logging_arguments(parser: ArgumentParser) -> ArgumentParser:

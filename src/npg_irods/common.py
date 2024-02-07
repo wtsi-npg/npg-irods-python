@@ -164,7 +164,7 @@ def is_ultima_genomics(path: PathLike | str) -> bool:
         path: An iRODS path.
 
     Returns:
-        True if Ultime data.
+        True if Ultima data.
     """
     return re.match(r"/seq/ug\b", str(path)) is not None
 

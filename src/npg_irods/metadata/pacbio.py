@@ -49,8 +49,25 @@ class Instrument(AsValueEnum):
     PLATE_NUMBER = "plate_number"
     RUN_NAME = "run"
     WELL_LABEL = "well"
+    SOURCE = "source"
     TAG_IDENTIFIER = "tag_index"
     TAG_SEQUENCE = "tag_sequence"
+
+
+def add_well_padding(well_label: str) -> str:
+    """
+    Add padding to well label string.
+
+    Args:
+        well_label: The unpadded well label string.
+
+    Returns: The padded well label string as it is in iRODS metadata.
+    """
+    match = re.search(r"^([A-Z])(\d+)$", well_label)
+    if match is None:
+        raise ValueError(f"Invalid well label: '{well_label}'")
+
+    return match.group(1) + match.group(2).rjust(2, "0")
 
 
 def remove_well_padding(well_label: str) -> str:
@@ -58,11 +75,14 @@ def remove_well_padding(well_label: str) -> str:
     Remove padding from well label string.
 
     Args:
-        well_label: The padded well label as it is in iRODS metadata
+        well_label: The padded well label as it is in iRODS metadata.
 
     Returns: The unpadded well label string
     """
     match = re.search(r"^([A-Z])(\d+)$", well_label)
+    if match is None:
+        raise ValueError(f"Invalid well label: '{well_label}'")
+
     return match.group(1) + match.group(2).lstrip("0")
 
 
@@ -170,7 +190,6 @@ def backfill_id_products(
         num_clients: The number of baton clients to use. Defaults to 1.
 
     Returns: bool
-
     """
     rv = True
     writer = LocationWriter(PACBIO, path=out_path)

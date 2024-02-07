@@ -22,11 +22,20 @@ from pathlib import PurePath
 import pytest
 from npg_id_generation.pac_bio import PacBioEntity
 from partisan.icommands import iput
-from partisan.irods import AVU, DataObject
+from partisan.irods import AVU, Collection, DataObject
 from sqlalchemy.orm import Session
 
-from conftest import BEGIN
-from helpers import add_rods_path, remove_rods_path
+from helpers import (
+    BEGIN,
+    EARLY,
+    LATE,
+    add_rods_path,
+    add_test_groups,
+    remove_rods_path,
+    remove_test_groups,
+)
+from npg_irods.metadata.common import SeqConcept
+from npg_irods.metadata.pacbio import Instrument, remove_well_padding
 from npg_irods.db.mlwh import (
     PacBioProductMetrics,
     PacBioRun,
@@ -34,20 +43,29 @@ from npg_irods.db.mlwh import (
     Sample,
     Study,
 )
-from npg_irods.metadata.common import SeqConcept
 
-DEFAULT_TIMESTAMPS = {"last_updated": BEGIN, "recorded_at": BEGIN}
+
+def make_product_id(run: str, well: str, plate=None, tag=None):
+    # Remove padding from well label; e.g. A01 -> A1
+    well_depad = remove_well_padding(well)
+    return PacBioEntity(
+        run_name=run, well_label=well_depad, plate_number=plate, tags=tag
+    ).hash_product_id()
 
 
 def make_pacbio_fixture(session, num_runs=2, num_wells=2, num_tags=2, is_revio=True):
     """Insert ML warehouse test data for synthetic PacBio data.
 
+    Even-numbered runs were done EARLY. Odd-numbered runs were done LATE.
+
     NB. If you change the default values for num_runs, num_wells or num_tags, you will
     need to add more tags to the make_tag function.
     """
     id_lims = "LIMS_01"
+    default_timestamps = {"last_updated": BEGIN, "recorded_at": BEGIN}
+
     study_x = Study(
-        id_lims="LIMS_01", id_study_lims="1000", name="Study X", **DEFAULT_TIMESTAMPS
+        id_lims="LIMS_01", id_study_lims="1000", name="Study X", **default_timestamps
     )
     session.add(study_x)
 
@@ -61,7 +79,7 @@ def make_pacbio_fixture(session, num_runs=2, num_wells=2, num_tags=2, is_revio=T
             name=f"name{n}",
             public_name=f"public_name{n}",
             supplier_name=f"supplier_name{n}",
-            **DEFAULT_TIMESTAMPS,
+            **default_timestamps,
         )
 
     def make_tag(n):
@@ -70,66 +88,58 @@ def make_pacbio_fixture(session, num_runs=2, num_wells=2, num_tags=2, is_revio=T
             raise ValueError(f"n must be in the range 0 to 15 but was: {n}")
 
         tags = [
-            "ATGCTGCTAG",
-            "GCTAGCTAGC",
-            "CTAGCTAGCT",
-            "TAGCTAGCTA",
-            "AGCTAGCTAG",
-            "GCTAGCTAGC",
-            "CTAGCTAGCT",
-            "TAGCTAGCTA",
-            "AGCTAGCTAG",
-            "GCTAGCTAGC",
-            "CTAGCTAGCT",
-            "TAGCTAGCTA",
-            "AGCTAGCTAG",
-            "GCTAGCTAGC",
-            "CTAGCTAGCT",
-            "TAGCTAGCTA",
+            "AAAAAAAAAA",
+            "GGGGGGGGGG",
+            "CCCCCCCCCC",
+            "TTTTTTTTTT",
+            "AAAGGGGGGG",
+            "AAACCCCCCC",
+            "AAATTTTTTT",
+            "GGGAAAAAAA",
+            "GGGCCCCCCC",
+            "GGGTTTTTTT",
+            "CCCAAAAAAA",
+            "CCCGGGGGGG",
+            "CCCTTTTTTT",
+            "TTTAAAAAAA",
+            "TTTGGGGGGG",
+            "TTTCCCCCCC",
         ]
-        return f"bc0{n :0>2}", tags[n]
-
-    def make_product_id(rn, is_tag=False):
-        kwargs = {
-            "run_name": rn.pac_bio_run_name,
-            "well_label": rn.well_label,
-            "plate_number": rn.plate_number,
-        }
-        if is_tag:
-            kwargs["tags"] = run.tag_sequence
-
-        return PacBioEntity(**kwargs).hash_product_id()
+        return f"bc{n:0>4}", tags[n]
 
     samples = []
     runs = []
     num_plates = 2 if is_revio else 1
 
-    sample_idx = 0
+    sample_idx = 1
     for r in range(1, num_runs + 1):
+        when = EARLY if r % 2 == 0 else LATE
+
         for p in range(1, num_plates + 1):
             for w in range(1, num_wells + 1):
                 for t in range(1, num_tags + 1):
                     sample = make_sample(sample_idx)
                     samples.append(sample)
 
-                    tag_id, tag_seq = make_tag(sample_idx)
+                    tag_id, tag_seq = make_tag(sample_idx - 1)
                     sample_idx += 1
 
                     plate_number = p if is_revio else None
-
                     run = PacBioRun(
                         id_lims=id_lims,
                         sample=sample,
                         study=study_x,
                         id_pac_bio_run_lims=f"id_run_lims{r}",
                         pac_bio_run_name=f"run{r}",
-                        well_label=f"A{w}",
+                        well_label=f"A{w}",  # Well label x-coordinates are unpadded
                         plate_number=plate_number,
                         tag_identifier=tag_id,
                         tag_sequence=tag_seq,
-                        **DEFAULT_TIMESTAMPS,
+                        last_updated=when,
+                        recorded_at=when,
                     )
                     runs.append(run)
+
     session.add_all(samples)
     session.add_all(runs)
 
@@ -143,8 +153,12 @@ def make_pacbio_fixture(session, num_runs=2, num_wells=2, num_tags=2, is_revio=T
                 pac_bio_run_name=run.pac_bio_run_name,
                 well_label=run.well_label,
                 plate_number=run.plate_number,
-                id_pac_bio_product=make_product_id(run),  # Well product ID
-                last_changed=DEFAULT_TIMESTAMPS["last_updated"],
+                id_pac_bio_product=make_product_id(
+                    run.pac_bio_run_name,
+                    run.well_label,
+                    run.plate_number,
+                ),  # Well product ID
+                last_changed=LATE,
             )
             rmw_added[key] = rwm
             session.add(rwm)
@@ -152,8 +166,11 @@ def make_pacbio_fixture(session, num_runs=2, num_wells=2, num_tags=2, is_revio=T
         pm = PacBioProductMetrics(
             pac_bio_run=run,
             pac_bio_run_well_metrics=rmw_added[key],
-            id_pac_bio_product=make_product_id(run, is_tag=True),  # Tag product ID
-            last_changed=DEFAULT_TIMESTAMPS["last_updated"],
+            id_pac_bio_product=make_product_id(
+                run.pac_bio_run_name, run.well_label, run.plate_number, run.tag_sequence
+            ),  # Tag product ID
+            qc=True,
+            last_changed=LATE,
         )
         session.add(pm)
     session.commit()
@@ -198,6 +215,63 @@ def revio_synthetic_mlwh(mlwh_session) -> Session:
     """An ML warehouse database fixture populated with PacBio Revio-related records."""
     initialize_mlwh_revio_synthetic(mlwh_session)
     yield mlwh_session
+
+
+@pytest.fixture(scope="function")
+def pacbio_synthetic_irods(tmp_path):
+    root_path = PurePath("/testZone/home/irods/test/pacbio_synthetic_irods")
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    Collection(rods_path).create(parents=True)
+    add_test_groups()
+    run = "run1"
+    plate = 1
+    well = "A01"
+    tag_id = "bc0001"
+    tag = "AAAAAAAAAA"
+    source = "production"
+
+    common_avus = [
+        AVU(Instrument.RUN_NAME, run),
+        AVU(Instrument.PLATE_NUMBER, plate),
+        AVU(Instrument.WELL_LABEL, well),
+        AVU(Instrument.TAG_IDENTIFIER, tag_id),
+        AVU(Instrument.TAG_SEQUENCE, tag),
+        AVU(Instrument.SOURCE, source),
+    ]
+
+    # Any subset of reads which are of insufficient quality or cannot be assigned to
+    # a tag are given the same products ID as the well. They are given same permissions
+    # as the good quality reads.
+    well_product_avus = [
+        *common_avus,
+        AVU(SeqConcept.ID_PRODUCT, make_product_id(run, well, plate=plate)),
+    ]
+    tag_product_avus = [
+        *common_avus,
+        AVU(SeqConcept.ID_PRODUCT, make_product_id(run, well, plate=plate, tag=tag)),
+    ]
+
+    metadata = {
+        "m12345_246789_987655_s3.hifi_reads.bc1000.bam": tag_product_avus,
+        "m12345_246789_987655_s3.fail_reads.bc1000.bam": well_product_avus,
+        "m12345_246789_987655_s3.hifi_reads.unassigned.bam": well_product_avus,
+        "m12345_246789_987655_s3.fail_reads.unassigned.bam": well_product_avus,
+    }
+
+    iput("./tests/data/pacbio/synthetic", rods_path, recurse=True)
+    for path in metadata.keys():
+        obj = DataObject(
+            rods_path / PurePath("synthetic", "r12345_20246789_98765", "1_A01", path)
+        )
+        for avu in metadata[path]:
+            obj.add_metadata(avu)
+
+    try:
+        yield rods_path / "synthetic"
+    finally:
+        remove_rods_path(rods_path)
+        remove_test_groups()
 
 
 @pytest.fixture(scope="function")

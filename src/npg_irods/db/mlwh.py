@@ -24,6 +24,7 @@ from typing import Type
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
@@ -322,6 +323,7 @@ class PacBioProductMetrics(Base):
         ForeignKey("pac_bio_run.id_pac_bio_tmp"), nullable=False, index=True
     )
     id_pac_bio_product = mapped_column(String(64), nullable=False, unique=True)
+    qc = mapped_column(Boolean, nullable=False)
 
     pac_bio_run_well_metrics: Mapped["PacBioRunWellMetrics"] = relationship(
         "PacBioRunWellMetrics", back_populates="pac_bio_product_metrics"

@@ -20,7 +20,7 @@
 
 from datetime import timedelta
 
-from _pytest.mark import MARK_GEN as m
+from pytest import mark as m
 
 from helpers import EARLY, LATE, LATEST
 from npg_irods.ont import Component, find_recent_expt, find_updated_components
@@ -64,8 +64,8 @@ class TestONTMLWarehouseQueries(object):
     def test_find_updated_components(self, ont_synthetic_mlwh):
         before_late = LATE - timedelta(days=1)
         even_expts = [
-            Component(*args)
-            for args in [
+            Component(expt, slot)
+            for (expt, slot) in [
                 ("multiplexed_experiment_002", 1),
                 ("multiplexed_experiment_002", 2),
                 ("multiplexed_experiment_002", 3),
@@ -91,8 +91,8 @@ class TestONTMLWarehouseQueries(object):
         ] == even_expts
 
         odd_expts = [
-            Component(*args)
-            for args in [
+            Component(expt, slot)
+            for (expt, slot) in [
                 ("multiplexed_experiment_001", 1),
                 ("multiplexed_experiment_001", 2),
                 ("multiplexed_experiment_001", 3),
@@ -129,8 +129,8 @@ class TestONTMLWarehouseQueries(object):
 
         before_latest = LATEST - timedelta(days=1)
         odd_positions = [
-            Component(*args)
-            for args in [
+            Component(expt, slot)
+            for (expt, slot) in [
                 ("multiplexed_experiment_001", 1),
                 ("multiplexed_experiment_001", 3),
                 ("multiplexed_experiment_001", 5),
