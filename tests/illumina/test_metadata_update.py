@@ -21,7 +21,8 @@ from partisan.irods import AC, AVU, DataObject, Permission
 from pytest import mark as m
 
 from helpers import history_in_meta
-from npg_irods.illumina import ensure_secondary_metadata_updated
+from npg_irods.illumina import Component, ensure_secondary_metadata_updated
+from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.lims import (
     TrackedSample,
     TrackedStudy,
@@ -29,7 +30,34 @@ from npg_irods.metadata.lims import (
 )
 
 
-class TestIlluminaMetadataUpdate(object):
+class TestIlluminaComponent:
+    @m.context("When a component AVU is available")
+    @m.it("Can be used to construct a Component")
+    def test_make_component_from_avu(self):
+        c = Component.from_avu(
+            AVU(
+                SeqConcept.COMPONENT,
+                '{"id_run":12345, "position":1}',
+            )
+        )
+        assert c.id_run == 12345
+        assert c.position == 1
+        assert c.tag_index is None
+        assert c.subset is None
+
+        c = Component.from_avu(
+            AVU(
+                SeqConcept.COMPONENT,
+                '{"id_run":12345, "position":1, "tag_index":1, "subset":"human"}',
+            )
+        )
+        assert c.id_run == 12345
+        assert c.position == 1
+        assert c.tag_index == 1
+        assert c.subset == SeqSubset.HUMAN
+
+
+class TestIlluminaMetadataUpdate:
     @m.context("When the data are not multiplexed")
     @m.context("When the metadata are absent")
     @m.it("Adds sample-specific and study-specific metadata")
@@ -39,7 +67,7 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345.cram"
 
         obj = DataObject(path)
-        expected_avus = [
+        expected_metadata = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.ID, "id_sample_lims1"),
@@ -50,14 +78,14 @@ class TestIlluminaMetadataUpdate(object):
             AVU(TrackedStudy.NAME, "Study A"),
         ]
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu not in obj.metadata()
 
         assert ensure_secondary_metadata_updated(
             obj, mlwh_session=illumina_synthetic_mlwh
         )
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu in obj.metadata()
 
         qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345#1.genotype.json"
@@ -78,7 +106,7 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345.cram"
 
         obj = DataObject(path)
-        expected_avus = [
+        expected_metadata = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.ID, "id_sample_lims1"),
@@ -92,17 +120,17 @@ class TestIlluminaMetadataUpdate(object):
             AC("irods", perm=Permission.OWN, zone=zone),
             AC("ss_4000", perm=Permission.READ, zone=zone),
         ]
-        obj.add_metadata(*expected_avus)
+        obj.add_metadata(*expected_metadata)
         obj.add_permissions(*expected_permissions)
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu in obj.metadata()
 
         assert not ensure_secondary_metadata_updated(
             obj, mlwh_session=illumina_synthetic_mlwh
         )
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu in obj.metadata()
 
     @m.context("When the data are not multiplexed")
@@ -120,7 +148,7 @@ class TestIlluminaMetadataUpdate(object):
         for avu in old_avus:
             assert avu in obj.metadata()
 
-        expected_avus = [
+        expected_metadata = [
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.ID, "id_sample_lims1"),
             AVU(TrackedSample.NAME, "name1"),
@@ -137,7 +165,7 @@ class TestIlluminaMetadataUpdate(object):
             assert avu not in obj.metadata()
             assert history_in_meta(AVU.history(avu), obj.metadata())
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu in obj.metadata()
 
     @m.context("When the data are not multiplexed")
@@ -149,25 +177,25 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345.cram"
 
         obj = DataObject(path)
-        old_avus = [
+        old_metadata = [
             AVU(TrackedSample.NAME, "sample 99"),
             AVU(TrackedSample.NAME, "sample 999"),
             AVU(TrackedSample.NAME, "sample 9999"),
             AVU(TrackedSample.NAME, "sample 99999"),
         ]
-        obj.add_metadata(*old_avus)
+        obj.add_metadata(*old_metadata)
 
-        for avu in old_avus:
+        for avu in old_metadata:
             assert avu in obj.metadata()
 
         assert ensure_secondary_metadata_updated(
             obj, mlwh_session=illumina_synthetic_mlwh
         )
 
-        for avu in old_avus:
+        for avu in old_metadata:
             assert avu not in obj.metadata()
 
-        history = AVU.history(*old_avus)
+        history = AVU.history(*old_metadata)
         assert history_in_meta(history, obj.metadata())
 
     @m.context("When the data are multiplexed")
@@ -179,7 +207,7 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345#1.cram"
 
         obj = DataObject(path)
-        expected_avus = [
+        expected_metadata = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.ID, "id_sample_lims1"),
@@ -190,7 +218,7 @@ class TestIlluminaMetadataUpdate(object):
             AVU(TrackedStudy.NAME, "Study A"),
         ]
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu not in obj.metadata()
 
         assert ensure_secondary_metadata_updated(
@@ -199,7 +227,7 @@ class TestIlluminaMetadataUpdate(object):
 
         # The data are two plexes of a single sample (from different flowcell positions)
         # that have been merged.
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu in obj.metadata()
 
     @m.context("When the data are multiplexed")
@@ -211,27 +239,27 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345#888.cram"
 
         obj = DataObject(path)
-        expected_avus = [
+        expected_metadata = [
             AVU(TrackedSample.NAME, "Phi X"),
             AVU(TrackedStudy.ID, "888"),
             AVU(TrackedStudy.NAME, "Control Study"),
         ]
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu not in obj.metadata()
 
         assert not ensure_secondary_metadata_updated(
             obj, mlwh_session=illumina_synthetic_mlwh, include_controls=False
         )
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu not in obj.metadata()
 
         assert ensure_secondary_metadata_updated(
             obj, mlwh_session=illumina_synthetic_mlwh, include_controls=True
         )
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu in obj.metadata()
 
     @m.context("When the data are multiplexed")
@@ -244,7 +272,7 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345#0.cram"
 
         obj = DataObject(path)
-        expected_avus = [
+        expected_metadata = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.COMMON_NAME, "common_name2"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
@@ -261,14 +289,14 @@ class TestIlluminaMetadataUpdate(object):
             AVU(TrackedStudy.NAME, "Study A"),
         ]
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu not in obj.metadata()
 
         assert ensure_secondary_metadata_updated(
             obj, mlwh_session=illumina_synthetic_mlwh
         )
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu in obj.metadata()
 
     @m.context("When the data are multiplexed")
@@ -283,7 +311,7 @@ class TestIlluminaMetadataUpdate(object):
         path = illumina_synthetic_irods / "12345/12345#0.cram"
 
         obj = DataObject(path)
-        expected_avus = [
+        expected_metadata = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.COMMON_NAME, "common_name2"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
@@ -305,7 +333,7 @@ class TestIlluminaMetadataUpdate(object):
             AVU(TrackedStudy.NAME, "Control Study"),
         ]
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu not in obj.metadata()
 
         # Not False because some changes do take effect, aside from the controls
@@ -313,7 +341,7 @@ class TestIlluminaMetadataUpdate(object):
             obj, mlwh_session=illumina_synthetic_mlwh, include_controls=False
         )
 
-        for avu in expected_avus:
+        for avu in expected_metadata:
             assert avu in obj.metadata()
         for avu in control_avus:
             assert avu not in obj.metadata()
@@ -322,7 +350,7 @@ class TestIlluminaMetadataUpdate(object):
             obj, mlwh_session=illumina_synthetic_mlwh, include_controls=True
         )
 
-        for avu in expected_avus + control_avus:
+        for avu in expected_metadata + control_avus:
             assert avu in obj.metadata()
 
 
@@ -358,7 +386,7 @@ class TestIlluminaPermissionsUpdate:
         zone = "testZone"
         path = illumina_synthetic_irods / "12345/12345.cram"
         qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345.genotype.json"
-        expected_metadata = [
+        old_metadata = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.ID, "id_sample_lims1"),
@@ -374,7 +402,7 @@ class TestIlluminaPermissionsUpdate:
         ]
 
         obj = DataObject(path)
-        obj.add_metadata(*expected_metadata)
+        obj.add_metadata(*old_metadata)
         qc_obj = DataObject(qc_path)
         qc_obj.add_metadata(AVU(TrackedStudy.ID, "4000"))
 

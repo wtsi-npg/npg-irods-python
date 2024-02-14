@@ -48,6 +48,8 @@ from npg_irods.metadata.lims import (
 
 log = get_logger(__package__)
 
+SQL_CHUNK_SIZE = 1000
+
 
 @unique
 class TagIndex(Enum):
@@ -189,39 +191,39 @@ def ensure_secondary_metadata_updated(
     Returns:
        True if updated.
     """
-    zone = infer_zone(item)
-    secondary_metadata, acl = [], []
-
-    def empty_acl(*args):
-        return []
-
-    if requires_full_metadata(item):
-        log.debug("Requires full metadata", path=item)
-        sample_fn, study_fn = make_sample_metadata, make_study_metadata
-    else:
-        log.debug("Requires reduced metadata", path=item)
-        sample_fn, study_fn = make_reduced_sample_metadata, make_reduced_study_metadata
-
-    if requires_managed_access(item):
+    if managed_access := requires_managed_access(item):
         log.debug("Requires managed access", path=item)
-        acl_fn = make_sample_acl
     else:
         log.debug("Does not require managed access", path=item)
-        acl_fn = empty_acl
+
+    if full_metadata := requires_full_metadata(item):
+        log.debug("Requires full metadata", path=item)
+    else:
+        log.debug("Requires reduced metadata", path=item)
 
     # Each component may be associated with multiple flowcells
     components = find_associated_components(item)
     log.debug("Found associated components", path=item, comp=components)
 
+    zone = infer_zone(item)
+    secondary_metadata, acl = [], []
     for c in components:
         flowcells = find_flowcells_by_component(
             mlwh_session, c, include_controls=include_controls
         )
         log.debug("Found associated flowcells", path=item, flowcells=flowcells, comp=c)
         for fc in flowcells:
-            secondary_metadata.extend(sample_fn(fc.sample))
-            secondary_metadata.extend(study_fn(fc.study))
-            acl.extend(acl_fn(fc.sample, fc.study, subset=c.subset, zone=zone))
+            if full_metadata:
+                secondary_metadata.extend(make_sample_metadata(fc.sample))
+                secondary_metadata.extend(make_study_metadata(fc.study))
+            else:
+                secondary_metadata.extend(make_reduced_sample_metadata(fc.sample))
+                secondary_metadata.extend(make_reduced_study_metadata(fc.study))
+
+            if managed_access:
+                acl.extend(
+                    make_sample_acl(fc.sample, fc.study, subset=c.subset, zone=zone)
+                )
 
     # Remove duplicates
     secondary_metadata = sorted(set(secondary_metadata))
@@ -342,10 +344,10 @@ def find_associated_components(item: DataObject | Collection) -> list[Component]
     need to extend the split_name() function to handle the new file type.
 
     Args:
-        item:
+        item: A Collection or DataObject.
 
     Returns:
-
+        A list of components.
     """
     errmsg = "Failed to find an associated data object bearing component metadata"
 
@@ -411,8 +413,7 @@ def requires_full_metadata(obj: DataObject) -> bool:
     metadata storage because the iRODS metadata link table is already >3 billion rows,
     which is impacting query performance.
     """
-    full = [".bam", ".cram"]
-    return any(suffix in full for suffix in PurePath(obj.name).suffixes)
+    return any(suffix in [".bam", ".cram"] for suffix in PurePath(obj.name).suffixes)
 
 
 def requires_managed_access(obj: DataObject) -> bool:
@@ -436,11 +437,6 @@ def requires_managed_access(obj: DataObject) -> bool:
     return any(suffix in managed for suffix in PurePath(obj.name).suffixes)
 
 
-def has_component_metadata(item: Collection | DataObject) -> bool:
-    """Return True if the given item has Illumina component metadata."""
-    return len(item.metadata(SeqConcept.COMPONENT)) > 0
-
-
 def find_qc_collection(path: Collection | DataObject) -> Collection:
     qc = Collection(path.path / "qc")
     if not qc.exists():
@@ -455,7 +451,7 @@ def find_flowcells_by_component(
 
     Args:
         sess: An open SQL session.
-        component: A component
+        component: A component.
         include_controls: If False, include query arguments to exclude spiked-in
             controls in the result. Defaults to False.
 
@@ -499,21 +495,21 @@ def find_updated_components(
     sess: Session, since: datetime, until: datetime
 ) -> Iterator[Component]:
     """Find in the ML warehouse any Illumina sequence components whose tracking
-    metadata has been changed within a specified time range
+    metadata has been changed within the given time range.
 
     A change is defined as the "recorded_at" column (Sample, Study, IseqFlowcell) or
-    "last_changed" colum (IseqProductMetrics) having a timestamp more recent than the
-    given time.
+    "last_changed" column (IseqProductMetrics) having a timestamp within the range.
 
     Args:
-        sess: An open SQL session.
-        since: A datetime.
-        until: A datetime.
+        sess: An open ML warehouse  session.
+        since: The start of the time range.
+        until: The end of the time range.
 
     Returns:
         An iterator over Components whose tracking metadata have changed.
     """
-    for rpt in (
+
+    query = (
         sess.query(
             IseqProductMetrics.id_run, IseqFlowcell.position, IseqFlowcell.tag_index
         )
@@ -532,5 +528,7 @@ def find_updated_components(
             asc(IseqFlowcell.position),
             asc(IseqFlowcell.tag_index),
         )
-    ):
-        yield Component(*rpt)
+    )
+
+    for id_run, position, tag_index in query.yield_per(SQL_CHUNK_SIZE):
+        yield Component(id_run, position, tag_index=tag_index)

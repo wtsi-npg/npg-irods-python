@@ -19,19 +19,19 @@
 
 
 import argparse
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 import sqlalchemy
 import structlog
 from partisan.irods import AVU, DataObject, query_metadata
 from sqlalchemy.orm import Session
 
-from npg_irods import illumina, ont
+from npg_irods import illumina, ont, pacbio
 from npg_irods.cli.util import (
+    add_date_range_arguments,
     add_logging_arguments,
     configure_logging,
     integer_in_range,
-    parse_iso_date,
     with_previous,
 )
 from npg_irods.db import DBConfig
@@ -129,6 +129,7 @@ def consent_withdrawn(cli_args):
                 log.exception(e, item=i, sample=s)
 
     log.info(f"Processed {num_processed} with {num_errors} errors")
+
     if num_errors:
         exit(1)
 
@@ -143,16 +144,16 @@ def illumina_updates_cli(cli_args):
     Returns:
         None
     """
-    dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
-    engine = sqlalchemy.create_engine(dbconfig.url)
+    dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    eng = sqlalchemy.create_engine(dbconf.url)
     since = cli_args.begin_date
     until = cli_args.end_date
     skip_absent_runs = cli_args.skip_absent_runs
     zone = cli_args.zone
 
-    with Session(engine) as session:
+    with Session(eng) as sess:
         num_proc, num_errors = illumina_updates(
-            session, since, until, skip_absent_runs=skip_absent_runs, zone=zone
+            sess, since, until, skip_absent_runs=skip_absent_runs, zone=zone
         )
 
         if num_errors:
@@ -160,7 +161,7 @@ def illumina_updates_cli(cli_args):
 
 
 def illumina_updates(
-    session: Session,
+    sess: Session,
     since: datetime,
     until: datetime,
     skip_absent_runs=True,
@@ -170,7 +171,7 @@ def illumina_updates(
     data objects in iRODS and print their paths.
 
     Args:
-        session: SQLAlchemy session
+        sess: SQLAlchemy session
         since: Earliest changes to find
         until: Latest changes to find
         skip_absent_runs: Skip any runs that have no data in iRODS. Defaults to True.
@@ -179,23 +180,17 @@ def illumina_updates(
     Returns:
         The number of ML warehouse records processed, the number of errors encountered.
     """
-
-    num_proc = num_err = 0
-
-    iso_since = since.strftime("%Y-%m-%dT%H:%M:%SZ")
-    iso_until = until.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    attempts = 0
-    successes = 0
+    num_processed = num_errors = 0
+    attempts = successes = 0
     to_print = set()
 
     for prev, curr in with_previous(
-        illumina.find_updated_components(session, since=since, until=until)
+        illumina.find_updated_components(sess, since=since, until=until)
     ):
         if curr is None:  # Last item when this is reached
             continue
 
-        num_proc += 1
+        num_processed += 1
 
         avus = [
             AVU(Instrument.RUN, curr.id_run),
@@ -205,11 +200,11 @@ def illumina_updates(
             avus.append(AVU(SeqConcept.TAG_INDEX, curr.tag_index))
 
         log_kwargs = {
-            "item": num_proc,
+            "item": num_processed,
             "comp": curr,
             "query": avus,
-            "since": iso_since,
-            "until": iso_until,
+            "since": since.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "until": until.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
         if skip_absent_runs and successes == 0 and attempts == skip_absent_runs:
@@ -219,7 +214,6 @@ def illumina_updates(
 
         try:
             log.info("Searching iRODS", **log_kwargs)
-
             result = query_metadata(*avus, collection=False, zone=zone)
             if not result:
                 attempts += 1
@@ -243,62 +237,178 @@ def illumina_updates(
                 successes = attempts = 0
 
         except Exception as e:
-            num_err += 1
-            log.exception(e, item=num_proc, comp=curr)
+            num_errors += 1
+            log.exception(e, item=num_processed, comp=curr)
 
     for obj in sorted(to_print):
         print(obj)
 
-    log.info(f"Processed {num_proc} with {num_err} errors")
+    log.info(f"Processed {num_processed} with {num_errors} errors")
 
-    return num_proc, num_err
+    return num_processed, num_errors
 
 
-def ont_updates(cli_args):
-    dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
-    engine = sqlalchemy.create_engine(dbconfig.url)
-    with Session(engine) as session:
-        num_processed = num_errors = 0
-        iso_begin = cli_args.begin_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-        iso_end = cli_args.end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-        report_tags = cli_args.report_tags
+def ont_updates_cli(cli_args):
+    """Process the command line arguments for finding ONT data objects and execute the
+    command.
 
-        for i, c in enumerate(
-            ont.find_updated_components(
-                session,
-                include_tags=report_tags,
-                since=cli_args.begin_date,
-                until=cli_args.end_date,
-            )
-        ):
-            num_processed += 1
-            log.info(
-                "Finding collections", item=i, comp=c, since=iso_begin, until=iso_end
-            )
+    Args:
+        cli_args: ArgumentParser
 
-            try:
-                avus = [
-                    AVU(ont.Instrument.EXPERIMENT_NAME, c.experiment_name),
-                    AVU(ont.Instrument.INSTRUMENT_SLOT, c.instrument_slot),
-                ]
-                for coll in query_metadata(
-                    *avus, data_object=False, zone=cli_args.zone
-                ):
-                    # Report only the run folder collection for multiplexed runs
-                    # unless requested to report the deplexed collections
-                    if report_tags and c.tag_identifier is not None:
-                        for bcoll in barcode_collections(coll, c.tag_identifier):
-                            print(bcoll)
-                    else:
-                        print(coll)
+    Returns:
+        None
+    """
+    dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    eng = sqlalchemy.create_engine(dbconf.url)
+    since = cli_args.begin_date
+    until = cli_args.end_date
+    report_tags = cli_args.report_tags
+    zone = cli_args.zone
 
-            except Exception as e:
-                num_errors += 1
-                log.exception(e, item=i, component=c)
+    with Session(eng) as sess:
+        num_proc, num_errors = ont_updates(
+            sess, since, until, report_tags=report_tags, zone=zone
+        )
 
-        log.info(f"Processed {num_processed} with {num_errors} errors")
         if num_errors:
             exit(1)
+
+
+def ont_updates(
+    sess: Session,
+    since: datetime,
+    until: datetime,
+    report_tags: bool = False,
+    zone: str = None,
+) -> (int, int):
+    num_processed = num_errors = 0
+
+    for i, c in enumerate(
+        ont.find_updated_components(
+            sess, since=since, until=until, include_tags=report_tags
+        )
+    ):
+        num_processed += 1
+        avus = [
+            AVU(ont.Instrument.EXPERIMENT_NAME, c.experiment_name),
+            AVU(ont.Instrument.INSTRUMENT_SLOT, c.instrument_slot),
+        ]
+        log.info(
+            "Searching iRODS",
+            item=i,
+            comp=c,
+            query=avus,
+            since=since.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            until=until.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
+
+        try:
+            for coll in query_metadata(*avus, data_object=False, zone=zone):
+                # Report only the run folder collection for multiplexed runs
+                # unless requested to report the deplexed collections
+                if report_tags and c.tag_identifier is not None:
+                    for bcoll in barcode_collections(coll, c.tag_identifier):
+                        print(bcoll)
+                else:
+                    print(coll)
+
+        except Exception as e:
+            num_errors += 1
+            log.exception(e, item=i, comp=c)
+
+    log.info(f"Processed {num_processed} with {num_errors} errors")
+
+    return num_processed, num_errors
+
+
+def pacbio_updates_cli(cli_args):
+    """Process the command line arguments for finding PacBio data objects and execute the
+    command.
+
+    Args:
+        cli_args: ArgumentParser
+
+    Returns:
+        None
+    """
+    dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    eng = sqlalchemy.create_engine(dbconf.url)
+    since = cli_args.begin_date
+    until = cli_args.end_date
+    skip_absent_runs = cli_args.skip_absent_runs
+    zone = cli_args.zone
+
+    with Session(eng) as sess:
+        num_proc, num_errors = pacbio_updates(
+            sess, since, until, skip_absent_runs=skip_absent_runs, zone=zone
+        )
+
+        if num_errors:
+            exit(1)
+
+
+def pacbio_updates(
+    sess: Session,
+    since: datetime,
+    until: datetime,
+    skip_absent_runs=True,
+    zone: str = None,
+) -> (int, int):
+    num_processed = num_errors = 0
+    attempts = successes = 0
+    to_print = set()
+
+    for prev, curr in with_previous(
+        pacbio.find_updated_components(sess, since=since, until=until)
+    ):
+        if curr is None:  # Last item when this is reached
+            continue
+
+        num_processed += 1
+        avus = [
+            AVU(pacbio.Instrument.RUN_NAME, curr.run_name),
+            AVU(pacbio.Instrument.WELL_LABEL, curr.well_label),
+        ]
+        if curr.tag_sequence is not None:
+            avus.append(AVU(pacbio.Instrument.TAG_SEQUENCE, curr.tag_sequence))
+
+        log_kwargs = {
+            "item": num_processed,
+            "comp": curr,
+            "query": avus,
+            "since": since.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "until": until.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+
+        if skip_absent_runs and successes == 0 and attempts == skip_absent_runs:
+            msg = "Skipping run after unsuccessful attempts to find it"
+            log.info(msg, attempts=attempts, **log_kwargs)
+            continue
+
+        try:
+            log.info("Searching iRODS", **log_kwargs)
+            result = query_metadata(*avus, data_object=True, zone=zone)
+            if not result:
+                attempts += 1
+                continue
+            successes += 1
+
+            for obj in result:
+                to_print.add(str(obj))
+
+            if prev is not None and curr.run_name != prev.run_name:  # Reached next run
+                for obj in sorted(to_print):
+                    print(obj)
+                to_print.clear()
+                successes = attempts = 0
+
+        except Exception as e:
+            num_errors += 1
+            log.exception(e, item=num_processed, comp=curr)
+
+    log.info(f"Processed {num_processed} with {num_errors} errors")
+
+    return num_processed, num_errors
 
 
 def main():
@@ -340,24 +450,7 @@ def main():
         help="Find data objects, which are components of Illumina runs, whose tracking "
         "metadata in the ML warehouse have changed since a specified time.",
     )
-    ilup_parser.add_argument(
-        "--begin-date",
-        "--begin_date",
-        help="Limit data objects found to those whose metadata was changed in the ML "
-        "warehouse at, or after after this date. Defaults to 14 days ago. The argument "
-        "must be an ISO8601 UTC date or date and time e.g. 2022-01-30, 2022-01-30T11:11:03Z",
-        type=parse_iso_date,
-        default=datetime.now(timezone.utc) - timedelta(days=14),
-    )
-    ilup_parser.add_argument(
-        "--end-date",
-        "--end_date",
-        help="Limit data objects found to those whose metadata was changed in the ML "
-        "warehouse at, or before this date. Defaults to the current time. The argument "
-        "must be an ISO8601 UTC date or date and time e.g. 2022-01-30, 2022-01-30T11:11:03Z",
-        type=parse_iso_date,
-        default=datetime.now(),
-    )
+    add_date_range_arguments(ilup_parser)
     ilup_parser.add_argument(
         "--skip-absent-runs",
         "--skip_absent_runs",
@@ -376,31 +469,34 @@ def main():
         help="Find collections, containing data objects for ONT runs, whose tracking"
         "metadata in the ML warehouse have changed since a specified time.",
     )
-    ontup_parser.add_argument(
-        "--begin-date",
-        "--begin_date",
-        help="Limit collections found to those changed after this date. Defaults to 14 "
-        "days ago. The argument must be an ISO8601 UTC date or date and time e.g. "
-        "2022-01-30, 2022-01-30T11:11:03Z",
-        type=parse_iso_date,
-        default=datetime.now(timezone.utc) - timedelta(days=14),
-    )
-    ontup_parser.add_argument(
-        "--end-date",
-        "--end_date",
-        help="Limit collections found to those changed before date. Defaults to the"
-        "current time. The argument must be an ISO8601 UTC date or date and time e.g."
-        " 2022-01-30, 2022-01-30T11:11:03Z",
-        type=parse_iso_date,
-        default=datetime.now(),
-    )
+    add_date_range_arguments(ontup_parser)
     ontup_parser.add_argument(
         "--report-tags",
         "--report_tags",
         help="Include barcode sub-collections of runs containing de-multiplexed data.",
         action="store_true",
     )
-    ontup_parser.set_defaults(func=ont_updates)
+    ontup_parser.set_defaults(func=ont_updates_cli)
+
+    pbup_parser = subparsers.add_parser(
+        "pacbio-updates",
+        help="Find data objects, which are components of PacBio runs, whose tracking "
+        "metadata in the ML warehouse have changed since a specified time.",
+    )
+    add_date_range_arguments(pbup_parser)
+    pbup_parser.add_argument(
+        "--skip-absent-runs",
+        "--skip_absent_runs",
+        help="Skip runs that cannot be found in iRODS after the number of attempts given "
+        "as an argument to this option. The argument may be an integer from 1 to 10, "
+        "inclusive and defaults to 3.",
+        nargs="?",
+        action="store",
+        type=integer_in_range(1, 10),
+        default=3,
+    )
+
+    pbup_parser.set_defaults(func=pacbio_updates_cli)
 
     args = parser.parse_args()
     configure_logging(

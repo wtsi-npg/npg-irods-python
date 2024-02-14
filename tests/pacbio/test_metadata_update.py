@@ -17,20 +17,281 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+from pathlib import PurePath
+
+import pytest
+from partisan.irods import AC, AVU, DataObject, Permission
 from pytest import mark as m
+
+from helpers import history_in_meta
+from npg_irods.metadata.common import SeqConcept, SeqSubset
+from npg_irods.metadata.lims import TrackedSample, TrackedStudy
+from npg_irods.metadata.pacbio import Instrument
+from npg_irods.pacbio import Component, ensure_secondary_metadata_updated
+
+
+class TestPacBioComponent:
+    @m.context("When component AVUs are available")
+    @m.it("They be used to construct a Component")
+    def test_make_component_from_avus(self):
+        c = Component.from_avus(
+            AVU(Instrument.RUN_NAME, "run1"),
+            AVU(Instrument.WELL_LABEL, "A01"),
+            AVU(Instrument.TAG_SEQUENCE, "tag1"),
+            AVU(Instrument.PLATE_NUMBER, "1"),
+            AVU(SeqConcept.SUBSET, SeqSubset.HUMAN.value),
+        )
+        assert c.run_name == "run1"
+        assert c.well_label == "A01"
+        assert c.tag_sequence == "tag1"
+        assert c.plate_number == 1
+        assert c.subset == SeqSubset.HUMAN
+
+    @m.context("When component AVUs are available")
+    @m.context("When there are multiple AVUs with the same key")
+    @m.it("Raises an error")
+    def test_make_component_from_avus_duplicate_keys(self):
+        with pytest.raises(ValueError):
+            Component.from_avus(
+                AVU(Instrument.RUN_NAME, "run1"),
+                AVU(Instrument.RUN_NAME, "run2"),
+            )
+
+    @m.context("When component AVUs are available")
+    @m.context("When the run AVU is missing")
+    @m.it("Raises an error")
+    def test_make_component_from_avus_missing_run(self):
+        with pytest.raises(ValueError):
+            Component.from_avus(
+                AVU(Instrument.WELL_LABEL, "A01"),
+                AVU(Instrument.TAG_SEQUENCE, "tag1"),
+                AVU(Instrument.PLATE_NUMBER, "1"),
+                AVU(SeqConcept.SUBSET, SeqSubset.HUMAN.value),
+            )
+
+    @m.context("When component AVUs are available")
+    @m.context("When the well label AVU is missing")
+    @m.it("Raises an error")
+    def test_make_component_from_avus_missing_well(self):
+        with pytest.raises(ValueError):
+            Component.from_avus(
+                AVU(Instrument.RUN_NAME, "run1"),
+                AVU(Instrument.TAG_SEQUENCE, "tag1"),
+                AVU(Instrument.PLATE_NUMBER, "1"),
+                AVU(SeqConcept.SUBSET, SeqSubset.HUMAN.value),
+            )
 
 
 @m.describe("PacBio iRODS metadata updates")
 class TestPacBioMetadataUpdate:
-    @m.context("When the run is from a pre-Revio instrument")
-    @m.it("Can create a fixture")
-    def test_wombat(self, pacbio_synthetic_mlwh):
-        pass  # TODO: add tests here
+    @m.context("When the metadata are absent")
+    @m.it("Adds sample-specific and study-specific metadata")
+    def test_updates_absent_metadata(
+        self, pacbio_synthetic_mlwh, pacbio_synthetic_irods
+    ):
+        path = pacbio_synthetic_irods / PurePath(
+            "r12345_20246789_98765",
+            "1_A01",
+            "m12345_246789_987655_s3.hifi_reads.bc1000.bam",
+        )
 
-    @m.context("When the run is from a Revio instrument")
-    @m.it("Can create a fixture")
-    def test_zombat(self, revio_synthetic_mlwh):
-        pass  # TODO: add tests here
+        obj = DataObject(path)
+        expected_metadata = [
+            AVU(TrackedSample.ACCESSION_NUMBER, "ACC1"),
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedStudy.ID, "1000"),
+            AVU(TrackedStudy.NAME, "Study X"),
+        ]
+
+        for avu in expected_metadata:
+            assert avu not in obj.metadata()
+
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=pacbio_synthetic_mlwh
+        )
+
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+    @m.context("When the metadata are already present")
+    @m.it("Leaves the metadata unchanged")
+    def test_updates_present_metadata(
+        self, pacbio_synthetic_mlwh, pacbio_synthetic_irods
+    ):
+        zone = "testZone"
+        path = pacbio_synthetic_irods / PurePath(
+            "r12345_20246789_98765",
+            "1_A01",
+            "m12345_246789_987655_s3.hifi_reads.bc1000.bam",
+        )
+
+        obj = DataObject(path)
+        expected_metadata = [
+            AVU(TrackedSample.ACCESSION_NUMBER, "ACC1"),
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedStudy.ID, "1000"),
+            AVU(TrackedStudy.NAME, "Study X"),
+        ]
+        expected_permissions = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_1000", perm=Permission.READ, zone=zone),
+        ]
+        obj.add_metadata(*expected_metadata)
+        obj.add_permissions(*expected_permissions)
+
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+        assert not ensure_secondary_metadata_updated(
+            obj, mlwh_session=pacbio_synthetic_mlwh
+        )
+
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+    @m.context("When incorrect metadata are present")
+    @m.it("Updates the metadata and adds history metadata")
+    def test_updates_changed_metadata(
+        self, pacbio_synthetic_mlwh, pacbio_synthetic_irods
+    ):
+        path = pacbio_synthetic_irods / PurePath(
+            "r12345_20246789_98765",
+            "1_A01",
+            "m12345_246789_987655_s3.hifi_reads.bc1000.bam",
+        )
+
+        obj = DataObject(path)
+        old_metadata = [
+            AVU(TrackedSample.NAME, "sample 99"),
+            AVU(TrackedStudy.ID, "9999"),
+        ]
+        obj.add_metadata(*old_metadata)
+
+        for avu in old_metadata:
+            assert avu in obj.metadata()
+
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=pacbio_synthetic_mlwh
+        )
+
+        for avu in old_metadata:
+            assert avu not in obj.metadata()
+            assert history_in_meta(AVU.history(avu), obj.metadata())
+
+        expected_metadata = [
+            AVU(TrackedSample.ACCESSION_NUMBER, "ACC1"),
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedStudy.ID, "1000"),
+            AVU(TrackedStudy.NAME, "Study X"),
+        ]
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+
+class TestPacBioPermissionsUpdate:
+    @m.context("When the permissions are absent")
+    @m.it("Adds study-specific permissions")
+    def test_updates_absent_study_permissions(
+        self, pacbio_synthetic_mlwh, pacbio_synthetic_irods
+    ):
+        zone = "testZone"
+        path = pacbio_synthetic_irods / PurePath(
+            "r12345_20246789_98765",
+            "1_A01",
+            "m12345_246789_987655_s3.hifi_reads.bc1000.bam",
+        )
+        old_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
+        new_permissions = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_1000", perm=Permission.READ, zone=zone),
+        ]
+
+        obj = DataObject(path)
+
+        assert obj.permissions() == old_permissions
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=pacbio_synthetic_mlwh
+        )
+        assert obj.permissions() == new_permissions
+
+    @m.context("When the permissions are already present")
+    @m.it("Leaves the permissions unchanged")
+    def test_updates_present_study_permissions(
+        self, pacbio_synthetic_mlwh, pacbio_synthetic_irods
+    ):
+        zone = "testZone"
+        path = pacbio_synthetic_irods / PurePath(
+            "r12345_20246789_98765",
+            "1_A01",
+            "m12345_246789_987655_s3.hifi_reads.bc1000.bam",
+        )
+        old_metadata = [
+            AVU(TrackedSample.ACCESSION_NUMBER, "ACC1"),
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedStudy.ID, "1000"),
+            AVU(TrackedStudy.NAME, "Study X"),
+        ]
+        old_permissions = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_1000", perm=Permission.READ, zone=zone),
+        ]
+
+        obj = DataObject(path)
+        obj.add_metadata(*old_metadata)
+        obj.add_permissions(*old_permissions)
+
+        assert not ensure_secondary_metadata_updated(
+            obj, mlwh_session=pacbio_synthetic_mlwh
+        )
+        assert obj.permissions() == old_permissions
+
+    @m.context("When incorrect permissions are present")
+    @m.it("Updated the permissions")
+    def test_updates_changed_study_permissions(
+        self, pacbio_synthetic_mlwh, pacbio_synthetic_irods
+    ):
+        zone = "testZone"
+        path = pacbio_synthetic_irods / PurePath(
+            "r12345_20246789_98765",
+            "1_A01",
+            "m12345_246789_987655_s3.hifi_reads.bc1000.bam",
+        )
+        old_permissions = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_2000", perm=Permission.READ, zone=zone),
+        ]
+        new_permissions = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_1000", perm=Permission.READ, zone=zone),
+        ]
+
+        obj = DataObject(path)
+        obj.add_permissions(*old_permissions)
+
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=pacbio_synthetic_mlwh
+        )
+        assert obj.permissions() == new_permissions
 
 
 # Early PacBio runs are like this:

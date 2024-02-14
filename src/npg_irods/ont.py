@@ -72,7 +72,10 @@ class Component:
     """The tag identifier, if the reads are from a multiplexed pool."""
 
     def __init__(
-        self, experiment_name: str, instrument_slot: int, tag_identifier: str = None
+        self,
+        experiment_name: str,
+        instrument_slot: int,
+        tag_identifier: Optional[str] = None,
     ):
         self.experiment_name = experiment_name
         self.instrument_slot = instrument_slot

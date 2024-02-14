@@ -38,7 +38,7 @@ from partisan.irods import (
 )
 from structlog import get_logger
 
-from npg_irods import illumina, ont
+from npg_irods import illumina, ont, pacbio
 from npg_irods.common import AnalysisType, Platform, infer_data_source
 from npg_irods.exception import ChecksumError
 from npg_irods.metadata.common import (
@@ -626,6 +626,11 @@ def update_secondary_metadata(
                     log.info("Illumina", item=i, path=p)
                     updated = illumina.ensure_secondary_metadata_updated(
                         rods_item, mlwh_session, include_controls=False
+                    )
+                case Platform.PACBIO, AnalysisType.NUCLEIC_ACID_SEQUENCING:
+                    log.info("PacBio", item=i, path=p)
+                    updated = pacbio.ensure_secondary_metadata_updated(
+                        rods_item, mlwh_session
                     )
                 case (
                     Platform.OXFORD_NANOPORE_TECHNOLOGIES,

@@ -196,14 +196,14 @@ def make_sample_acl(
     Returns:
         An ACL
     """
-    if subset is not None and subset is subset.XAHUMAN:
+    irods_group = f"{STUDY_IDENTIFIER_PREFIX}{study.id_study_lims}"
+    perm = Permission.NULL if sample.consent_withdrawn else Permission.READ
+
+    if subset is SeqSubset.XAHUMAN:
         return []
 
-    if subset is not None and subset is subset.HUMAN:
-        irods_group = f"{STUDY_IDENTIFIER_PREFIX}{study.id_study_lims}_human"
-    else:
-        irods_group = f"{STUDY_IDENTIFIER_PREFIX}{study.id_study_lims}"
-    perm = Permission.NULL if sample.consent_withdrawn else Permission.READ
+    if subset is SeqSubset.HUMAN:
+        return [AC(irods_group + "_human", perm, zone=zone)]
 
     return [AC(irods_group, perm, zone=zone)]
 
