@@ -41,7 +41,7 @@ from partisan.irods import (
 from structlog import get_logger
 
 from npg_irods import illumina, ont, pacbio
-from npg_irods.common import AnalysisType, Platform, infer_data_source
+from npg_irods.common import AnalysisType, Platform, infer_data_source, update_metadata
 from npg_irods.exception import ChecksumError
 from npg_irods.metadata.common import (
     DataFile,
