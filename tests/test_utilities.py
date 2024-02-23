@@ -29,7 +29,11 @@ from pytest import mark as m
 
 from helpers import set_replicate_invalid
 from npg_irods.metadata.common import ensure_common_metadata, has_trimmable_replicas
-from npg_irods.metadata.lims import ensure_consent_withdrawn
+from npg_irods.metadata.lims import (
+    TrackedStudy,
+    TrackedSample,
+    ensure_consent_withdrawn,
+)
 from npg_irods.utilities import (
     check_checksums,
     check_consent_withdrawn,
@@ -40,6 +44,7 @@ from npg_irods.utilities import (
     withdraw_consent,
     write_safe_remove_commands,
     write_safe_remove_script,
+    update_secondary_metadata_general,
 )
 
 
@@ -632,3 +637,37 @@ class TestSafeRemoveUtilities:
         subprocess.run([script.as_posix()], check=True)
 
         assert not Collection(challenging_paths_irods).exists()
+
+
+@m.context("When a apply general study metadata script is run")
+@m.context("When irods object study id and study id provided match")
+@m.it("Updates rest of the iRods metadata from MLWH")
+def test_apply_study_metadata(general_synthetic_irods, general_synthetic_mlwh):
+    path = general_synthetic_irods
+    obj = DataObject(path)
+
+    old_avus = [AVU(TrackedStudy.ID, "1000"), AVU(TrackedSample.ID, "id_sample_lims1")]
+
+    for avu in old_avus:
+        assert avu in obj.metadata()
+
+    expected_avus = [
+        AVU(TrackedStudy.ID, "1000"),
+        AVU(TrackedStudy.NAME, "Study X"),
+        AVU(TrackedStudy.TITLE, "Test Study Title"),
+        AVU(TrackedStudy.ACCESSION_NUMBER, "Test Accession"),
+        AVU(TrackedSample.ID, "id_sample_lims1"),
+        AVU(TrackedSample.ACCESSION_NUMBER, "Test Accession"),
+        AVU(TrackedSample.COMMON_NAME, "common_name1"),
+        AVU(TrackedSample.DONOR_ID, "donor_id1"),
+        AVU(TrackedSample.NAME, "name1"),
+        AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+        AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+    ]
+
+    assert update_secondary_metadata_general(
+        obj, general_synthetic_mlwh, "1000", "id_sample_lims1"
+    )
+
+    for avu in expected_avus:
+        assert avu in obj.metadata()
