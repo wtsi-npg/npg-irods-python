@@ -24,6 +24,7 @@ import sys
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import PurePath
+from sqlalchemy.orm import Session
 
 import partisan
 from partisan.exception import RodsError
@@ -60,11 +61,16 @@ from npg_irods.metadata.common import (
     trimmable_replicas,
 )
 from npg_irods.metadata.lims import (
+    TrackedStudy,
+    TrackedSample,
     ensure_consent_withdrawn,
     has_consent_withdrawn,
     has_consent_withdrawn_metadata,
     has_consent_withdrawn_permissions,
+    make_study_metadata,
+    make_sample_metadata,
 )
+from npg_irods.db.mlwh import Study, Sample
 from npg_irods.version import version
 
 log = get_logger(__name__)
@@ -668,6 +674,70 @@ def update_secondary_metadata(
     return num_processed, num_updated, num_errors
 
 
+def general_metadata_update(
+    reader, writer, mlwh_session, print_update=True, print_fail=False
+) -> (int, int, int):
+    """Update study metadata, on specified iRODS
+    paths, according to current information in the ML warehouse.
+
+    This function is sequencing platform-agnostic and accepts both collection and data
+    object paths.
+
+    Args:
+        reader: A file supplying iRODS collection and/or data object paths to update
+            and a study_id, both going onto one line.
+        writer: A file where updated paths will be written, one per line.
+        mlwh_session: An open SQL session (ML warehouse).
+        print_update: Print the paths of objects that required updates and were
+            updated successfully. Defaults to True.
+        print_fail: Print the paths that required updates where the update failed.
+            Defaults to False.
+
+    Returns:
+       A tuple of the number of paths checked, the number of paths whose metadata
+       were updated and the number of errors (paths that could not be updated and/or
+       failed to be updated because of an exception).
+    """
+    num_processed, num_updated, num_errors = 0, 0, 0
+
+    for i, [path, study_id, sample_id] in enumerate(reader):
+        num_processed += 1
+        try:
+            p = path.strip()
+            rods_item = make_rods_item(p)
+            updated = False
+
+            if (rods_item.metadata(TrackedStudy.ID) == study_id) and (
+                rods_item.metadata(TrackedSample.ID) == sample_id
+            ):
+                updated = update_secondary_metadata_general(
+                    rods_item, mlwh_session, study_id, sample_id
+                )
+            elif rods_item.metadata(TrackedStudy.ID) != study_id:
+                log.warn("Tracked study ID in MLWH is", TrackedStudy.ID)
+
+            elif rods_item.metadata(TrackedSample.ID) != sample_id:
+                log.warn("Tracked sample ID in MLWH is", TrackedSample.ID)
+
+            if updated:
+                num_updated += 1
+                if print_update:
+                    _print(p, writer)
+
+        except RodsError as re:
+            num_errors += 1
+            log.error(re.message, item=i, code=re.code)
+            if print_fail:
+                _print(path, writer)
+        except Exception as e:
+            num_errors += 1
+            log.exception(e, item=i)
+            if print_fail:
+                _print(path, writer)
+
+    return num_processed, num_updated, num_errors
+
+
 def check_consent_withdrawn(
     reader, writer, print_pass=True, print_fail=False
 ) -> (int, int, int):
@@ -1051,3 +1121,97 @@ def write_safe_remove_script(writer, root, stop_on_error=True, verbose=False):
         writer.close()
         os.chmod(writer.name, 0o755)
         log.info(f"Script written to {writer.name}")
+
+
+def find_study_by_study_id(sess: Session, id: Study.id_study_lims) -> Study:
+    """Return a study from a study_id.
+
+    Args:
+        sess: An open SQL session.
+        study_id: A study_id in MLWH
+
+    Returns:
+        sample: An ML warehouse schema Study.
+    """
+    query = sess.query(Study).distinct().filter(Study.id_study_lims == id)
+
+    return query.first()
+
+
+def find_sample_by_sample_id(sess: Session, id: Sample.id_sample_lims) -> Sample:
+    """Return a sample from a sample_id.
+
+    Args:
+        sess: An open SQL session.
+        study_id: A sampple_id in MLWH
+
+    Returns:
+        sample: An ML warehouse schema Sample.
+    """
+    query = sess.query(Sample).distinct().filter(Sample.id_sample_lims == id)
+
+    return query.first()
+
+
+def update_secondary_metadata_general(
+    rods_item: Collection | DataObject,
+    mlwh_session: Session,
+    study_id: Study.id_study_lims,
+    sample_id: Sample.id_sample_lims,
+) -> bool:
+    """ """
+    study = find_study_by_study_id(mlwh_session, study_id)
+    sample = find_sample_by_sample_id(mlwh_session, sample_id)
+
+    secondary_metadata = []
+    secondary_metadata.extend(make_study_metadata(study))
+    secondary_metadata.extend(make_sample_metadata(sample))
+
+    return update_metadata(rods_item, secondary_metadata)
+
+
+def find_study_by_study_id(sess: Session, id: Study.id_study_lims) -> Study:
+    """Return a study from a study_id.
+
+    Args:
+        sess: An open SQL session.
+        study_id: A study_id in MLWH
+
+    Returns:
+        sample: An ML warehouse schema Study.
+    """
+    query = sess.query(Study).distinct().filter(Study.id_study_lims == id)
+
+    return query.first()
+
+
+def find_sample_by_sample_id(sess: Session, id: Sample.id_sample_lims) -> Sample:
+    """Return a sample from a sample_id.
+
+    Args:
+        sess: An open SQL session.
+        study_id: A sampple_id in MLWH
+
+    Returns:
+        sample: An ML warehouse schema Sample.
+    """
+    query = sess.query(Sample).distinct().filter(Sample.id_sample_lims == id)
+
+    return query.first()
+
+
+def update_secondary_metadata_general(
+    rods_item: Collection | DataObject,
+    mlwh_session: Session,
+    study_id: Study.id_study_lims,
+    sample_id: Sample.id_sample_lims,
+) -> bool:
+    """ """
+    study = find_study_by_study_id(mlwh_session, study_id)
+    sample = find_sample_by_sample_id(mlwh_session, sample_id)
+
+    secondary_metadata = []
+    secondary_metadata.extend(make_study_metadata(study))
+    secondary_metadata.extend(make_sample_metadata(sample))
+
+    return update_metadata(rods_item, secondary_metadata)
