@@ -68,14 +68,13 @@ parser.add_argument(
     type=str,
 )
 parser.add_argument(
-    "--print-pass",
-    help="Print to output those paths that pass the check. Defaults to True.",
+    "--print_update",
+    help="Print to output those paths that were updated. Defaults to True.",
     action="store_true",
 )
 parser.add_argument(
     "--print-fail",
-    help="Print to output those paths that require repair, where the repair failed. "
-    "Defaults to False.",
+    help="Print to output those paths that require updating, where the update failed. Defaults to False.",
     action="store_true",
 )
 parser.add_argument(
@@ -112,16 +111,19 @@ def main():
 
     if num_errors:
         log.error(
-            "Some checks did not pass",
+            "Update failed",
             num_processed=num_processed,
             num_passed=num_updated,
             num_errors=num_errors,
         )
         exit(1)
 
+    msg = (
+        "All updates were successful" if num_updated else "No updates were required"
+    )
     log.info(
-        "All checks passed",
+        msg,
         num_processed=num_processed,
-        num_passed=num_updated,
+        num_updated=num_updated,
         num_errors=num_errors,
     )
