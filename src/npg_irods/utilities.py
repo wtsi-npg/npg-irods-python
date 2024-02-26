@@ -1162,7 +1162,17 @@ def update_secondary_metadata_from_mlwh(
     study_id: Study.id_study_lims,
     sample_id: Sample.id_sample_lims,
 ) -> bool:
-    """ """
+    """Updates secondary metadata for a iRODS path using data from MLWH
+
+    Args:
+        rods_item: A Collection or DataObject.
+        mlwh_session: An open SQL session.
+        study_id: A Study ID from MLWH
+        sample_id: A Sample ID from MLWH
+
+    Returns:
+       True if updated.
+    """
     study = find_study_by_study_id(mlwh_session, study_id)
     sample = find_sample_by_sample_id(mlwh_session, sample_id)
 
