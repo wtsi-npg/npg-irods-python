@@ -707,17 +707,28 @@ def general_metadata_update(
             rods_item = make_rods_item(p)
             updated = False
 
+            if study_id is None:
+                log.warn("Skipped - No study_id provided", item=i, path=rods_item)    
+
+            if sample_id is None:
+                log.warn("Skipped - No sample_id provided", item=i, path=rods_item)  
+
             if rods_item.metadata(TrackedStudy.ID) != study_id:
-                log.warn("Skipped - study_id provided doesn't match with study_id on object",
-                        "Path", p,
-                        "Study ID in MLWH", TrackedStudy.ID)
+                log.warn("Skipped - study_id doesn't match study_id on object",
+                        item=i,
+                        path=rods_item,
+                        study_id=rods_item.metadata(TrackedStudy.ID))
 
             if rods_item.metadata(TrackedSample.ID) != sample_id:
-                log.warn("Tracked sample ID in MLWH is", TrackedSample.ID)
+                log.warn("Skipped - sample_id doesn't match sample_id on object",
+                        item=i,
+                        path=rods_item,
+                        study_id=rods_item.metadata(TrackedSample.ID))      
 
             if (rods_item.metadata(TrackedStudy.ID) == study_id) and (
                 rods_item.metadata(TrackedSample.ID) == sample_id
             ):
+                log.info("Updated", item=i, path=rods_item)
                 updated = update_secondary_metadata_from_mlwh(
                     rods_item, mlwh_session, study_id, sample_id
                 )
