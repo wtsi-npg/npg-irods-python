@@ -44,7 +44,7 @@ from npg_irods.utilities import (
     withdraw_consent,
     write_safe_remove_commands,
     write_safe_remove_script,
-    update_secondary_metadata_general,
+    update_secondary_metadata_from_mlwh,
 )
 
 
@@ -665,7 +665,7 @@ def test_apply_study_metadata(general_synthetic_irods, general_synthetic_mlwh):
         AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
     ]
 
-    assert update_secondary_metadata_general(
+    assert update_secondary_metadata_from_mlwh(
         obj, general_synthetic_mlwh, "1000", "id_sample_lims1"
     )
 
