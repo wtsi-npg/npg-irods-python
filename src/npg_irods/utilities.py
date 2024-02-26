@@ -1131,7 +1131,7 @@ def find_study_by_study_id(sess: Session, id: Study.id_study_lims) -> Study:
 
     Args:
         sess: An open SQL session.
-        study_id: A study_id in MLWH
+        study_id: A Study ID in MLWH
 
     Returns:
         sample: An ML warehouse schema Study.
@@ -1146,7 +1146,7 @@ def find_sample_by_sample_id(sess: Session, id: Sample.id_sample_lims) -> Sample
 
     Args:
         sess: An open SQL session.
-        study_id: A sampple_id in MLWH
+        sample_id: A Sample ID in MLWH
 
     Returns:
         sample: An ML warehouse schema Sample.
