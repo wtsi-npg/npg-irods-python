@@ -70,7 +70,7 @@ from npg_irods.metadata.lims import (
     make_study_metadata,
     make_sample_metadata,
 )
-from npg_irods.db.mlwh import Study, Sample
+from npg_irods.db.mlwh import Study, Sample, find_study_by_study_id, find_sample_by_sample_id
 from npg_irods.version import version
 
 log = get_logger(__name__)
@@ -1135,37 +1135,6 @@ def write_safe_remove_script(writer, root, stop_on_error=True, verbose=False):
         writer.close()
         os.chmod(writer.name, 0o755)
         log.info(f"Script written to {writer.name}")
-
-
-def find_study_by_study_id(sess: Session, id: Study.id_study_lims) -> Study:
-    """Return a study from a study_id.
-
-    Args:
-        sess: An open SQL session.
-        study_id: A Study ID in MLWH
-
-    Returns:
-        sample: An ML warehouse schema Study.
-    """
-    query = sess.query(Study).distinct().filter(Study.id_study_lims == id)
-
-    return query.first()
-
-
-def find_sample_by_sample_id(sess: Session, id: Sample.id_sample_lims) -> Sample:
-    """Return a sample from a sample_id.
-
-    Args:
-        sess: An open SQL session.
-        sample_id: A Sample ID in MLWH
-
-    Returns:
-        sample: An ML warehouse schema Sample.
-    """
-    query = sess.query(Sample).distinct().filter(Sample.id_sample_lims == id)
-
-    return query.first()
-
 
 def update_secondary_metadata_from_mlwh(
     rods_item: Collection | DataObject,
