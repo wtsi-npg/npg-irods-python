@@ -359,3 +359,33 @@ def find_consent_withdrawn_samples(sess: Session) -> list[Type[Sample]]:
         All samples marked as having their consent withdrawn.
     """
     return sess.query(Sample).filter(Sample.consent_withdrawn == 1).all()
+
+
+def find_study_by_study_id(sess: Session, id: Study.id_study_lims) -> Study:
+    """Return a study from a study_id.
+
+    Args:
+        sess: An open SQL session.
+        study_id: A Study ID in MLWH
+
+    Returns:
+        sample: An ML warehouse schema Study.
+    """
+    query = sess.query(Study).filter(Study.id_study_lims == id)
+
+    return query.first()
+
+
+def find_sample_by_sample_id(sess: Session, id: Sample.id_sample_lims) -> Sample:
+    """Return a sample from a sample_id.
+
+    Args:
+        sess: An open SQL session.
+        sample_id: A Sample ID in MLWH
+
+    Returns:
+        sample: An ML warehouse schema Sample.
+    """
+    query = sess.query(Sample).filter(Sample.id_sample_lims == id)
+
+    return query.first()
