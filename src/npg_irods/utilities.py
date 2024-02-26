@@ -707,17 +707,20 @@ def general_metadata_update(
             rods_item = make_rods_item(p)
             updated = False
 
+            if rods_item.metadata(TrackedStudy.ID) != study_id:
+                log.warn("Skipped - study_id provided doesn't match with study_id on object",
+                        "Path", p,
+                        "Study ID in MLWH", TrackedStudy.ID)
+
+            if rods_item.metadata(TrackedSample.ID) != sample_id:
+                log.warn("Tracked sample ID in MLWH is", TrackedSample.ID)
+
             if (rods_item.metadata(TrackedStudy.ID) == study_id) and (
                 rods_item.metadata(TrackedSample.ID) == sample_id
             ):
-                updated = update_secondary_metadata_general(
+                updated = update_secondary_metadata_from_mlwh(
                     rods_item, mlwh_session, study_id, sample_id
                 )
-            elif rods_item.metadata(TrackedStudy.ID) != study_id:
-                log.warn("Tracked study ID in MLWH is", TrackedStudy.ID)
-
-            elif rods_item.metadata(TrackedSample.ID) != sample_id:
-                log.warn("Tracked sample ID in MLWH is", TrackedSample.ID)
 
             if updated:
                 num_updated += 1
@@ -1153,7 +1156,7 @@ def find_sample_by_sample_id(sess: Session, id: Sample.id_sample_lims) -> Sample
     return query.first()
 
 
-def update_secondary_metadata_general(
+def update_secondary_metadata_from_mlwh(
     rods_item: Collection | DataObject,
     mlwh_session: Session,
     study_id: Study.id_study_lims,
