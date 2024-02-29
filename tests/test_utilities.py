@@ -586,7 +586,8 @@ class TestSafeRemoveUtilities:
     @m.it("Removes the expected collections and data objects")
     def test_write_safe_remove_script(self, tmp_path, annotated_collection_tree):
         script = Path(tmp_path, "safe_rm.sh")
-        write_safe_remove_script(script, annotated_collection_tree)
+        with open(script, "w", encoding="UTF-8") as writer:
+            write_safe_remove_script(writer, annotated_collection_tree)
         subprocess.run([script.as_posix()], check=True)
 
         assert not Collection(annotated_collection_tree).exists()
@@ -626,7 +627,8 @@ class TestSafeRemoveUtilities:
     @m.it("Removes the expected collections and data objects")
     def test_write_safe_remove_script_special(self, tmp_path, challenging_paths_irods):
         script = Path(tmp_path, "safe_rm.sh")
-        write_safe_remove_script(script, challenging_paths_irods)
+        with open(script, "w", encoding="UTF-8") as writer:
+            write_safe_remove_script(writer, challenging_paths_irods)
         subprocess.run([script.as_posix()], check=True)
 
         assert not Collection(challenging_paths_irods).exists()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ parser.add_argument(
     "-o",
     "--output",
     help="Output filename.",
-    type=argparse.FileType("w"),
+    type=argparse.FileType("w", encoding="UTF-8"),
     default=sys.stdout,
 )
 parser.add_argument(
