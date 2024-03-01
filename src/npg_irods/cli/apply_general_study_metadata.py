@@ -29,7 +29,8 @@ from npg_irods.utilities import general_metadata_update
 from npg_irods.version import version
 
 description = """
-Takes a Study ID and iRODS collection or data object and applies the study metadata from MLWH to it.
+Create-else-update either sample, or study, or both, metadata given existing _id metadata 
+on the given iRODS collection or data-object.
 """
 
 parser = argparse.ArgumentParser(

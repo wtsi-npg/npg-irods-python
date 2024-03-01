@@ -44,6 +44,7 @@ from npg_irods.utilities import (
     withdraw_consent,
     write_safe_remove_commands,
     write_safe_remove_script,
+    general_metadata_update,
     update_secondary_metadata_from_mlwh,
 )
 
@@ -639,35 +640,56 @@ class TestSafeRemoveUtilities:
         assert not Collection(challenging_paths_irods).exists()
 
 
-@m.context("When a apply general study metadata script is run")
-@m.context("When irods object study id and study id provided match")
-@m.it("Updates rest of the iRods metadata from MLWH")
-def test_apply_study_metadata(general_synthetic_irods, general_synthetic_mlwh):
-    path = general_synthetic_irods
-    obj = DataObject(path)
+@m.describe("Metadata utilities")
+class TestMetadataUtilities:
+    @m.context("When update_secondary_metadata_from_mlwh script is run")
+    @m.context("When irods object study id and study id provided match")
+    @m.it("Updates rest of the iRODS metadata from MLWH")
+    def test_apply_secondary_metadata(self, general_synthetic_irods, general_synthetic_mlwh):
+        path = general_synthetic_irods/ "lorem.txt"
+        obj = DataObject(path)
 
-    old_avus = [AVU(TrackedStudy.ID, "1000"), AVU(TrackedSample.ID, "id_sample_lims1")]
+        old_avus = [AVU(TrackedStudy.ID, "1000"), AVU(TrackedSample.ID, "id_sample_lims1")]
 
-    for avu in old_avus:
-        assert avu in obj.metadata()
+        for avu in old_avus:
+            assert avu in obj.metadata()
 
-    expected_avus = [
-        AVU(TrackedStudy.ID, "1000"),
-        AVU(TrackedStudy.NAME, "Study X"),
-        AVU(TrackedStudy.TITLE, "Test Study Title"),
-        AVU(TrackedStudy.ACCESSION_NUMBER, "Test Accession"),
-        AVU(TrackedSample.ID, "id_sample_lims1"),
-        AVU(TrackedSample.ACCESSION_NUMBER, "Test Accession"),
-        AVU(TrackedSample.COMMON_NAME, "common_name1"),
-        AVU(TrackedSample.DONOR_ID, "donor_id1"),
-        AVU(TrackedSample.NAME, "name1"),
-        AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
-        AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
-    ]
+        expected_avus = [
+            AVU(TrackedStudy.ID, "1000"),
+            AVU(TrackedStudy.NAME, "Study X"),
+            AVU(TrackedStudy.TITLE, "Test Study Title"),
+            AVU(TrackedStudy.ACCESSION_NUMBER, "Test Accession"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.ACCESSION_NUMBER, "Test Accession"),
+            AVU(TrackedSample.COMMON_NAME, "common_name1"),
+            AVU(TrackedSample.DONOR_ID, "donor_id1"),
+            AVU(TrackedSample.NAME, "name1"),
+            AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+        ]
 
-    assert update_secondary_metadata_from_mlwh(
-        obj, general_synthetic_mlwh, "1000", "id_sample_lims1"
-    )
+        assert update_secondary_metadata_from_mlwh(
+            obj, general_synthetic_mlwh, "1000", "id_sample_lims1"
+        )
 
-    for avu in expected_avus:
-        assert avu in obj.metadata()
+        for avu in expected_avus:
+            assert avu in obj.metadata()
+
+    @m.context("When script passed data object")
+    @m.context("When irods object study id and study id provided match")
+    @m.it("Counts successes correctly")
+    def test_apply_metadata_to_objects(self, general_synthetic_irods, general_synthetic_mlwh):
+        obj_paths = collect_obj_paths(Collection(general_synthetic_irods))
+
+        with StringIO("\n".join(obj_paths)) as reader:
+            print(reader.getvalue())
+            with StringIO() as writer:
+                num_processed, num_updated, num_errors = general_metadata_update(
+                    reader, writer, general_synthetic_mlwh, print_update=True
+                )
+                assert num_processed == 1
+                assert num_updated == 1
+                assert num_errors == 0
+
+                passed_paths = writer.getvalue().split()
+                assert passed_paths == obj_paths

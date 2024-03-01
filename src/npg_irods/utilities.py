@@ -684,8 +684,8 @@ def general_metadata_update(
     object paths.
 
     Args:
-        reader: A file supplying iRODS collection and/or data object paths to update
-            and a study_id, both going onto one line.
+        reader: A file supplying iRODS collection and/or data object paths to update,
+            one per line.
         writer: A file where updated paths will be written, one per line.
         mlwh_session: An open SQL session (ML warehouse).
         print_update: Print the paths of objects that required updates and were
@@ -700,38 +700,20 @@ def general_metadata_update(
     """
     num_processed, num_updated, num_errors = 0, 0, 0
 
-    for i, [path, study_id, sample_id] in enumerate(reader):
+    for i, path in enumerate(reader):
         num_processed += 1
         try:
             p = path.strip()
             rods_item = make_rods_item(p)
             updated = False
 
-            if study_id is None:
-                log.warn("Skipped - No study_id provided", item=i, path=rods_item)    
+            study_id = rods_item.avu(TrackedStudy.ID).value
+            sample_id = rods_item.avu(TrackedSample.ID).value
 
-            if sample_id is None:
-                log.warn("Skipped - No sample_id provided", item=i, path=rods_item)  
-
-            if rods_item.metadata(TrackedStudy.ID) != study_id:
-                log.warn("Skipped - study_id doesn't match study_id on object",
-                        item=i,
-                        path=rods_item,
-                        study_id=rods_item.metadata(TrackedStudy.ID))
-
-            if rods_item.metadata(TrackedSample.ID) != sample_id:
-                log.warn("Skipped - sample_id doesn't match sample_id on object",
-                        item=i,
-                        path=rods_item,
-                        study_id=rods_item.metadata(TrackedSample.ID))      
-
-            if (rods_item.metadata(TrackedStudy.ID) == study_id) and (
-                rods_item.metadata(TrackedSample.ID) == sample_id
-            ):
-                log.info("Updated", item=i, path=rods_item)
-                updated = update_secondary_metadata_from_mlwh(
-                    rods_item, mlwh_session, study_id, sample_id
-                )
+            log.info("Updated", item=i, path=rods_item)
+            updated = update_secondary_metadata_from_mlwh(
+                rods_item, mlwh_session, study_id, sample_id
+            )
 
             if updated:
                 num_updated += 1

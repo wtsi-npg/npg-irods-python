@@ -256,7 +256,7 @@ def general_synthetic_irods(tmp_path):
     )
 
     try:
-        yield obj_path
+        yield rods_path
     finally:
         remove_rods_path(rods_path)
 
