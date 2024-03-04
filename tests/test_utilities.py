@@ -643,13 +643,20 @@ class TestSafeRemoveUtilities:
 @m.describe("Metadata utilities")
 class TestMetadataUtilities:
     @m.context("When update_secondary_metadata_from_mlwh script is run")
-    @m.context("When irods object has study/sample id and wants both study/sample metadata added")
+    @m.context(
+        "When irods object has study/sample id and wants both study/sample metadata added"
+    )
     @m.it("Updates rest of the iRODS metadata from MLWH")
-    def test_apply_secondary_metadata(self, general_synthetic_irods, general_synthetic_mlwh):
-        path = general_synthetic_irods/ "lorem.txt"
+    def test_apply_secondary_metadata(
+        self, general_synthetic_irods, general_synthetic_mlwh
+    ):
+        path = general_synthetic_irods / "lorem.txt"
         obj = DataObject(path)
 
-        old_avus = [AVU(TrackedStudy.ID, "1000"), AVU(TrackedSample.ID, "id_sample_lims1")]
+        old_avus = [
+            AVU(TrackedStudy.ID, "1000"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+        ]
 
         for avu in old_avus:
             assert avu in obj.metadata()
@@ -678,8 +685,10 @@ class TestMetadataUtilities:
     @m.context("When update_secondary_metadata_from_mlwh script is run")
     @m.context("When irods object has just a study id and wants study metadata added")
     @m.it("Updates rest of the iRODS metadata from MLWH")
-    def test_apply_secondary_metadata_no_sample(self, general_synthetic_irods, general_synthetic_mlwh):
-        path = general_synthetic_irods/ "lorem.txt"
+    def test_apply_secondary_metadata_no_sample(
+        self, general_synthetic_irods, general_synthetic_mlwh
+    ):
+        path = general_synthetic_irods / "lorem.txt"
         obj = DataObject(path)
 
         obj.remove_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
@@ -701,17 +710,24 @@ class TestMetadataUtilities:
         )
 
         for avu in expected_avus:
-            assert avu in obj.metadata()        
+            assert avu in obj.metadata()
 
     @m.context("When cli script passed irods path")
-    @m.context("When irods object has both a study/sample id and wants study/sample metadata added")
+    @m.context(
+        "When irods object has both a study/sample id and wants study/sample metadata added"
+    )
     @m.it("Counts successes correctly")
-    def test_apply_metadata_to_objects(self, general_synthetic_irods, general_synthetic_mlwh):
+    def test_apply_metadata_to_objects(
+        self, general_synthetic_irods, general_synthetic_mlwh
+    ):
         obj_paths = collect_obj_paths(Collection(general_synthetic_irods))
 
         data_objects = [DataObject(item) for item in obj_paths]
 
-        old_avus = [AVU(TrackedStudy.ID, "1000"), AVU(TrackedSample.ID, "id_sample_lims1")]
+        old_avus = [
+            AVU(TrackedStudy.ID, "1000"),
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+        ]
 
         for avu in old_avus:
             assert avu in data_objects[0].metadata()
@@ -741,15 +757,17 @@ class TestMetadataUtilities:
             AVU(TrackedSample.NAME, "name1"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
-        ]        
+        ]
 
         for avu in expected_avus:
             assert avu in data_objects[0].metadata()
-        
+
     @m.context("When cli script passed irods path")
     @m.context("When irods object has just a study id and wants study metadata added")
     @m.it("Counts successes correctly")
-    def test_apply_metadata_to_objects_with_just_study(self, general_synthetic_irods, general_synthetic_mlwh):
+    def test_apply_metadata_to_objects_with_just_study(
+        self, general_synthetic_irods, general_synthetic_mlwh
+    ):
         obj_paths = collect_obj_paths(Collection(general_synthetic_irods))
 
         data_objects = [DataObject(item) for item in obj_paths]
@@ -771,11 +789,11 @@ class TestMetadataUtilities:
                 assert passed_paths == obj_paths
 
             expected_avus = [
-            AVU(TrackedStudy.ID, "1000"),
-            AVU(TrackedStudy.NAME, "Study X"),
-            AVU(TrackedStudy.TITLE, "Test Study Title"),
-            AVU(TrackedStudy.ACCESSION_NUMBER, "Test Accession"),
-        ]        
+                AVU(TrackedStudy.ID, "1000"),
+                AVU(TrackedStudy.NAME, "Study X"),
+                AVU(TrackedStudy.TITLE, "Test Study Title"),
+                AVU(TrackedStudy.ACCESSION_NUMBER, "Test Accession"),
+            ]
 
         for avu in expected_avus:
             assert avu in data_objects[0].metadata()
@@ -783,7 +801,9 @@ class TestMetadataUtilities:
     @m.context("When cli script passed irods path")
     @m.context("When irods object has just a study id and wants sample metadata added")
     @m.it("Counts errors correctly")
-    def test_apply_metadata_to_objects_with_just_study_err(self, general_synthetic_irods, general_synthetic_mlwh):
+    def test_apply_metadata_to_objects_with_just_study_err(
+        self, general_synthetic_irods, general_synthetic_mlwh
+    ):
         obj_paths = collect_obj_paths(Collection(general_synthetic_irods))
 
         data_objects = [DataObject(item) for item in obj_paths]
@@ -812,7 +832,7 @@ class TestMetadataUtilities:
             AVU(TrackedSample.NAME, "name1"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
-        ]        
+        ]
 
         for avu in expected_avus:
             assert avu not in data_objects[0].metadata()

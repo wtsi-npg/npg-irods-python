@@ -119,9 +119,7 @@ def main():
         )
         exit(1)
 
-    msg = (
-        "All updates were successful" if num_updated else "No updates were required"
-    )
+    msg = "All updates were successful" if num_updated else "No updates were required"
     log.info(
         msg,
         num_processed=num_processed,

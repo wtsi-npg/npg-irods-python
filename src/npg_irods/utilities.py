@@ -70,7 +70,12 @@ from npg_irods.metadata.lims import (
     make_study_metadata,
     make_sample_metadata,
 )
-from npg_irods.db.mlwh import Study, Sample, find_study_by_study_id, find_sample_by_sample_id
+from npg_irods.db.mlwh import (
+    Study,
+    Sample,
+    find_study_by_study_id,
+    find_sample_by_sample_id,
+)
 from npg_irods.version import version
 
 log = get_logger(__name__)
@@ -710,10 +715,10 @@ def general_metadata_update(
             study_id = None
             sample_id = None
 
-            if rods_item.metadata(TrackedStudy.ID) != []: 
+            if rods_item.metadata(TrackedStudy.ID) != []:
                 study_id = rods_item.avu(TrackedStudy.ID).value
 
-            if rods_item.metadata(TrackedSample.ID) != []: 
+            if rods_item.metadata(TrackedSample.ID) != []:
                 sample_id = rods_item.avu(TrackedSample.ID).value
 
             log.info("Updated", item=i, path=rods_item)
@@ -1123,6 +1128,7 @@ def write_safe_remove_script(writer, root, stop_on_error=True, verbose=False):
         writer.close()
         os.chmod(writer.name, 0o755)
         log.info(f"Script written to {writer.name}")
+
 
 def update_secondary_metadata_from_mlwh(
     rods_item: Collection | DataObject,
