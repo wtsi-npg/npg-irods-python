@@ -707,8 +707,14 @@ def general_metadata_update(
             rods_item = make_rods_item(p)
             updated = False
 
-            study_id = rods_item.avu(TrackedStudy.ID).value
-            sample_id = rods_item.avu(TrackedSample.ID).value
+            study_id = None
+            sample_id = None
+
+            if rods_item.metadata(TrackedStudy.ID) != []: 
+                study_id = rods_item.avu(TrackedStudy.ID).value
+
+            if rods_item.metadata(TrackedSample.ID) != []: 
+                sample_id = rods_item.avu(TrackedSample.ID).value
 
             log.info("Updated", item=i, path=rods_item)
             updated = update_secondary_metadata_from_mlwh(
@@ -1135,12 +1141,15 @@ def update_secondary_metadata_from_mlwh(
     Returns:
        True if updated.
     """
-    study = find_study_by_study_id(mlwh_session, study_id)
-    sample = find_sample_by_sample_id(mlwh_session, sample_id)
-
     secondary_metadata = []
-    secondary_metadata.extend(make_study_metadata(study))
-    secondary_metadata.extend(make_sample_metadata(sample))
+
+    if study_id is not None:
+        study = find_study_by_study_id(mlwh_session, study_id)
+        secondary_metadata.extend(make_study_metadata(study))
+
+    if sample_id is not None:
+        sample = find_sample_by_sample_id(mlwh_session, sample_id)
+        secondary_metadata.extend(make_sample_metadata(sample))
 
     return update_metadata(rods_item, secondary_metadata)
 
