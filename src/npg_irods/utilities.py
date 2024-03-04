@@ -1170,7 +1170,7 @@ def find_study_by_study_id(sess: Session, id: Study.id_study_lims) -> Study:
     Returns:
         sample: An ML warehouse schema Study.
     """
-    query = sess.query(Study).distinct().filter(Study.id_study_lims == id)
+    query = sess.query(Study).filter(Study.id_study_lims == id)
 
     return query.first()
 
@@ -1185,23 +1185,6 @@ def find_sample_by_sample_id(sess: Session, id: Sample.id_sample_lims) -> Sample
     Returns:
         sample: An ML warehouse schema Sample.
     """
-    query = sess.query(Sample).distinct().filter(Sample.id_sample_lims == id)
+    query = sess.query(Sample).filter(Sample.id_sample_lims == id)
 
     return query.first()
-
-
-def update_secondary_metadata_general(
-    rods_item: Collection | DataObject,
-    mlwh_session: Session,
-    study_id: Study.id_study_lims,
-    sample_id: Sample.id_sample_lims,
-) -> bool:
-    """ """
-    study = find_study_by_study_id(mlwh_session, study_id)
-    sample = find_sample_by_sample_id(mlwh_session, sample_id)
-
-    secondary_metadata = []
-    secondary_metadata.extend(make_study_metadata(study))
-    secondary_metadata.extend(make_sample_metadata(sample))
-
-    return update_metadata(rods_item, secondary_metadata)
