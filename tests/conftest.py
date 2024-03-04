@@ -42,6 +42,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy_utils import create_database, database_exists, drop_database
 
 from helpers import (
+    BEGIN,
     add_rods_path,
     add_sql_test_utilities,
     add_test_groups,
@@ -55,7 +56,7 @@ from npg_irods.db.mlwh import (
     Base,
 )
 from npg_irods.metadata.common import DataFile
-from npg_irods.metadata.lims import TrackedSample
+from npg_irods.metadata.lims import TrackedSample, TrackedStudy, Study, Sample
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -111,6 +112,46 @@ def mlwh_session() -> Session:
     #
     # Dropping the database for SQLite deletes the SQLite file.
     drop_database(engine.url)
+
+
+def initialize_mlwh_synthetic(session: Session):
+    """
+    Insert ML warehouse test data for synthetic runs.
+
+    """
+    default_timestamps = {"last_updated": BEGIN, "recorded_at": BEGIN}
+
+    study_x = Study(
+        id_lims="LIMS_01",
+        id_study_lims="1000",
+        name="Study X",
+        study_title="Test Study Title",
+        accession_number="Test Accession",
+        **default_timestamps,
+    )
+    session.add(study_x)
+
+    sample_y = Sample(
+        id_lims="LIMS_01",
+        common_name="common_name1",
+        donor_id="donor_id1",
+        id_sample_lims="id_sample_lims1",
+        accession_number="Test Accession",
+        name="name1",
+        public_name="public_name1",
+        supplier_name="supplier_name1",
+        **default_timestamps,
+    )
+    session.add(sample_y)
+
+    session.commit()
+
+
+@pytest.fixture(scope="function")
+def general_synthetic_mlwh(mlwh_session) -> Session:
+    """An ML warehouse database fixture populated with test study records."""
+    initialize_mlwh_synthetic(mlwh_session)
+    yield mlwh_session
 
 
 @pytest.fixture(scope="function")
@@ -194,6 +235,25 @@ def consent_withdrawn_npg_data_object(tmp_path):
 
     obj = DataObject(obj_path)
     obj.add_metadata(AVU(TrackedSample.CONSENT_WITHDRAWN, "1"))
+
+    try:
+        yield obj_path
+    finally:
+        remove_rods_path(rods_path)
+
+
+@pytest.fixture(scope="function")
+def general_synthetic_irods(tmp_path):
+    root_path = PurePath("/testZone/home/irods/test/general_study_metadata_update")
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    obj_path = rods_path / "lorem.txt"
+    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
+
+    obj = DataObject(obj_path)
+    obj.add_metadata(
+        AVU(TrackedStudy.ID, "1000"), AVU(TrackedSample.ID, "id_sample_lims1")
+    )
 
     try:
         yield obj_path
