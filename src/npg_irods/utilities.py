@@ -707,18 +707,20 @@ def update_general_metadata(
             p = path.strip()
             rods_item = make_rods_item(p)
 
-            study_id = None
-            sample_id = None
-
-            if rods_item.metadata(TrackedStudy.ID):
-                study_id = rods_item.avu(TrackedStudy.ID).value
-
-            if rods_item.metadata(TrackedSample.ID):
-                sample_id = rods_item.avu(TrackedSample.ID).value
+            sample_id = (
+                rods_item.avu(TrackedSample.ID).value
+                if rods_item.metadata(TrackedSample.ID)
+                else None
+            )
+            study_id = (
+                rods_item.avu(TrackedStudy.ID).value
+                if rods_item.metadata(TrackedStudy.ID)
+                else None
+            )
 
             log.info("Updated", item=i, path=rods_item)
             updated = update_secondary_metadata_from_mlwh(
-                rods_item, mlwh_session, study_id, sample_id
+                rods_item, mlwh_session, sample_id=sample_id, study_id=study_id
             )
 
             if updated:

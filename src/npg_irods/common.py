@@ -23,7 +23,7 @@ import re
 from enum import Enum, unique
 from os import PathLike
 from pathlib import PurePath
-from typing import Tuple
+from typing import Optional, Tuple
 
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, rods_user
 from sqlalchemy.orm import Session
@@ -319,17 +319,16 @@ def infer_zone(path: Collection | DataObject) -> str:
 def update_secondary_metadata_from_mlwh(
     rods_item: Collection | DataObject,
     mlwh_session: Session,
-    study_id: str,
-    sample_id: str,
+    study_id: Optional[str] = None,
+    sample_id: Optional[str] = None,
 ) -> bool:
-    """Updates secondary metadata for a iRODS path using data from MLWH
+    """Updates secondary metadata for a iRODS path using data from MLWH.
 
     Args:
         rods_item: A Collection or DataObject.
         mlwh_session: An open SQL session.
-        study_id: A Study ID from MLWH
-        sample_id: A Sample ID from MLWH
-
+        study_id: A Study ID from MLWH. Optional, defaults to None.
+        sample_id: A Sample ID from MLWH. Optional, defaults to None.
     Returns:
        True if updated.
     """

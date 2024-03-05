@@ -31,21 +31,20 @@ class TestCommonFunctions:
     ):
         path = general_synthetic_irods / "lorem.txt"
         obj = DataObject(path)
+        sample_id = "id_sample_lims1"
+        study_id = "1000"
 
-        old_avus = [
-            AVU(TrackedStudy.ID, "1000"),
-            AVU(TrackedSample.ID, "id_sample_lims1"),
-        ]
+        old_avus = [AVU(TrackedStudy.ID, study_id), AVU(TrackedSample.ID, sample_id)]
 
         for avu in old_avus:
             assert avu in obj.metadata()
 
         expected_avus = [
-            AVU(TrackedStudy.ID, "1000"),
+            AVU(TrackedStudy.ID, study_id),
             AVU(TrackedStudy.NAME, "Study X"),
             AVU(TrackedStudy.TITLE, "Test Study Title"),
             AVU(TrackedStudy.ACCESSION_NUMBER, "Test Accession"),
-            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.ID, sample_id),
             AVU(TrackedSample.ACCESSION_NUMBER, "Test Accession"),
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
@@ -55,7 +54,7 @@ class TestCommonFunctions:
         ]
 
         assert update_secondary_metadata_from_mlwh(
-            obj, general_synthetic_mlwh, "1000", "id_sample_lims1"
+            obj, general_synthetic_mlwh, sample_id=sample_id, study_id=study_id
         )
 
         for avu in expected_avus:
@@ -69,10 +68,11 @@ class TestCommonFunctions:
     ):
         path = general_synthetic_irods / "lorem.txt"
         obj = DataObject(path)
+        study_id = "1000"
 
         obj.remove_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
 
-        old_avus = [AVU(TrackedStudy.ID, "1000")]
+        old_avus = [AVU(TrackedStudy.ID, study_id)]
 
         for avu in old_avus:
             assert avu in obj.metadata()
@@ -85,7 +85,7 @@ class TestCommonFunctions:
         ]
 
         assert update_secondary_metadata_from_mlwh(
-            obj, general_synthetic_mlwh, "1000", None
+            obj, general_synthetic_mlwh, study_id=study_id
         )
 
         for avu in expected_avus:
