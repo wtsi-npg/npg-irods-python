@@ -511,6 +511,32 @@ class TestIlluminaPermissionsUpdate:
             )
             assert obj.permissions() == new_permissions
 
+    @m.context("When the data are multiplexed")
+    @m.context("When the tag index is for a control")
+    @m.it("Manages permissions while respecting the include_controls option")
+    def test_updates_control_permissions_mx(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345/12345#888.cram"
+
+        obj = DataObject(path)
+        old_permissions = [AC("irods", perm=Permission.OWN, zone="testZone")]
+        new_permissions = [
+            AC("irods", perm=Permission.OWN, zone="testZone"),
+            AC("ss_888", perm=Permission.READ, zone="testZone"),
+        ]
+
+        assert obj.permissions() == old_permissions
+        assert not ensure_secondary_metadata_updated(
+            obj, mlwh_session=illumina_synthetic_mlwh, include_controls=False
+        )
+        assert obj.permissions() == old_permissions
+
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=illumina_synthetic_mlwh, include_controls=True
+        )
+        assert obj.permissions() == new_permissions
+
     @m.context("When data are not multiplexed")
     @m.context("When data have had consent withdrawn")
     @m.it("Does not restore access permissions")
