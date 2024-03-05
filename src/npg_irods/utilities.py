@@ -710,15 +710,14 @@ def general_metadata_update(
         try:
             p = path.strip()
             rods_item = make_rods_item(p)
-            updated = False
 
             study_id = None
             sample_id = None
 
-            if rods_item.metadata(TrackedStudy.ID) != []:
+            if rods_item.metadata(TrackedStudy.ID):
                 study_id = rods_item.avu(TrackedStudy.ID).value
 
-            if rods_item.metadata(TrackedSample.ID) != []:
+            if rods_item.metadata(TrackedSample.ID):
                 sample_id = rods_item.avu(TrackedSample.ID).value
 
             log.info("Updated", item=i, path=rods_item)
