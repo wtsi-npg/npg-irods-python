@@ -362,7 +362,7 @@ def find_consent_withdrawn_samples(sess: Session) -> list[Type[Sample]]:
     return sess.query(Sample).filter(Sample.consent_withdrawn == 1).all()
 
 
-def find_study_by_study_id(sess: Session, id: String) -> Study:
+def find_study_by_study_id(sess: Session, study_id: str) -> Study:
     """Return a study from a study_id.
 
     Args:
@@ -372,12 +372,12 @@ def find_study_by_study_id(sess: Session, id: String) -> Study:
     Returns:
         sample: An ML warehouse schema Study.
     """
-    query = sess.execute(select(Study).where(Study.id_study_lims == id)).scalar_one()
+    return sess.execute(
+        select(Study).where(Study.id_study_lims == study_id)
+    ).scalar_one()
 
-    return query
 
-
-def find_sample_by_sample_id(sess: Session, id: String) -> Sample:
+def find_sample_by_sample_id(sess: Session, sample_id: str) -> Sample:
     """Return a sample from a sample_id.
 
     Args:
@@ -387,6 +387,6 @@ def find_sample_by_sample_id(sess: Session, id: String) -> Sample:
     Returns:
         sample: An ML warehouse schema Sample.
     """
-    query = sess.execute(select(Sample).where(Sample.id_sample_lims == id)).scalar_one()
-
-    return query
+    return sess.execute(
+        select(Sample).where(Sample.id_sample_lims == sample_id)
+    ).scalar_one()
