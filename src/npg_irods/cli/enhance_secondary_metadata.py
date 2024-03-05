@@ -25,7 +25,7 @@ import sqlalchemy
 from sqlalchemy.orm import Session
 from npg_irods.cli.util import add_logging_arguments, configure_logging
 from npg_irods.db import DBConfig
-from npg_irods.utilities import general_metadata_update
+from npg_irods.utilities import update_general_metadata
 from npg_irods.version import version
 
 description = """
@@ -104,7 +104,7 @@ def main():
 
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
-        num_processed, num_updated, num_errors = general_metadata_update(
+        num_processed, num_updated, num_errors = update_general_metadata(
             args.input,
             args.output,
             session,

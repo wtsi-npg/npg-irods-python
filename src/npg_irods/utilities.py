@@ -24,7 +24,6 @@ import sys
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import PurePath
-from sqlalchemy.orm import Session
 
 import partisan
 from partisan.exception import RodsError
@@ -41,7 +40,12 @@ from partisan.irods import (
 from structlog import get_logger
 
 from npg_irods import illumina, ont, pacbio
-from npg_irods.common import AnalysisType, Platform, infer_data_source, update_metadata
+from npg_irods.common import (
+    AnalysisType,
+    Platform,
+    infer_data_source,
+    update_secondary_metadata_from_mlwh,
+)
 from npg_irods.exception import ChecksumError
 from npg_irods.metadata.common import (
     DataFile,
@@ -67,14 +71,6 @@ from npg_irods.metadata.lims import (
     has_consent_withdrawn,
     has_consent_withdrawn_metadata,
     has_consent_withdrawn_permissions,
-    make_study_metadata,
-    make_sample_metadata,
-)
-from npg_irods.db.mlwh import (
-    Study,
-    Sample,
-    find_study_by_study_id,
-    find_sample_by_sample_id,
 )
 from npg_irods.version import version
 
@@ -679,7 +675,7 @@ def update_secondary_metadata(
     return num_processed, num_updated, num_errors
 
 
-def general_metadata_update(
+def update_general_metadata(
     reader, writer, mlwh_session, print_update=True, print_fail=False
 ) -> (int, int, int):
     """Update study metadata, on specified iRODS
@@ -710,15 +706,14 @@ def general_metadata_update(
         try:
             p = path.strip()
             rods_item = make_rods_item(p)
-            updated = False
 
             study_id = None
             sample_id = None
 
-            if rods_item.metadata(TrackedStudy.ID) != []:
+            if rods_item.metadata(TrackedStudy.ID):
                 study_id = rods_item.avu(TrackedStudy.ID).value
 
-            if rods_item.metadata(TrackedSample.ID) != []:
+            if rods_item.metadata(TrackedSample.ID):
                 sample_id = rods_item.avu(TrackedSample.ID).value
 
             log.info("Updated", item=i, path=rods_item)
@@ -1128,33 +1123,3 @@ def write_safe_remove_script(writer, root, stop_on_error=True, verbose=False):
         writer.close()
         os.chmod(writer.name, 0o755)
         log.info(f"Script written to {writer.name}")
-
-
-def update_secondary_metadata_from_mlwh(
-    rods_item: Collection | DataObject,
-    mlwh_session: Session,
-    study_id: str,
-    sample_id: str,
-) -> bool:
-    """Updates secondary metadata for a iRODS path using data from MLWH
-
-    Args:
-        rods_item: A Collection or DataObject.
-        mlwh_session: An open SQL session.
-        study_id: A Study ID from MLWH
-        sample_id: A Sample ID from MLWH
-
-    Returns:
-       True if updated.
-    """
-    secondary_metadata = []
-
-    if study_id is not None:
-        study = find_study_by_study_id(mlwh_session, study_id)
-        secondary_metadata.extend(make_study_metadata(study))
-
-    if sample_id is not None:
-        sample = find_sample_by_sample_id(mlwh_session, sample_id)
-        secondary_metadata.extend(make_sample_metadata(sample))
-
-    return update_metadata(rods_item, secondary_metadata)
