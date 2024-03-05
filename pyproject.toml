@@ -35,6 +35,7 @@ homepage = "https://github.com/wtsi-npg/npg-irods-python"
 repository = "https://github.com/wtsi-npg/npg-irods-python.git"
 
 [project.scripts]
+"enhance_secondary_metadata" = "npg_irods.cli.enhance_secondary_metadata:main"
 "apply-ont-metadata" = "npg_irods.cli.apply_ont_metadata:main"
 "check-checksums" = "npg_irods.cli.check_checksums:main"
 "check-common-metadata" = "npg_irods.cli.check_common_metadata:main"
