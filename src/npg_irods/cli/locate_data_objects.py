@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 
 import argparse
+import sys
 from datetime import datetime
 
 import sqlalchemy
@@ -131,7 +132,7 @@ def consent_withdrawn(cli_args):
     log.info(f"Processed {num_processed} with {num_errors} errors")
 
     if num_errors:
-        exit(1)
+        sys.exit(1)
 
 
 def illumina_updates_cli(cli_args):
@@ -157,7 +158,7 @@ def illumina_updates_cli(cli_args):
         )
 
         if num_errors:
-            exit(1)
+            sys.exit(1)
 
 
 def illumina_updates(
@@ -271,7 +272,7 @@ def ont_updates_cli(cli_args):
         )
 
         if num_errors:
-            exit(1)
+            sys.exit(1)
 
 
 def ont_updates(
@@ -344,7 +345,7 @@ def pacbio_updates_cli(cli_args):
         )
 
         if num_errors:
-            exit(1)
+            sys.exit(1)
 
 
 def pacbio_updates(
@@ -509,5 +510,5 @@ def main():
 
     if args.version:
         print(version())
-        exit(0)
+        sys.exit(0)
     args.func(args)

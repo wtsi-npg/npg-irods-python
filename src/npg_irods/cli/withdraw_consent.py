@@ -92,7 +92,7 @@ log = structlog.get_logger("main")
 def main():
     if args.version:
         print(version())
-        exit(0)
+        sys.exit(0)
 
     num_processed, num_withdrawn, num_errors = withdraw_consent(
         args.input,
@@ -108,7 +108,7 @@ def main():
             num_withdrawn=num_withdrawn,
             num_errors=num_errors,
         )
-        exit(1)
+        sys.exit(1)
 
     msg = "All updates were successful" if num_withdrawn else "No updates were required"
     log.info(

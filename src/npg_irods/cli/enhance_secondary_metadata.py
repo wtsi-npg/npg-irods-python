@@ -98,7 +98,7 @@ log = structlog.get_logger("main")
 def main():
     if args.version:
         print(version())
-        exit(0)
+        sys.exit(0)
 
     dbconfig = DBConfig.from_file(args.database_config.name, "mlwh_ro")
 
@@ -119,7 +119,7 @@ def main():
             num_updated=num_updated,
             num_errors=num_errors,
         )
-        exit(1)
+        sys.exit(1)
 
     msg = "All updates were successful" if num_updated else "No updates were required"
     log.info(

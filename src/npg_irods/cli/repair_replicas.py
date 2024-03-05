@@ -111,7 +111,7 @@ log = structlog.get_logger("main")
 def main():
     if args.version:
         print(version())
-        exit(0)
+        sys.exit(0)
 
     num_processed, num_repaired, num_errors = repair_replicas(
         args.input,
@@ -130,7 +130,7 @@ def main():
             num_repaired=num_repaired,
             num_errors=num_errors,
         )
-        exit(1)
+        sys.exit(1)
 
     msg = "All repairs were successful" if num_repaired else "No paths required repair"
     log.info(
