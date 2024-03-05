@@ -62,7 +62,7 @@ jobs:
           - "20000-20199:20000-20199"
         options: >-
           --health-cmd "nc -z -v localhost 1247"
-          --health-start-period 30s
+          --health-start-period 60s
           --health-interval 10s
           --health-timeout 20s
           --health-retries 6
