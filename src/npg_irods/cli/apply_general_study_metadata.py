@@ -29,6 +29,8 @@ from npg_irods.utilities import general_metadata_update
 from npg_irods.version import version
 
 description = """
+Reads iRODS data object paths from a file or STDIN, one per line.
+
 Create-else-update either sample, or study, or both, metadata given existing _id metadata 
 on the given iRODS collection or data-object.
 """
@@ -41,7 +43,7 @@ add_logging_arguments(parser)
 parser.add_argument(
     "-i",
     "--input",
-    help="Input filename.",
+    help="Input filename. File has one iRODS data object path per line to be updated with secondary study/sample metadata",
     type=argparse.FileType("r"),
     default=sys.stdin,
 )
@@ -57,7 +59,7 @@ parser.add_argument(
     "--database_config",
     "--db-config",
     "--db_config",
-    help="Configuration file for database connection.",
+    help="Configuration file for database connection (MLWH) to look up study and sample information",
     type=argparse.FileType("r"),
     required=True,
 )
@@ -114,7 +116,7 @@ def main():
         log.error(
             "Update failed",
             num_processed=num_processed,
-            num_passed=num_updated,
+            num_updated=num_updated,
             num_errors=num_errors,
         )
         exit(1)

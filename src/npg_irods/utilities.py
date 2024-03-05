@@ -1133,8 +1133,8 @@ def write_safe_remove_script(writer, root, stop_on_error=True, verbose=False):
 def update_secondary_metadata_from_mlwh(
     rods_item: Collection | DataObject,
     mlwh_session: Session,
-    study_id: Study.id_study_lims,
-    sample_id: Sample.id_sample_lims,
+    study_id: str,
+    sample_id: str,
 ) -> bool:
     """Updates secondary metadata for a iRODS path using data from MLWH
 
