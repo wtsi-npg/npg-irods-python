@@ -32,6 +32,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    select,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship
 
@@ -361,7 +362,7 @@ def find_consent_withdrawn_samples(sess: Session) -> list[Type[Sample]]:
     return sess.query(Sample).filter(Sample.consent_withdrawn == 1).all()
 
 
-def find_study_by_study_id(sess: Session, id: Study.id_study_lims) -> Study:
+def find_study_by_study_id(sess: Session, id: String) -> Study:
     """Return a study from a study_id.
 
     Args:
@@ -371,12 +372,12 @@ def find_study_by_study_id(sess: Session, id: Study.id_study_lims) -> Study:
     Returns:
         sample: An ML warehouse schema Study.
     """
-    query = sess.query(Study).filter(Study.id_study_lims == id)
+    query = sess.execute(select(Study).where(Study.id_study_lims == id)).scalar_one()
 
-    return query.first()
+    return query
 
 
-def find_sample_by_sample_id(sess: Session, id: Sample.id_sample_lims) -> Sample:
+def find_sample_by_sample_id(sess: Session, id: String) -> Sample:
     """Return a sample from a sample_id.
 
     Args:
@@ -386,6 +387,6 @@ def find_sample_by_sample_id(sess: Session, id: Sample.id_sample_lims) -> Sample
     Returns:
         sample: An ML warehouse schema Sample.
     """
-    query = sess.query(Sample).filter(Sample.id_sample_lims == id)
+    query = sess.execute(select(Sample).where(Sample.id_sample_lims == id)).scalar_one()
 
-    return query.first()
+    return query
