@@ -679,7 +679,7 @@ def update_secondary_metadata(
     return num_processed, num_updated, num_errors
 
 
-def general_metadata_update(
+def update_general_metadata(
     reader, writer, mlwh_session, print_update=True, print_fail=False
 ) -> (int, int, int):
     """Update study metadata, on specified iRODS

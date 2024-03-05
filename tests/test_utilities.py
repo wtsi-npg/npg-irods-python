@@ -44,7 +44,7 @@ from npg_irods.utilities import (
     withdraw_consent,
     write_safe_remove_commands,
     write_safe_remove_script,
-    general_metadata_update,
+    update_general_metadata,
     update_secondary_metadata_from_mlwh,
 )
 
@@ -735,7 +735,7 @@ class TestMetadataUtilities:
         with StringIO("\n".join(obj_paths)) as reader:
             print(reader.getvalue())
             with StringIO() as writer:
-                num_processed, num_updated, num_errors = general_metadata_update(
+                num_processed, num_updated, num_errors = update_general_metadata(
                     reader, writer, general_synthetic_mlwh, print_update=True
                 )
                 assert num_processed == 1
@@ -778,7 +778,7 @@ class TestMetadataUtilities:
         with StringIO("\n".join(obj_paths)) as reader:
             print(reader.getvalue())
             with StringIO() as writer:
-                num_processed, num_updated, num_errors = general_metadata_update(
+                num_processed, num_updated, num_errors = update_general_metadata(
                     reader, writer, general_synthetic_mlwh, print_update=True
                 )
                 assert num_processed == 1
@@ -814,7 +814,7 @@ class TestMetadataUtilities:
         with StringIO("\n".join(obj_paths)) as reader:
             print(reader.getvalue())
             with StringIO() as writer:
-                num_processed, num_updated, num_errors = general_metadata_update(
+                num_processed, num_updated, num_errors = update_general_metadata(
                     reader, writer, general_synthetic_mlwh, print_update=True
                 )
                 assert num_processed == 1
