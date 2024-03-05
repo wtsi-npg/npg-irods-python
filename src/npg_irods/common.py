@@ -26,10 +26,16 @@ from pathlib import PurePath
 from typing import Tuple
 
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, rods_user
+from sqlalchemy.orm import Session
 from structlog import get_logger
 
-from npg_irods.metadata.lims import has_mixed_ownership, is_managed_access
-
+from npg_irods.db.mlwh import find_sample_by_sample_id, find_study_by_study_id
+from npg_irods.metadata.lims import (
+    has_mixed_ownership,
+    is_managed_access,
+    make_sample_metadata,
+    make_study_metadata,
+)
 
 log = get_logger(__package__)
 
@@ -308,3 +314,33 @@ def infer_zone(path: Collection | DataObject) -> str:
     if len(parts) < 2:
         raise ValueError(f"Invalid iRODS path {path}; no zone component")
     return parts[1]
+
+
+def update_secondary_metadata_from_mlwh(
+    rods_item: Collection | DataObject,
+    mlwh_session: Session,
+    study_id: str,
+    sample_id: str,
+) -> bool:
+    """Updates secondary metadata for a iRODS path using data from MLWH
+
+    Args:
+        rods_item: A Collection or DataObject.
+        mlwh_session: An open SQL session.
+        study_id: A Study ID from MLWH
+        sample_id: A Sample ID from MLWH
+
+    Returns:
+       True if updated.
+    """
+    secondary_metadata = []
+
+    if study_id is not None:
+        study = find_study_by_study_id(mlwh_session, study_id)
+        secondary_metadata.extend(make_study_metadata(study))
+
+    if sample_id is not None:
+        sample = find_sample_by_sample_id(mlwh_session, sample_id)
+        secondary_metadata.extend(make_sample_metadata(sample))
+
+    return update_metadata(rods_item, secondary_metadata)
