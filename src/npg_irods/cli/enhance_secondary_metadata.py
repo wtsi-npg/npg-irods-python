@@ -59,7 +59,8 @@ parser.add_argument(
     "--database_config",
     "--db-config",
     "--db_config",
-    help="Configuration file for database connection (MLWH) to look up study and sample information",
+    help="Configuration file for database connection (MLWH) to look up study and "
+    "sample information",
     type=argparse.FileType("r"),
     required=True,
 )
@@ -72,12 +73,12 @@ parser.add_argument(
 )
 parser.add_argument(
     "--print_update",
-    help="Print to output those paths that were updated. Defaults to True.",
+    help="Print to output those paths that were updated.",
     action="store_true",
 )
 parser.add_argument(
     "--print-fail",
-    help="Print to output those paths that require updating, where the update failed. Defaults to False.",
+    help="Print to output those paths that require updating, where the update failed.",
     action="store_true",
 )
 parser.add_argument(

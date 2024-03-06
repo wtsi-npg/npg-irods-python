@@ -70,13 +70,12 @@ parser.add_argument(
 )
 parser.add_argument(
     "--print-repair",
-    help="Print to output those paths that were repaired. Defaults to True.",
+    help="Print to output those paths that were repaired.",
     action="store_true",
 )
 parser.add_argument(
     "--print-fail",
-    help="Print to output those paths that require repair, where the repair failed. "
-    "Defaults to False.",
+    help="Print to output those paths that require repair, where the repair failed.",
     action="store_true",
 )
 parser.add_argument(
