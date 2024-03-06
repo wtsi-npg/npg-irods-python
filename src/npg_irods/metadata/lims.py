@@ -108,7 +108,7 @@ def make_sample_metadata(sample: Sample) -> list[AVU]:
         [TrackedSample.SUPPLIER_NAME, sample.supplier_name],
     ]
 
-    return list(filter(lambda avu: avu is not None, starmap(avu_if_value, av)))
+    return [avu for avu in starmap(avu_if_value, av) if avu is not None]
 
 
 def make_reduced_sample_metadata(sample: Sample) -> list[AVU]:
@@ -151,7 +151,7 @@ def make_study_metadata(study: Study) -> list[AVU]:
         [TrackedStudy.TITLE, study.study_title],
     ]
 
-    return list(filter(lambda avu: avu is not None, starmap(avu_if_value, av)))
+    return [avu for avu in starmap(avu_if_value, av) if avu is not None]
 
 
 def make_reduced_study_metadata(study: Study) -> list[AVU]:

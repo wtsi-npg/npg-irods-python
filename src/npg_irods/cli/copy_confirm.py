@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import argparse
+import sys
 
 import structlog
 from partisan.exception import RodsError
@@ -98,7 +99,7 @@ log = structlog.get_logger("main")
 def main():
     if args.version:
         print(version())
-        exit(0)
+        sys.exit(0)
 
     try:
         num_processed, num_copied = copy(
@@ -118,10 +119,10 @@ def main():
 
     except ChecksumError as ce:
         log.error(ce.message, path=ce.path, expected=ce.expected, observed=ce.observed)
-        exit(1)
+        sys.exit(1)
     except RodsError as re:
         log.error(re.message, code=re.code)
-        exit(1)
+        sys.exit(1)
     except Exception as e:
         log.error(e)
-        exit(1)
+        sys.exit(1)

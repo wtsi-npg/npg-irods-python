@@ -143,7 +143,7 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
                 if meta.attribute == str(SeqConcept.ALT_PROCESS):
                     product["pipeline_name"] = f"alt_{meta.value}"
 
-            if "id_product" in product.keys():
+            if "id_product" in product:
                 return product
             else:
                 # The error is only raised when the ApplyResult object

@@ -89,7 +89,7 @@ log = structlog.get_logger("main")
 def main():
     if args.version:
         print(version())
-        exit(0)
+        sys.exit(0)
 
     try:
         write_safe_remove_script(
@@ -101,4 +101,4 @@ def main():
 
     except Exception as e:
         log.error(e)
-        exit(1)
+        sys.exit(1)

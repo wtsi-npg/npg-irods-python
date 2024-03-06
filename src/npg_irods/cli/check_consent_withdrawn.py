@@ -99,7 +99,7 @@ log = structlog.get_logger("main")
 def main():
     if args.version:
         print(version())
-        exit(0)
+        sys.exit(0)
 
     num_processed, num_passed, num_errors = check_consent_withdrawn(
         args.input,
@@ -115,7 +115,7 @@ def main():
             num_passed=num_passed,
             num_errors=num_errors,
         )
-        exit(1)
+        sys.exit(1)
 
     log.info(
         "All checks passed",
