@@ -82,7 +82,7 @@ def main():
     )
     parser.add_argument(
         "--print-update",
-        help="Print to output those paths that were updated. Defaults to True.",
+        help="Print to output those paths that were updated.",
         action="store_true",
     )
     parser.add_argument(

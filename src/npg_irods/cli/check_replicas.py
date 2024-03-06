@@ -74,12 +74,12 @@ parser.add_argument(
 )
 parser.add_argument(
     "--print-pass",
-    help="Print to output those paths that pass the check. Defaults to True.",
+    help="Print to output those paths that pass the check.",
     action="store_true",
 )
 parser.add_argument(
     "--print-fail",
-    help="Print to output those paths that fail the check. Defaults to False.",
+    help="Print to output those paths that fail the check.",
     action="store_true",
 )
 parser.add_argument(

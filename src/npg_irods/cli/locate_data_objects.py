@@ -455,9 +455,9 @@ def main():
     ilup_parser.add_argument(
         "--skip-absent-runs",
         "--skip_absent_runs",
-        help="Skip runs that cannot be found in iRODS after the number of attempts given "
-        "as an argument to this option. The argument may be an integer from 1 to 10, "
-        "inclusive and defaults to 3.",
+        help="Skip runs that cannot be found in iRODS after the number of attempts "
+        "given as an argument to this option. The argument may be an integer from "
+        "1 to 10, inclusive and defaults to 3.",
         nargs="?",
         action="store",
         type=integer_in_range(1, 10),
@@ -488,9 +488,9 @@ def main():
     pbup_parser.add_argument(
         "--skip-absent-runs",
         "--skip_absent_runs",
-        help="Skip runs that cannot be found in iRODS after the number of attempts given "
-        "as an argument to this option. The argument may be an integer from 1 to 10, "
-        "inclusive and defaults to 3.",
+        help="Skip runs that cannot be found in iRODS after the number of attempts "
+        "given as an argument to this option. The argument may be an integer from "
+        "1 to 10, inclusive and defaults to 3.",
         nargs="?",
         action="store",
         type=integer_in_range(1, 10),
