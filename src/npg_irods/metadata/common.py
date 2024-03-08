@@ -36,6 +36,10 @@ log = get_logger(__name__)
 that created the data object is the Wellcome Sanger Institute."""
 WSI_CREATOR = "http://www.sanger.ac.uk"
 
+
+"""The iRODS group that is used to control access to public data."""
+PUBLIC_IRODS_GROUP = "public"
+
 """A lookup table of the file suffixes which will be recognised for iRODS "type" 
 metadata."""
 RECOGNISED_FILE_SUFFIXES = {

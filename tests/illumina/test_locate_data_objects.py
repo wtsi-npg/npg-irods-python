@@ -43,6 +43,7 @@ class TestLocateDataObjects:
                 "12345#2.cram",
                 "12345#888.cram",
                 "12345.cram",
+                "qc/12345#1.bam_flagstats.json",
                 "qc/12345#1.genotype.json",
                 "qc/12345#1_human.genotype.json",
                 "qc/12345#1_xahuman.genotype.json",

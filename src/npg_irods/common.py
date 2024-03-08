@@ -30,9 +30,11 @@ from sqlalchemy.orm import Session
 from structlog import get_logger
 
 from npg_irods.db.mlwh import find_sample_by_sample_id, find_study_by_study_id
+from npg_irods.metadata.common import PUBLIC_IRODS_GROUP
 from npg_irods.metadata.lims import (
     has_mixed_ownership,
     is_managed_access,
+    is_public_access,
     make_sample_metadata,
     make_study_metadata,
 )
@@ -273,14 +275,22 @@ def update_permissions(
     not_managed_acl = [
         ac
         for ac in item.permissions(user_type="rodsgroup")
-        if not is_managed_access(ac)
+        if not is_managed_access(ac) or is_public_access(ac)
     ]
 
     # Don't remove current permissions of ourselves (service user)
     user = rods_user()
     user_acl = [ac for ac in item.permissions() if ac.user == user.name]
 
-    preserve = sorted(set(admin_acl + not_managed_acl + user_acl))
+    preserve_set = set(admin_acl + not_managed_acl + user_acl)
+
+    # But do remove public access if the object has an ACL with managed access
+    if any(is_managed_access(ac) for ac in acl):
+        public_acl = [ac for ac in item.permissions() if is_public_access(ac)]
+        log.info("Removing public access", path=item, acl=public_acl)
+        preserve_set.difference_update(public_acl)
+
+    preserve = sorted(preserve_set)  # Ensure no duplicates, sort for reproducibility
     log.debug(
         "Found permissions to preserve",
         path=item,
