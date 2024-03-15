@@ -37,6 +37,7 @@ from structlog import get_logger
 
 from npg_irods.db.mlwh import Sample, Study
 from npg_irods.metadata.common import (
+    PUBLIC_IRODS_GROUP,
     SeqConcept,
     SeqSubset,
     ensure_avus_present,
@@ -208,13 +209,13 @@ def make_sample_acl(
     return [AC(irods_group, perm, zone=zone)]
 
 
-def make_public_read_acl() -> list[AC]:
+def make_public_read_acl(zone=None) -> list[AC]:
     """Returns an ACL allowing public reads.
 
     Returns:
         An ACL
     """
-    return [AC("public", Permission.READ)]
+    return [AC(PUBLIC_IRODS_GROUP, Permission.READ, zone=zone)]
 
 
 def has_consent_withdrawn_metadata(
@@ -306,6 +307,18 @@ def is_managed_access(ac: AC):
         True if managed by this API.
     """
     return STUDY_IDENTIFIER_REGEX.match(ac.user)
+
+
+def is_public_access(ac: AC):
+    """Return True if the access control is for public access.
+
+    Args:
+        ac: The access control to test.
+
+    Returns:
+        True if public access.
+    """
+    return ac.user == PUBLIC_IRODS_GROUP
 
 
 def has_mixed_ownership(acl: list[AC]):

@@ -39,6 +39,7 @@ from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
     has_consent_withdrawn_metadata,
+    make_public_read_acl,
     make_reduced_sample_metadata,
     make_reduced_study_metadata,
     make_sample_acl,
@@ -224,6 +225,8 @@ def ensure_secondary_metadata_updated(
                 acl.extend(
                     make_sample_acl(fc.sample, fc.study, subset=c.subset, zone=zone)
                 )
+            else:
+                acl.extend(make_public_read_acl(zone=zone))
 
     # Remove duplicates
     secondary_metadata = sorted(set(secondary_metadata))

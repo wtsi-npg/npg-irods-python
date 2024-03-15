@@ -27,6 +27,7 @@ from npg_irods.metadata.lims import (
     TrackedSample,
     TrackedStudy,
     ensure_consent_withdrawn,
+    make_public_read_acl,
 )
 
 
@@ -64,7 +65,7 @@ class TestIlluminaMetadataUpdate:
     def test_updates_absent_metadata(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345.cram"
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
 
         obj = DataObject(path)
         expected_metadata = [
@@ -103,7 +104,7 @@ class TestIlluminaMetadataUpdate:
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         zone = "testZone"
-        path = illumina_synthetic_irods / "12345/12345.cram"
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
 
         obj = DataObject(path)
         expected_metadata = [
@@ -139,7 +140,7 @@ class TestIlluminaMetadataUpdate:
     def test_updates_changed_metadata(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345.cram"
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
 
         obj = DataObject(path)
         old_avus = [AVU(TrackedSample.NAME, "sample 99"), AVU(TrackedStudy.ID, "9999")]
@@ -174,7 +175,7 @@ class TestIlluminaMetadataUpdate:
     def test_updates_multiple_metadata(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345.cram"
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
 
         obj = DataObject(path)
         old_metadata = [
@@ -204,7 +205,7 @@ class TestIlluminaMetadataUpdate:
     def test_updates_absent_metadata_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345#1.cram"
+        path = illumina_synthetic_irods / "12345/" / "12345#1.cram"
 
         obj = DataObject(path)
         expected_metadata = [
@@ -236,7 +237,7 @@ class TestIlluminaMetadataUpdate:
     def test_updates_control_metadata_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345#888.cram"
+        path = illumina_synthetic_irods / "12345" / "12345#888.cram"
 
         obj = DataObject(path)
         expected_metadata = [
@@ -269,7 +270,7 @@ class TestIlluminaMetadataUpdate:
     def test_updates_absent_metadata_mx_tag0(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345#0.cram"
+        path = illumina_synthetic_irods / "12345" / "12345#0.cram"
 
         obj = DataObject(path)
         expected_metadata = [
@@ -308,7 +309,7 @@ class TestIlluminaMetadataUpdate:
     def test_updates_control_metadata_mx_tag0(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345#0.cram"
+        path = illumina_synthetic_irods / "12345" / "12345#0.cram"
 
         obj = DataObject(path)
         expected_metadata = [
@@ -362,7 +363,7 @@ class TestIlluminaPermissionsUpdate:
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         zone = "testZone"
-        path = illumina_synthetic_irods / "12345/12345.cram"
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
         qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345.genotype.json"
         old_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
         new_permissions = [
@@ -384,7 +385,7 @@ class TestIlluminaPermissionsUpdate:
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         zone = "testZone"
-        path = illumina_synthetic_irods / "12345/12345.cram"
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
         qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345.genotype.json"
         old_metadata = [
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
@@ -420,7 +421,7 @@ class TestIlluminaPermissionsUpdate:
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         zone = "testZone"
-        path = illumina_synthetic_irods / "12345/12345.cram"
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
         qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345.genotype.json"
         old_permissions = [
             AC("irods", perm=Permission.OWN, zone=zone),
@@ -445,7 +446,7 @@ class TestIlluminaPermissionsUpdate:
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         zone = "testZone"
-        path = illumina_synthetic_irods / "12345/12345#1_human.cram"
+        path = illumina_synthetic_irods / "12345" / "12345#1_human.cram"
         qc_path = (
             illumina_synthetic_irods / "12345" / "qc" / "12345#1_human.genotype.json"
         )
@@ -472,7 +473,7 @@ class TestIlluminaPermissionsUpdate:
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         zone = "testZone"
-        path = illumina_synthetic_irods / "12345/12345#1_xahuman.cram"
+        path = illumina_synthetic_irods / "12345" / "12345#1_xahuman.cram"
         qc_path = (
             illumina_synthetic_irods / "12345" / "qc" / "12345#1_xahuman.genotype.json"
         )
@@ -496,7 +497,7 @@ class TestIlluminaPermissionsUpdate:
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         zone = "testZone"
-        path = illumina_synthetic_irods / "12345/12345#2.cram"
+        path = illumina_synthetic_irods / "12345" / "12345#2.cram"
         qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345#2.genotype.json"
         old_permissions = [
             AC("ss_4000", Permission.READ, zone=zone),
@@ -517,13 +518,14 @@ class TestIlluminaPermissionsUpdate:
     def test_updates_control_permissions_mx(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345/12345#888.cram"
+        zone = "testZone"
+        path = illumina_synthetic_irods / "12345" / "12345#888.cram"
 
         obj = DataObject(path)
-        old_permissions = [AC("irods", perm=Permission.OWN, zone="testZone")]
+        old_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
         new_permissions = [
-            AC("irods", perm=Permission.OWN, zone="testZone"),
-            AC("ss_888", perm=Permission.READ, zone="testZone"),
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_888", perm=Permission.READ, zone=zone),
         ]
 
         assert obj.permissions() == old_permissions
@@ -544,7 +546,7 @@ class TestIlluminaPermissionsUpdate:
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         zone = "testZone"
-        path = illumina_synthetic_irods / "12345/12345.cram"
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
         qc_path = illumina_synthetic_irods / "12345" / "qc" / "12345.genotype.json"
         old_permissions = [AC("irods", perm=Permission.OWN, zone=zone)]
 
@@ -563,7 +565,7 @@ class TestIlluminaPermissionsUpdate:
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
         zone = "testZone"
-        path = illumina_synthetic_irods / "12345/12345#1_human.cram"
+        path = illumina_synthetic_irods / "12345" / "12345#1_human.cram"
         qc_path = (
             illumina_synthetic_irods / "12345" / "qc" / "12345#1_human.genotype.json"
         )
@@ -576,3 +578,75 @@ class TestIlluminaPermissionsUpdate:
                 obj, mlwh_session=illumina_synthetic_mlwh
             )
             assert obj.permissions() == old_permissions
+
+    @m.context("When a data object is intended to have public access")
+    @m.context("When public access permissions are present")
+    @m.it("Retains public access permissions")
+    def test_retains_public_access_unmanaged(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        zone = "testZone"
+        path = illumina_synthetic_irods / "12345" / "qc" / "12345#1.bam_flagstats.json"
+        public_read = make_public_read_acl(zone=zone).pop()
+
+        obj = DataObject(path)
+        obj.add_permissions(public_read)
+        old_permissions = [AC("irods", perm=Permission.OWN, zone=zone), public_read]
+
+        assert obj.permissions() == old_permissions
+
+        # Not False because some changes do take effect - study_id AVU is added
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=illumina_synthetic_mlwh
+        )
+        assert obj.permissions() == old_permissions
+
+    @m.context("When a data object has managed access removed")
+    @m.context("When public access permissions are not present")
+    @m.it("Adds public access permissions")
+    def test_adds_public_access_unmanaged(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        zone = "testZone"
+        path = illumina_synthetic_irods / "12345" / "qc" / "12345#1.bam_flagstats.json"
+        old_permissions = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_4000", perm=Permission.READ, zone=zone),
+        ]
+        public_read = make_public_read_acl(zone=zone).pop()
+
+        obj = DataObject(path)
+        obj.add_permissions(*old_permissions)
+        new_permissions = [AC("irods", perm=Permission.OWN, zone=zone), public_read]
+
+        assert obj.permissions() == old_permissions
+
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=illumina_synthetic_mlwh
+        )
+        assert obj.permissions() == new_permissions
+
+    @m.context("When a data object is not intended to have public access")
+    @m.context("When public access permissions are present")
+    @m.it("Removes public access permissions")
+    def test_removes_public_access_managed(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        zone = "testZone"
+        path = illumina_synthetic_irods / "12345" / "qc" / "12345#1.genotype.json"
+        public_read = make_public_read_acl(zone=zone).pop()
+
+        obj = DataObject(path)
+        obj.add_permissions(public_read)
+        old_permissions = [AC("irods", perm=Permission.OWN, zone=zone), public_read]
+        new_permissions = [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_4000", perm=Permission.READ, zone=zone),
+        ]
+
+        assert obj.permissions() == old_permissions
+
+        assert ensure_secondary_metadata_updated(
+            obj, mlwh_session=illumina_synthetic_mlwh
+        )
+        assert obj.permissions() == new_permissions
