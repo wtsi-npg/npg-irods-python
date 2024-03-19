@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from os import PathLike
+from pathlib import PurePath
 from typing import Iterator, Optional, Type
 
 from partisan.exception import RodsError
@@ -37,7 +38,6 @@ from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
     has_consent_withdrawn_metadata,
-    is_managed_access,
     make_public_read_acl,
     make_sample_acl,
     make_sample_metadata,
@@ -177,6 +177,17 @@ def annotate_results_collection(
 ) -> bool:
     """Add or update metadata on an existing iRODS collection containing ONT data.
 
+    There are two main types of run; single-sample and multiplexed-sample. In the
+    former, the sequence data files lie directly in the fast5_* / pod5_* / fastq_* etc.
+    collections. In the latter, each of the fast5_* / pod5_* / fastq_* etc. collections
+    contain further collections named barcode01, barcode02 etc. and it is within these
+    that the sequence data files lie.
+
+    This function handles both types of run by detecting the presence of the barcode
+    collections. For single-sample runs metadata are added to the runfolder collection
+    i.e. to the collection given by the `path` argument. In multiplexed-sample runs,
+    metadata are added to each of the barcode01, barcode02 etc. collections.
+
     The metadata added are fetched from the ML warehouse and include information on the
     sample and the associated study, including data access permissions. This function
     also sets the appropriate permissions in iRODS.
@@ -224,7 +235,7 @@ def annotate_results_collection(
 
     # Since the run report files are outside the 'root' collection for
     # multiplexed runs, their permissions must be set explicitly
-    num_errors += _set_minknow_reports_public(coll)
+    num_errors += _set_public_read_perms(coll)
 
     # This expects the barcode directory naming style created by current ONT's
     # Guppy de-multiplexer which creates several subdirectories e.g. "fast5_pass",
@@ -290,6 +301,35 @@ def ensure_secondary_metadata_updated(
     component = Component(expt, slot, tag_id)
 
     return annotate_results_collection(item, component, mlwh_session=mlwh_session)
+
+
+def requires_managed_access(obj: DataObject) -> bool:
+    """Return True if the given data object requires managed access control.
+
+    Data objects containing primary sequence or genotype data should be managed.
+    For ONT that means fast5, pod5, fastq, bed and bam files. Sequencing summary
+    files may contain sequence data, so these are also managed.
+
+    The main cases for unmanaged access are report files, final summary files and sample
+    sheets.
+    """
+    p = PurePath(obj)
+
+    suffixes = [suffix.casefold() for suffix in p.suffixes]
+    managed = [".bam", ".bed", ".fast5", ".fastq", ".pod5"]
+
+    if any(suffix in managed for suffix in suffixes):
+        return True
+
+    name = p.name.casefold()
+    if (
+        name.startswith("report_")
+        or name.startswith("final_summary_")
+        or name.startswith("sample_sheet_")
+    ):
+        return False
+
+    return True
 
 
 def find_recent_expt(sess: Session, since: datetime) -> list[str]:
@@ -500,6 +540,11 @@ def _do_secondary_metadata_and_perms_update(
     """
     zone = infer_zone(item)
 
+    if managed_access := requires_managed_access(item):
+        log.debug("Requires managed access", path=item)
+    else:
+        log.debug("Does not require managed access", path=item)
+
     metadata = []
     for fc in flowcells:
         metadata.extend(make_sample_metadata(fc.sample))
@@ -508,7 +553,10 @@ def _do_secondary_metadata_and_perms_update(
 
     acl = []
     for fc in flowcells:
-        acl.extend(make_sample_acl(fc.sample, fc.study, zone=zone))
+        if managed_access:
+            acl.extend(make_sample_acl(fc.sample, fc.study, zone=zone))
+        else:
+            acl.extend(make_public_read_acl(zone=zone))
 
     recurse = item.rods_type == Collection
     cons_update = perm_update = False
@@ -522,9 +570,8 @@ def _do_secondary_metadata_and_perms_update(
     return any([meta_update, cons_update, perm_update])
 
 
-def _set_minknow_reports_public(coll: Collection) -> int:
-    """Set the permissions of any MinKNOW reports directly in the collection to
-    public:read.
+def _set_public_read_perms(coll: Collection) -> int:
+    """Set the permissions of any unmanaged files in the collection to public:read.
 
     Args:
         coll: A collection containing report data objects.
@@ -534,17 +581,15 @@ def _set_minknow_reports_public(coll: Collection) -> int:
     """
     num_errors = 0
 
-    reports = [obj for obj in coll.contents() if is_minknow_report(obj)]
-
-    for report in reports:
-        try:
-            if report.exists():
-                log.info("Updating run report permissions", path=report.path)
-                keep = [ac for ac in report.permissions() if not is_managed_access(ac)]
-                report.supersede_permissions(*keep, *make_public_read_acl())
-            else:
-                log.warn("Run report missing", path=report.path)
-        except RodsError as e:
-            log.error(e.message, code=e.code)
-            num_errors += 1
+    for obj in coll.contents():
+        if not requires_managed_access(obj):
+            try:
+                if obj.exists():
+                    log.info("Updating permissions", path=obj)
+                    update_permissions(obj, make_public_read_acl())
+                else:
+                    log.warn("File missing", path=obj)
+            except RodsError as e:
+                log.error(e.message, code=e.code)
+                num_errors += 1
     return num_errors
