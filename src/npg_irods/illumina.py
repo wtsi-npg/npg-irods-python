@@ -257,7 +257,7 @@ def without_suffixes(path: PurePath) -> PurePath:
 
 def is_qc_data_object(item: DataObject | Collection) -> bool:
     """Return True if the given data object is in the qc sub-collection."""
-    return item.rods_type == DataObject and item.path.parent.name == "qc"
+    return item.rods_type == DataObject and item.path.parent.name.casefold() == "qc"
 
 
 def split_name(name: str) -> tuple[str, str]:
@@ -362,7 +362,7 @@ def find_associated_components(item: DataObject | Collection) -> list[Component]
     item_stem, item_suffix = split_name(item.name)
 
     # The item itself holds the associated metadata (true for BAM and CRAM files)
-    if item_suffix in [".bam", ".cram"]:
+    if item_suffix.casefold() in [".bam", ".cram"]:
         return [Component.from_avu(avu) for avu in item.metadata(SeqConcept.COMPONENT)]
 
     # Try to find the associated BAM or CRAM file. This will be in the same collection,
@@ -387,9 +387,9 @@ def find_associated_components(item: DataObject | Collection) -> list[Component]
             continue
 
         # Alternatively we could use the "type" AVU to determine the type of data
-        if suffix == ".bam":
+        if suffix.casefold() == ".bam":
             bams.append(obj)
-        elif suffix == ".cram":
+        elif suffix.casefold() == ".cram":
             crams.append(obj)
 
     associated = crams if len(crams) > 0 else bams
@@ -416,7 +416,9 @@ def requires_full_metadata(obj: DataObject) -> bool:
     metadata storage because the iRODS metadata link table is already >3 billion rows,
     which is impacting query performance.
     """
-    return any(suffix in [".bam", ".cram"] for suffix in PurePath(obj.name).suffixes)
+    suffixes = [suffix.casefold() for suffix in PurePath(obj.name).suffixes]
+
+    return any(suffix in [".bam", ".cram"] for suffix in suffixes)
 
 
 def requires_managed_access(obj: DataObject) -> bool:
@@ -425,6 +427,7 @@ def requires_managed_access(obj: DataObject) -> bool:
     For example, data objects containing primary sequence or genotype data should be
     managed.
     """
+    suffixes = [suffix.casefold() for suffix in PurePath(obj.name).suffixes]
     managed = [
         ".bam",
         ".bed",
@@ -437,7 +440,8 @@ def requires_managed_access(obj: DataObject) -> bool:
         ".vcf",
         ".zip",
     ]
-    return any(suffix in managed for suffix in PurePath(obj.name).suffixes)
+
+    return any(suffix in managed for suffix in suffixes)
 
 
 def find_qc_collection(path: Collection | DataObject) -> Collection:
