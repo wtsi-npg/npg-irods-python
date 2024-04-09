@@ -43,6 +43,7 @@ from sqlalchemy_utils import create_database, database_exists, drop_database
 
 from helpers import (
     BEGIN,
+    CREATED,
     add_rods_path,
     add_sql_test_utilities,
     add_test_groups,
@@ -119,7 +120,11 @@ def initialize_mlwh_synthetic(session: Session):
     Insert ML warehouse test data for synthetic runs.
 
     """
-    default_timestamps = {"last_updated": BEGIN, "recorded_at": BEGIN}
+    default_timestamps = {
+        "created": CREATED,
+        "last_updated": BEGIN,
+        "recorded_at": BEGIN,
+    }
 
     study_x = Study(
         id_lims="LIMS_01",

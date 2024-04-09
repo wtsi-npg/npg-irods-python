@@ -30,7 +30,6 @@ from sqlalchemy.orm import Session
 from structlog import get_logger
 
 from npg_irods.db.mlwh import find_sample_by_sample_id, find_study_by_study_id
-from npg_irods.metadata.common import PUBLIC_IRODS_GROUP
 from npg_irods.metadata.lims import (
     has_mixed_ownership,
     is_managed_access,

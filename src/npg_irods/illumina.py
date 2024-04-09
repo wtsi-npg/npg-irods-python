@@ -20,14 +20,15 @@
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum, unique
 from pathlib import PurePath
 from typing import Iterator, Optional, Type
 
+import sqlalchemy
 from partisan.irods import AVU, Collection, DataObject
 from partisan.metadata import AsValueEnum
-from sqlalchemy import asc
+from sqlalchemy import asc, not_
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
@@ -504,8 +505,15 @@ def find_updated_components(
     """Find in the ML warehouse any Illumina sequence components whose tracking
     metadata has been changed within the given time range.
 
-    A change is defined as the "recorded_at" column (Sample, Study, IseqFlowcell) or
-    "last_changed" column (IseqProductMetrics) having a timestamp within the range.
+    A change is defined as the "recorded_at" value (Sample, Study, IseqFlowcell)
+    having a timestamp within the range since->until and the "recorded_at" value being
+    at last 1 day after the "created" value. The choice of 1 day is arbitrary but is
+    useful because it eliminates most of the noise from the initial creation of records
+    where the two values differ by only a few seconds.
+
+    As iseq_flowcell does not have a "created" column, we can't use that to distinguish
+    creation events (which we're not interested in) from updates. This alone increases
+    the number of rows returned by the query by a factor of 10.
 
     Args:
         sess: An open ML warehouse  session.
@@ -515,6 +523,11 @@ def find_updated_components(
     Returns:
         An iterator over Components whose tracking metadata have changed.
     """
+
+    # Test that the created date is at least 1 day before the recorded date because we
+    # want to avoid rows that have had their recorded_at timestamp changed simply
+    # because they were recently created.
+    recent_creation = since - timedelta(days=1)
 
     query = (
         sess.query(
@@ -526,9 +539,10 @@ def find_updated_components(
         .join(IseqFlowcell.iseq_product_metrics)
         .filter(
             Sample.recorded_at.between(since, until)
+            & not_(Sample.created.between(recent_creation, since))
             | Study.recorded_at.between(since, until)
+            & not_(Study.created.between(recent_creation, since))
             | IseqFlowcell.recorded_at.between(since, until)
-            | IseqProductMetrics.last_changed.between(since, until)
         )
         .order_by(
             asc(IseqProductMetrics.id_run),

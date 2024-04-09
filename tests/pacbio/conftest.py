@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from helpers import (
     BEGIN,
+    CREATED,
     EARLY,
     LATE,
     add_rods_path,
@@ -62,7 +63,11 @@ def make_pacbio_fixture(session, num_runs=2, num_wells=2, num_tags=2, is_revio=T
     need to add more tags to the make_tag function.
     """
     id_lims = "LIMS_01"
-    default_timestamps = {"last_updated": BEGIN, "recorded_at": BEGIN}
+    default_timestamps = {
+        "created": CREATED,
+        "last_updated": BEGIN,
+        "recorded_at": BEGIN,
+    }
 
     study_x = Study(
         id_lims="LIMS_01", id_study_lims="1000", name="Study X", **default_timestamps
