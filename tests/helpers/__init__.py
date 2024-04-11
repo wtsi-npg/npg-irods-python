@@ -46,6 +46,7 @@ HUMAN_STUDY_GROUPS = [g + "_human" for g in STUDY_GROUPS]
 TEST_GROUPS = STUDY_GROUPS + HUMAN_STUDY_GROUPS
 
 # Example dates, useful for fixtures for tests over date ranges.
+CREATED = datetime(year=2019, month=12, day=30, hour=0, minute=0, second=0)
 BEGIN = datetime(year=2020, month=1, day=1, hour=0, minute=0, second=0)
 EARLY = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0)
 LATE = datetime(year=2020, month=6, day=14, hour=0, minute=0, second=0)

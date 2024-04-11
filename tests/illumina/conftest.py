@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from helpers import (
     BEGIN,
+    CREATED,
     LATEST,
     add_rods_path,
     add_test_groups,
@@ -43,7 +44,11 @@ def initialize_mlwh_illumina_synthetic(session: Session):
 
     This is represented by the files in ./tests/data/illumina/synthetic
     """
-    default_timestamps = {"last_updated": BEGIN, "recorded_at": BEGIN}
+    default_timestamps = {
+        "created": CREATED,
+        "last_updated": BEGIN,
+        "recorded_at": BEGIN,
+    }
     default_run = 12345
 
     study_a = Study(
@@ -148,6 +153,11 @@ def initialize_mlwh_illumina_synthetic(session: Session):
         },
     ]
 
+    default_fc_timestamps = {
+        "last_updated": BEGIN,
+        "recorded_at": BEGIN,
+    }
+
     flowcells = [
         IseqFlowcell(
             entity_id_lims=f"ENTITY_01",
@@ -159,7 +169,7 @@ def initialize_mlwh_illumina_synthetic(session: Session):
             sample=info["sample"],
             study=info["study"],
             tag_index=info["tag_index"],
-            **default_timestamps,
+            **default_fc_timestamps,
         )
         for i, info in enumerate(sample_info)
     ]
@@ -188,6 +198,7 @@ def initialize_mlwh_illumina_backfill(sess: Session):
         name="Recently Changed",
         study_title="Recently changed study",
         accession_number="ST0000000001",
+        created=CREATED,
         last_updated=BEGIN,
         recorded_at=LATEST,
     )
@@ -197,6 +208,7 @@ def initialize_mlwh_illumina_backfill(sess: Session):
         name="Unchanged",
         study_title="Unchanged study",
         accession_number="ST0000000002",
+        created=CREATED,
         last_updated=BEGIN,
         recorded_at=BEGIN,
     )
@@ -214,6 +226,7 @@ def initialize_mlwh_illumina_backfill(sess: Session):
         cohort="cohort_01",
         donor_id="DONOR_01",
         consent_withdrawn=0,
+        created=CREATED,
         last_updated=BEGIN,
         recorded_at=LATEST,
     )
@@ -228,6 +241,7 @@ def initialize_mlwh_illumina_backfill(sess: Session):
         cohort="cohort_02",
         donor_id="DONOR_02",
         consent_withdrawn=0,
+        created=CREATED,
         last_updated=BEGIN,
         recorded_at=BEGIN,
     )

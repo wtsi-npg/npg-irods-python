@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from helpers import (
     BEGIN,
+    CREATED,
     EARLY,
     LATE,
     LATEST,
@@ -60,7 +61,11 @@ def initialize_mlwh_ont_synthetic(session: Session):
     ./tests/data/ont/synthetic
     """
     instrument_name = "instrument_01"
-    default_timestamps = {"last_updated": BEGIN, "recorded_at": BEGIN}
+    default_timestamps = {
+        "created": CREATED,
+        "last_updated": BEGIN,
+        "recorded_at": BEGIN,
+    }
 
     study_x = Study(
         id_lims="LIMS_01", id_study_lims="1000", name="Study X", **default_timestamps
