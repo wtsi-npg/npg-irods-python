@@ -27,7 +27,9 @@ WORKDIR /app
 COPY . .
 
 ENV PYENV_ROOT "/app/.pyenv"
-ENV PATH "${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:${PATH}"
+
+# Put PYENV first to ensure we use the pyenv-installed Python
+ENV PATH "${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 
 RUN ./docker/install_pyenv.sh
 
@@ -49,8 +51,11 @@ RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selectio
     unattended-upgrade -d -v
 
 ENV PYENV_ROOT "/app/.pyenv"
-ENV PATH "${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:${PATH}"
+
+# Put PYENV first to ensure we use the pyenv-installed Python
+ENV PATH "${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 ENV PYTHONUNBUFFERED 1
+ENV PYTHONPATH ""
 
 WORKDIR /app
 
