@@ -31,8 +31,8 @@ from npg_irods.version import version
 description = """
 Reads iRODS data object paths from a file or STDIN, one per line.
 
-Create-else-update either sample, or study, or both, metadata given existing _id metadata 
-on the given iRODS collection or data-object.
+Create-else-update either sample, or study, or both, metadata given existing _id
+metadata on the given iRODS collection or data object.
 """
 
 parser = argparse.ArgumentParser(
@@ -43,7 +43,8 @@ add_logging_arguments(parser)
 parser.add_argument(
     "-i",
     "--input",
-    help="Input filename. File has one iRODS data object path per line to be updated with secondary study/sample metadata",
+    help="Input filename. File has one iRODS data object path per line to be "
+    "updated with secondary study/sample metadata",
     type=argparse.FileType("r"),
     default=sys.stdin,
 )
