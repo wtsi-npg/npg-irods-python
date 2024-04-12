@@ -73,7 +73,7 @@ parser.add_argument(
     type=str,
 )
 parser.add_argument(
-    "--print_update",
+    "--print-update",
     help="Print to output those paths that were updated.",
     action="store_true",
 )
