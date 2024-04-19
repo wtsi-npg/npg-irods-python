@@ -71,10 +71,15 @@ Examples:
 
     locate-data-objects --verbose --json  --database-config db.ini --zone seq \\
         illumina-updates --begin-date `date --iso --date=-7day` \\
-        --skip-absent-runs
+        --skip-absent-runs 5
 
     locate-data-objects --verbose --colour --database-config db.ini --zone seq \\
         ont-updates --begin-date `date --iso --date=-7day`
+
+The --skip-absent-runs option is used to skip runs that cannot be found in iRODS after
+the number of attempts given as an argument to this option. This prevents the script
+from trying to find further data objects after it is clear that the run has not yet
+reached iRODS.
 
 The database config file must be an INI format file as follows:
 
@@ -165,7 +170,7 @@ def illumina_updates(
     sess: Session,
     since: datetime,
     until: datetime,
-    skip_absent_runs=True,
+    skip_absent_runs: int = None,
     zone: str = None,
 ) -> (int, int):
     """Find recently updated Illumina data in the ML warehouse, locate corresponding
@@ -175,7 +180,8 @@ def illumina_updates(
         sess: SQLAlchemy session
         since: Earliest changes to find
         until: Latest changes to find
-        skip_absent_runs: Skip any runs that have no data in iRODS. Defaults to True.
+        skip_absent_runs: Skip any runs where no data objects have been found after
+            this number of attempts
         zone: iRODS zone to query
 
     Returns:
@@ -184,6 +190,9 @@ def illumina_updates(
     num_processed = num_errors = 0
     attempts = successes = 0
     to_print = set()
+
+    if skip_absent_runs is not None:
+        log.info("Skipping absent runs after n attempts", n=skip_absent_runs)
 
     for prev, curr in with_previous(
         illumina.find_updated_components(sess, since=since, until=until)
@@ -208,10 +217,11 @@ def illumina_updates(
             "until": until.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
-        if skip_absent_runs and successes == 0 and attempts == skip_absent_runs:
-            msg = "Skipping run after unsuccessful attempts to find it"
-            log.info(msg, attempts=attempts, **log_kwargs)
-            continue
+        if skip_absent_runs is not None:
+            if successes == 0 and attempts == skip_absent_runs:
+                msg = "Skipping run after unsuccessful attempts to find it"
+                log.info(msg, attempts=attempts, **log_kwargs)
+                continue
 
         try:
             log.info("Searching iRODS", **log_kwargs)
@@ -352,12 +362,15 @@ def pacbio_updates(
     sess: Session,
     since: datetime,
     until: datetime,
-    skip_absent_runs=True,
+    skip_absent_runs: int = None,
     zone: str = None,
 ) -> (int, int):
     num_processed = num_errors = 0
     attempts = successes = 0
     to_print = set()
+
+    if skip_absent_runs is not None:
+        log.info("Skipping absent runs after n attempts", n=skip_absent_runs)
 
     for prev, curr in with_previous(
         pacbio.find_updated_components(sess, since=since, until=until)
@@ -381,10 +394,11 @@ def pacbio_updates(
             "until": until.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
-        if skip_absent_runs and successes == 0 and attempts == skip_absent_runs:
-            msg = "Skipping run after unsuccessful attempts to find it"
-            log.info(msg, attempts=attempts, **log_kwargs)
-            continue
+        if skip_absent_runs is not None:
+            if successes == 0 and attempts == skip_absent_runs:
+                msg = "Skipping run after unsuccessful attempts to find it"
+                log.info(msg, attempts=attempts, **log_kwargs)
+                continue
 
         try:
             log.info("Searching iRODS", **log_kwargs)
