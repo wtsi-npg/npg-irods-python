@@ -20,7 +20,8 @@
 """Business logic API and schema-level API for the ML warehouse."""
 
 import enum
-from typing import Type
+from datetime import datetime, timedelta
+from typing import Iterator, Type
 
 from sqlalchemy import (
     BigInteger,
@@ -32,9 +33,13 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    asc,
+    not_,
     select,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship
+
+SQL_CHUNK_SIZE = 1000
 
 
 class Platform(enum.Enum):
@@ -365,14 +370,14 @@ def find_consent_withdrawn_samples(sess: Session) -> list[Type[Sample]]:
 
 
 def find_study_by_study_id(sess: Session, study_id: str) -> Study:
-    """Return a study from a study_id.
+    """Return a Study from a study ID.
 
     Args:
         sess: An open SQL session.
-        study_id: A Study ID in MLWH
+        study_id: A Study ID in the ML warehouse.
 
     Returns:
-        sample: An ML warehouse schema Study.
+        An ML warehouse schema Study.
     """
     return sess.execute(
         select(Study).where(Study.id_study_lims == study_id)
@@ -380,15 +385,71 @@ def find_study_by_study_id(sess: Session, study_id: str) -> Study:
 
 
 def find_sample_by_sample_id(sess: Session, sample_id: str) -> Sample:
-    """Return a sample from a sample_id.
+    """Return a Sample from a sample ID.
 
     Args:
         sess: An open SQL session.
-        sample_id: A Sample ID in MLWH
+        sample_id: A Sample ID in the ML warehouse.
 
     Returns:
-        sample: An ML warehouse schema Sample.
+        An ML warehouse schema Sample.
     """
     return sess.execute(
         select(Sample).where(Sample.id_sample_lims == sample_id)
     ).scalar_one()
+
+
+def find_updated_samples(
+    sess: Session, since: datetime, until: datetime
+) -> Iterator[int]:
+    """Return IDs of Samples that have been updated in the ML warehouse.
+
+    Args:
+        sess: An open SQL session.
+        since: The start of the time range.
+        until: The end of the time range.
+
+    Returns:
+        Iterator of Sample IDs.
+    """
+    recent_creation = since - timedelta(days=1)
+
+    query = (
+        sess.query(Sample.id_sample_lims)
+        .filter(
+            Sample.recorded_at.between(since, until)
+            & not_(Sample.created.between(recent_creation, since))
+        )
+        .order_by(asc(Sample.recorded_at))
+    )
+
+    for (sample_id,) in query.yield_per(SQL_CHUNK_SIZE):
+        yield sample_id
+
+
+def find_updated_studies(
+    sess: Session, since: datetime, until: datetime
+) -> Iterator[int]:
+    """Return IDs of Studies that have been updated in the ML warehouse.
+
+    Args:
+        sess: An open SQL session.
+        since: The start of the time range.
+        until: The end of the time range.
+
+    Returns:
+        Iterator of Study IDs.
+    """
+    recent_creation = since - timedelta(days=1)
+
+    query = (
+        sess.query(Study.id_study_lims)
+        .filter(
+            Study.recorded_at.between(since, until)
+            & not_(Study.created.between(recent_creation, since))
+        )
+        .order_by(asc(Study.recorded_at))
+    )
+
+    for (study_id,) in query.yield_per(SQL_CHUNK_SIZE):
+        yield study_id

@@ -29,7 +29,7 @@ from sqlalchemy.orm import Session
 from structlog import get_logger
 
 from npg_irods.common import infer_zone, update_metadata, update_permissions
-from npg_irods.db.mlwh import PacBioRun, Sample, Study
+from npg_irods.db.mlwh import PacBioRun, SQL_CHUNK_SIZE, Sample, Study
 from npg_irods.exception import DataObjectNotFound
 from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.lims import (
@@ -42,8 +42,6 @@ from npg_irods.metadata.lims import (
 from npg_irods.metadata.pacbio import Instrument, add_well_padding, remove_well_padding
 
 log = get_logger(__package__)
-
-SQL_CHUNK_SIZE = 1000
 
 
 @dataclass(order=True)
