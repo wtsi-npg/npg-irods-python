@@ -4,9 +4,9 @@ description = "NPG iRODS data management tools."
 license = { file = "LICENSE", content-type = "text/plain" }
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [{ name = "Keith James", email = "kdj@sanger.ac.uk" },
-    { name = "Michael Kubiak", email = "mk35@sanger.ac.uk" }]
+           { name = "Michael Kubiak", email = "mk35@sanger.ac.uk" }]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Programming Language :: Python"
 ]

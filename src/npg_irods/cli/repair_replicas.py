@@ -23,7 +23,11 @@ import sys
 import structlog
 
 from npg_irods.utilities import repair_replicas
-from npg_irods.cli.util import add_logging_arguments, configure_logging
+from npg_irods.cli.util import (
+    add_io_arguments,
+    add_logging_arguments,
+    configure_logging,
+)
 from npg_irods.version import version
 
 description = """
@@ -46,21 +50,8 @@ error message summarising the results will be sent to STDERR.
 parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
+add_io_arguments(parser)
 add_logging_arguments(parser)
-parser.add_argument(
-    "-i",
-    "--input",
-    help="Input filename.",
-    type=argparse.FileType("r", encoding="UTF-8"),
-    default=sys.stdin,
-)
-parser.add_argument(
-    "-o",
-    "--output",
-    help="Output filename.",
-    type=argparse.FileType("w", encoding="UTF-8"),
-    default=sys.stdout,
-)
 parser.add_argument(
     "-n",
     "--num-replicas",

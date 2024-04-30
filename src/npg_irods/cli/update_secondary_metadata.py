@@ -24,7 +24,12 @@ import sqlalchemy
 import structlog
 from sqlalchemy.orm import Session
 
-from npg_irods.cli.util import add_logging_arguments, configure_logging
+from npg_irods.cli.util import (
+    add_db_config_arguments,
+    add_io_arguments,
+    add_logging_arguments,
+    configure_logging,
+)
 from npg_irods.db import DBConfig
 from npg_irods.utilities import update_secondary_metadata
 from npg_irods.version import version
@@ -56,30 +61,8 @@ def main():
         description=description, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     add_logging_arguments(parser)
-
-    parser.add_argument(
-        "--database-config",
-        "--database_config",
-        "--db-config",
-        "--db_config",
-        help="Configuration file for database connection.",
-        type=argparse.FileType("r"),
-        required=True,
-    )
-    parser.add_argument(
-        "-i",
-        "--input",
-        help="Input filename.",
-        type=argparse.FileType("r", encoding="UTF-8"),
-        default=sys.stdin,
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        help="Output filename.",
-        type=argparse.FileType("w", encoding="UTF-8"),
-        default=sys.stdout,
-    )
+    add_io_arguments(parser)
+    add_db_config_arguments(parser)
     parser.add_argument(
         "--print-update",
         help="Print to output those paths that were updated.",
@@ -87,8 +70,8 @@ def main():
     )
     parser.add_argument(
         "--print-fail",
-        help="Print to output those paths that require updating, where the update failed. "
-        "Defaults to False.",
+        help="Print to output those paths that require updating, where the update "
+        "failed. Defaults to False.",
         action="store_true",
     )
     parser.add_argument(

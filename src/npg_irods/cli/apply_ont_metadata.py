@@ -19,13 +19,17 @@
 
 import argparse
 import sys
-from datetime import datetime, timedelta
 
 import sqlalchemy
 import structlog
 from sqlalchemy.orm import Session
 
-from npg_irods.cli.util import add_logging_arguments, configure_logging, parse_iso_date
+from npg_irods.cli.util import (
+    add_date_range_arguments,
+    add_db_config_arguments,
+    add_logging_arguments,
+    configure_logging,
+)
 from npg_irods.db import DBConfig
 from npg_irods.ont import apply_metadata
 from npg_irods.version import version
@@ -50,25 +54,8 @@ parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
 add_logging_arguments(parser)
-
-parser.add_argument(
-    "--begin-date",
-    "--begin_date",
-    help="Limit runs found to those changed at, or after this date. Defaults to "
-    "14 days ago. The argument must be an ISO8601 UTC date or date and time "
-    "e.g. 2022-01-30, 2022-01-30T11:11:03Z",
-    type=parse_iso_date,
-    default=datetime.now() - timedelta(days=14),
-)
-parser.add_argument(
-    "--end-date",
-    "--end_date",
-    help="Limit runs found to those changed at, or before this date. Defaults to "
-    "the current time. The argument must be an ISO8601 UTC date or date and time "
-    "e.g. 2022-01-30, 2022-01-30T11:11:03Z",
-    type=parse_iso_date,
-    default=datetime.now(),
-)
+add_date_range_arguments(parser, begin_delta=14)
+add_db_config_arguments(parser)
 parser.add_argument(
     "--zone",
     help="Specify a federated iRODS zone in which to find "
@@ -76,16 +63,6 @@ parser.add_argument(
     "collections are in the local zone.",
     type=str,
 )
-parser.add_argument(
-    "--database-config",
-    "--database_config",
-    "--db-config",
-    "--db_config",
-    help="Configuration file for database connection.",
-    type=argparse.FileType("r", encoding="UTF-8"),
-    required=True,
-)
-
 parser.add_argument("--version", help="Print the version and exit", action="store_true")
 
 args = parser.parse_args()
