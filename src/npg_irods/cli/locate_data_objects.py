@@ -28,7 +28,7 @@ import structlog
 from partisan.irods import AVU, DataObject, query_metadata
 from sqlalchemy.orm import Session
 
-from npg_irods import illumina, ont, pacbio
+from npg_irods import illumina, ont, pacbio, sequenom
 from npg_irods.cli.util import (
     add_date_range_arguments,
     add_db_config_arguments,
@@ -73,14 +73,14 @@ Note that the sub-command available options may differ between sub-commands.
 
 Examples:
 
-    locate-data-objects --verbose --colour --database-config db.ini --zone seq \\
+    locate-data-objects --verbose --colour --db-config db.ini --zone seq \\
         consent-withdrawn
 
-    locate-data-objects --verbose --json  --database-config db.ini --zone seq \\
+    locate-data-objects --verbose --json  --db-config db.ini --zone seq \\
         illumina-updates --begin-date `date --iso --date=-7day` \\
         --skip-absent-runs 5
 
-    locate-data-objects --verbose --colour --database-config db.ini --zone seq \\
+    locate-data-objects --verbose --colour --db-config db.ini --zone seq \\
         ont-updates --begin-date `date --iso --date=-7day`
 
 The --skip-absent-runs option is used to skip runs that cannot be found in iRODS after
@@ -433,9 +433,49 @@ def infinium_updates_cli(cli_args: argparse.ArgumentParser):
 def infinium_microarray_updates(
     sess: Session, since: datetime, until: datetime, zone: str = None
 ) -> (int, int):
-    num_processed = num_errors = 0
-
     query = [AVU(infinium.Instrument.BEADCHIP, "%", operator="like")]
+    num_processed, num_errors = _print_data_objects_updated_in_mlwh(
+        sess, query, since=since, until=until, zone=zone
+    )
+
+    log.info(f"Processed {num_processed} with {num_errors} errors")
+
+    return num_processed, num_errors
+
+
+def sequenom_updates_cli(cli_args: argparse.ArgumentParser):
+    """Process the command line arguments for finding Sequenom genotype data objects
+    and execute the command."""
+    dbconf = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    eng = sqlalchemy.create_engine(dbconf.url)
+    since = cli_args.begin_date
+    until = cli_args.end_date
+    zone = cli_args.zone
+
+    with Session(eng) as sess:
+        num_proc, num_errors = sequenom_genotype_updates(sess, since, until, zone=zone)
+
+        if num_errors:
+            sys.exit(1)
+
+
+def sequenom_genotype_updates(
+    sess: Session, since: datetime, until: datetime, zone: str = None
+) -> (int, int):
+    query = [AVU(sequenom.Instrument.SEQUENOM_PLATE, "%", operator="like")]
+    num_processed, num_errors = _print_data_objects_updated_in_mlwh(
+        sess, query, since=since, until=until, zone=zone
+    )
+
+    log.info(f"Processed {num_processed} with {num_errors} errors")
+
+    return num_processed, num_errors
+
+
+def _print_data_objects_updated_in_mlwh(
+    sess: Session, query: list[AVU], since: datetime, until: datetime, zone: str = None
+) -> (int, int):
+    num_processed = num_errors = 0
 
     studies = find_updated_studies(sess, since=since, until=until)
     np, ne = _find_and_print_data_objects(
@@ -450,8 +490,6 @@ def infinium_microarray_updates(
     )
     num_processed += np
     num_errors += ne
-
-    log.info(f"Processed {num_processed} with {num_errors} errors")
 
     return num_processed, num_errors
 
@@ -587,6 +625,14 @@ def main():
     )
     add_date_range_arguments(imup_parser)
     imup_parser.set_defaults(func=infinium_updates_cli)
+
+    squp_parser = subparsers.add_parser(
+        "sequenom-updates",
+        help="Find data objects related to Sequenom genotype samples whose tracking "
+        "metadata in the ML warehouse have changed since a specified time.",
+    )
+    add_date_range_arguments(squp_parser)
+    squp_parser.set_defaults(func=sequenom_updates_cli)
 
     args = parser.parse_args()
     configure_logging(
