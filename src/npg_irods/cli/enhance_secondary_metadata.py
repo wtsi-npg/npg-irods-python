@@ -23,7 +23,11 @@ import structlog
 import sqlalchemy
 
 from sqlalchemy.orm import Session
-from npg_irods.cli.util import add_logging_arguments, configure_logging
+from npg_irods.cli.util import (
+    add_db_config_arguments,
+    add_logging_arguments,
+    configure_logging,
+)
 from npg_irods.db import DBConfig
 from npg_irods.utilities import update_general_metadata
 from npg_irods.version import version
@@ -39,7 +43,7 @@ parser = argparse.ArgumentParser(
     description=description, formatter_class=argparse.RawDescriptionHelpFormatter
 )
 add_logging_arguments(parser)
-
+add_db_config_arguments(parser)
 parser.add_argument(
     "-i",
     "--input",
@@ -54,16 +58,6 @@ parser.add_argument(
     help="Output filename.",
     type=argparse.FileType("w"),
     default=sys.stdout,
-)
-parser.add_argument(
-    "--database-config",
-    "--database_config",
-    "--db-config",
-    "--db_config",
-    help="Configuration file for database connection (MLWH) to look up study and "
-    "sample information",
-    type=argparse.FileType("r"),
-    required=True,
 )
 parser.add_argument(
     "--zone",

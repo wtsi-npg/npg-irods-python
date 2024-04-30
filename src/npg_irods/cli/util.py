@@ -22,6 +22,7 @@ import itertools
 import json as json_parser
 import logging
 import logging.config
+import sys
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime, timedelta, timezone
 from typing import Iterable
@@ -75,8 +76,60 @@ def add_date_range_arguments(parser: argparse, begin_delta=14):
         "must be an ISO8601 UTC date or date and time "
         "e.g. 2022-01-30, 2022-01-30T11:11:03Z",
         type=parse_iso_date,
-        default=datetime.now(),
+        default=datetime.now(timezone.utc),
     )
+
+
+def add_db_config_arguments(parser: ArgumentParser) -> ArgumentParser:
+    """Adds a database configuration argument to a parser.
+
+    - --database-config/--database_config/--db-config/--db_config
+
+    Args:
+        parser: An argument parser to modify.
+
+    Returns:
+        The parser
+    """
+    parser.add_argument(
+        "--database-config",
+        "--database_config",
+        "--db-config",
+        "--db_config",
+        help="Configuration file for database connection",
+        type=argparse.FileType("r", encoding="UTF-8"),
+        required=True,
+    )
+
+    return parser
+
+
+def add_io_arguments(parser: ArgumentParser) -> ArgumentParser:
+    """Adds standard input/output arguments to a parser.
+
+    - --input
+    - --output
+
+    Args:
+        parser: An argument parser to modify.
+
+    Returns:
+        The parser
+    """
+    parser.add_argument(
+        "--input",
+        help="Input file",
+        type=argparse.FileType("r", encoding="UTF-8"),
+        default=sys.stdin,
+    )
+    parser.add_argument(
+        "--output",
+        help="Output file",
+        type=argparse.FileType("w", encoding="UTF-8"),
+        default=sys.stdout,
+    )
+
+    return parser
 
 
 def add_logging_arguments(parser: ArgumentParser) -> ArgumentParser:

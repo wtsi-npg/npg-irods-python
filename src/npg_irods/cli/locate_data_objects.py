@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 from npg_irods import illumina, ont, pacbio
 from npg_irods.cli.util import (
     add_date_range_arguments,
+    add_db_config_arguments,
     add_logging_arguments,
     configure_logging,
     integer_in_range,
@@ -507,16 +508,7 @@ def main():
         description=description, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     add_logging_arguments(parser)
-    parser.add_argument(
-        "--database-config",
-        "--database_config",
-        "--db-config",
-        "--db_config",
-        help="Configuration file for database connection",
-        type=argparse.FileType("r"),
-        required=True,
-    )
-
+    add_db_config_arguments(parser)
     parser.add_argument(
         "--zone",
         help="Specify a federated iRODS zone in which to find data objects to check. "
