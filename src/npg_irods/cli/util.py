@@ -83,7 +83,7 @@ def add_date_range_arguments(parser: argparse, begin_delta=14):
 def add_db_config_arguments(parser: ArgumentParser) -> ArgumentParser:
     """Adds a database configuration argument to a parser.
 
-    - --database-config/--database_config/--db-config/--db_config
+    - --db-config/--db_config/--database-config/--database_config
 
     Args:
         parser: An argument parser to modify.
@@ -92,10 +92,10 @@ def add_db_config_arguments(parser: ArgumentParser) -> ArgumentParser:
         The parser
     """
     parser.add_argument(
-        "--database-config",
-        "--database_config",
         "--db-config",
         "--db_config",
+        "--database-config",
+        "--database_config",
         help="Configuration file for database connection",
         type=argparse.FileType("r", encoding="UTF-8"),
         required=True,
