@@ -33,7 +33,7 @@ from sqlalchemy.orm import Session
 from structlog import get_logger
 
 from npg_irods.common import infer_zone, update_metadata, update_permissions
-from npg_irods.db.mlwh import OseqFlowcell, Sample, Study
+from npg_irods.db.mlwh import OseqFlowcell, SQL_CHUNK_SIZE, Sample, Study
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
@@ -55,8 +55,6 @@ TAG_IDENTIFIER_REGEX = re.compile(r"(?P<tag_id>\d+)$")
 # Directories ignored when searching the run folder for directories containing deplexed
 # data. Examples of sibling directories that are not ignored: fast5_fail, fast5_pass
 IGNORED_DIRECTORIES = ["other_reports"]
-
-SQL_CHUNK_SIZE = 100
 
 
 @dataclass(order=True)

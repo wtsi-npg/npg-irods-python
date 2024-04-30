@@ -21,6 +21,7 @@
 import argparse
 import sys
 from datetime import datetime
+from typing import Any, Iterator
 
 import sqlalchemy
 import structlog
@@ -36,12 +37,17 @@ from npg_irods.cli.util import (
     with_previous,
 )
 from npg_irods.db import DBConfig
-from npg_irods.db.mlwh import find_consent_withdrawn_samples
+from npg_irods.db.mlwh import (
+    find_consent_withdrawn_samples,
+    find_updated_samples,
+    find_updated_studies,
+)
 from npg_irods.exception import CollectionNotFound
 from npg_irods.illumina import find_qc_collection
+from npg_irods.metadata import infinium
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.illumina import Instrument
-from npg_irods.metadata.lims import TrackedSample
+from npg_irods.metadata.lims import TrackedSample, TrackedStudy
 from npg_irods.ont import barcode_collections
 from npg_irods.version import version
 
@@ -101,7 +107,7 @@ collection path is printed.
 log = structlog.get_logger("main")
 
 
-def consent_withdrawn(cli_args):
+def consent_withdrawn(cli_args: argparse.ArgumentParser):
     dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
@@ -140,16 +146,9 @@ def consent_withdrawn(cli_args):
         sys.exit(1)
 
 
-def illumina_updates_cli(cli_args):
+def illumina_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Illumina data objects and execute
-    the command.
-
-    Args:
-        cli_args: ArgumentParser
-
-    Returns:
-        None
-    """
+    the command."""
     dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
     eng = sqlalchemy.create_engine(dbconf.url)
     since = cli_args.begin_date
@@ -177,7 +176,7 @@ def illumina_updates(
     data objects in iRODS and print their paths.
 
     Args:
-        sess: SQLAlchemy session
+        sess: An open SQL session
         since: Earliest changes to find
         until: Latest changes to find
         skip_absent_runs: Skip any runs where no data objects have been found after
@@ -259,16 +258,9 @@ def illumina_updates(
     return num_processed, num_errors
 
 
-def ont_updates_cli(cli_args):
+def ont_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding ONT data objects and execute the
-    command.
-
-    Args:
-        cli_args: ArgumentParser
-
-    Returns:
-        None
-    """
+    command."""
     dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
     eng = sqlalchemy.create_engine(dbconf.url)
     since = cli_args.begin_date
@@ -332,16 +324,9 @@ def ont_updates(
     return num_processed, num_errors
 
 
-def pacbio_updates_cli(cli_args):
-    """Process the command line arguments for finding PacBio data objects and execute the
-    command.
-
-    Args:
-        cli_args: ArgumentParser
-
-    Returns:
-        None
-    """
+def pacbio_updates_cli(cli_args: argparse.ArgumentParser):
+    """Process the command line arguments for finding PacBio data objects and execute
+    the command."""
     dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
     eng = sqlalchemy.create_engine(dbconf.url)
     since = cli_args.begin_date
@@ -422,6 +407,97 @@ def pacbio_updates(
             log.exception(e, item=num_processed, comp=curr)
 
     log.info(f"Processed {num_processed} with {num_errors} errors")
+
+    return num_processed, num_errors
+
+
+def infinium_updates_cli(cli_args: argparse.ArgumentParser):
+    """Process the command line arguments for finding Infinium microarray data objects
+    and execute the command."""
+    dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    eng = sqlalchemy.create_engine(dbconf.url)
+    since = cli_args.begin_date
+    until = cli_args.end_date
+    zone = cli_args.zone
+
+    with Session(eng) as sess:
+        num_proc, num_errors = infinium_microarray_updates(
+            sess, since, until, zone=zone
+        )
+
+        if num_errors:
+            sys.exit(1)
+
+
+def infinium_microarray_updates(
+    sess: Session, since: datetime, until: datetime, zone: str = None
+) -> (int, int):
+    num_processed = num_errors = 0
+
+    query = [AVU(infinium.Instrument.BEADCHIP, "%", operator="like")]
+
+    studies = find_updated_studies(sess, since=since, until=until)
+    np, ne = _find_and_print_data_objects(
+        TrackedStudy.ID, studies, query, since=since, until=until, zone=zone
+    )
+    num_processed += np
+    num_errors += ne
+
+    samples = find_updated_samples(sess, since=since, until=until)
+    np, ne = _find_and_print_data_objects(
+        TrackedSample.ID, samples, query, since=since, until=until, zone=zone
+    )
+    num_processed += np
+    num_errors += ne
+
+    log.info(f"Processed {num_processed} with {num_errors} errors")
+
+    return num_processed, num_errors
+
+
+def _find_and_print_data_objects(
+    attr: Any,
+    values: Iterator[int],
+    query: list[AVU],
+    since: datetime,
+    until: datetime,
+    zone: str = None,
+) -> (int, int):
+    """Print data object paths identified by their metadata e.g. sample ID or study ID.
+
+    Args:
+        attr: An AVU attribute to search on e.g. sample ID or study ID.
+        values: An interator of AVU values corresponding to the attribute to search for.
+        query: Additional AVUs to combine with attr and values in the queries
+        since: Earliest changes to find
+        until: Latest changes to find
+        zone: iRODS zone to query
+
+    Returns:
+        The number of records processed, the number of errors encountered.
+    """
+    num_processed = num_errors = 0
+
+    for i, value in enumerate(values):
+        avu = AVU(attr, value)
+
+        num_processed += 1
+        log.info(
+            "Searching iRODS",
+            item=i,
+            query=[avu, *query],
+            since=since.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            until=until.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
+
+        try:
+            for obj in query_metadata(
+                avu, *query, data_object=True, collection=False, zone=zone
+            ):
+                print(obj)
+        except Exception as e:
+            num_errors += 1
+            log.exception(e, item=i, attr=attr, value=value)
 
     return num_processed, num_errors
 
@@ -510,8 +586,15 @@ def main():
         type=integer_in_range(1, 10),
         default=3,
     )
-
     pbup_parser.set_defaults(func=pacbio_updates_cli)
+
+    imup_parser = subparsers.add_parser(
+        "infinium-updates",
+        help="Find data objects related to Infinium microarray samples whose tracking "
+        "metadata in the ML warehouse have changed since a specified time.",
+    )
+    add_date_range_arguments(imup_parser)
+    imup_parser.set_defaults(func=infinium_updates_cli)
 
     args = parser.parse_args()
     configure_logging(

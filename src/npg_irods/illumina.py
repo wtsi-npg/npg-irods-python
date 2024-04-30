@@ -25,7 +25,6 @@ from enum import Enum, unique
 from pathlib import PurePath
 from typing import Iterator, Optional, Type
 
-import sqlalchemy
 from partisan.irods import AVU, Collection, DataObject
 from partisan.metadata import AsValueEnum
 from sqlalchemy import asc, not_
@@ -33,7 +32,13 @@ from sqlalchemy.orm import Session
 from structlog import get_logger
 
 from npg_irods.common import infer_zone, update_metadata, update_permissions
-from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics, Sample, Study
+from npg_irods.db.mlwh import (
+    IseqFlowcell,
+    IseqProductMetrics,
+    SQL_CHUNK_SIZE,
+    Sample,
+    Study,
+)
 from npg_irods.exception import CollectionNotFound, DataObjectNotFound, NonUniqueError
 from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.illumina import Instrument
@@ -49,8 +54,6 @@ from npg_irods.metadata.lims import (
 )
 
 log = get_logger(__package__)
-
-SQL_CHUNK_SIZE = 1000
 
 
 @unique
