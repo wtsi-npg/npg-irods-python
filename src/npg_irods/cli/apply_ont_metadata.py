@@ -81,7 +81,7 @@ def main():
         print(version())
         sys.exit(0)
 
-    dbconfig = DBConfig.from_file(args.database_config.name, "mlwh_ro")
+    dbconfig = DBConfig.from_file(args.db_config.name, "mlwh_ro")
 
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:

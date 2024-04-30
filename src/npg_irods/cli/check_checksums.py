@@ -65,7 +65,6 @@ parser.add_argument(
     help="Print to output those paths that fail the check.",
     action="store_true",
 )
-
 parser.add_argument(
     "-c",
     "--clients",

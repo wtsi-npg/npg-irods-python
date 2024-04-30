@@ -109,7 +109,7 @@ log = structlog.get_logger("main")
 
 
 def consent_withdrawn(cli_args: argparse.ArgumentParser):
-    dbconfig = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
         num_processed = num_errors = 0
@@ -150,7 +150,7 @@ def consent_withdrawn(cli_args: argparse.ArgumentParser):
 def illumina_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Illumina data objects and execute
     the command."""
-    dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    dbconf = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
     eng = sqlalchemy.create_engine(dbconf.url)
     since = cli_args.begin_date
     until = cli_args.end_date
@@ -262,7 +262,7 @@ def illumina_updates(
 def ont_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding ONT data objects and execute the
     command."""
-    dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    dbconf = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
     eng = sqlalchemy.create_engine(dbconf.url)
     since = cli_args.begin_date
     until = cli_args.end_date
@@ -328,7 +328,7 @@ def ont_updates(
 def pacbio_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding PacBio data objects and execute
     the command."""
-    dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    dbconf = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
     eng = sqlalchemy.create_engine(dbconf.url)
     since = cli_args.begin_date
     until = cli_args.end_date
@@ -415,7 +415,7 @@ def pacbio_updates(
 def infinium_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Infinium microarray data objects
     and execute the command."""
-    dbconf = DBConfig.from_file(cli_args.database_config.name, "mlwh_ro")
+    dbconf = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
     eng = sqlalchemy.create_engine(dbconf.url)
     since = cli_args.begin_date
     until = cli_args.end_date
