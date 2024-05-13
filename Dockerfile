@@ -2,7 +2,7 @@
 
 FROM ubuntu:bionic as builder
 
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.12
 
 RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selections && \
     apt-get update && \
