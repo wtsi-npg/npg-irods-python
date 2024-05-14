@@ -20,13 +20,16 @@
 """Business logic API and schema-level API for the ML warehouse."""
 
 import enum
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Iterator, Type
 
+import structlog
 from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
+    Engine,
     Enum,
     ForeignKey,
     Index,
@@ -40,6 +43,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship
 
 SQL_CHUNK_SIZE = 1000
+
+log = structlog.get_logger(__package__)
 
 
 class Platform(enum.Enum):
@@ -355,6 +360,25 @@ class SeqProductIrodsLocations(Base):
     irods_root_collection = mapped_column(String(255), nullable=False)
     irods_data_relative_path = mapped_column(String(255))
     irods_secondary_data_relative_path = mapped_column(String(255))
+
+
+@contextmanager
+def session_context(engine: Engine) -> Session:
+    """Yield a session and close, or rollback on error. This context manager does
+    not handle exceptions and will raise them to the caller."""
+
+    session = Session(engine)
+    try:
+        yield session
+        log.debug("Committing MLWH session", session=session)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        log.error("Rolling back MLWH session", session=session)
+        raise e
+    finally:
+        log.debug("Closing MLWH session", session=session)
+        session.close()
 
 
 def find_consent_withdrawn_samples(sess: Session) -> list[Type[Sample]]:

@@ -12,7 +12,7 @@ jobs:
         shell: bash -l -e -o pipefail {0}
 
     env:
-      PYTHON_VERSION: "3.10"
+      PYTHON_VERSION: "3.12"
       SINGULARITY_VERSION: "3.11.1"
 
     strategy:

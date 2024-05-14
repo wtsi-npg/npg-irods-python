@@ -16,7 +16,7 @@ jobs:
     env:
       IMAGE_NAME: npg-irods-python
       REPOSITORY_OWNER: ${{ github.repository_owner }}
-      PYTHON_VERSION: "3.10"
+      PYTHON_VERSION: "3.12"
 
     steps:
       - name: Checkout code
