@@ -113,32 +113,31 @@ def main():
         sys.exit(0)
 
     dbconfig = DBConfig.from_file(args.database_config.name, "mlwh_ro")
+    engine = sqlalchemy.create_engine(
+        dbconfig.url, pool_pre_ping=True, pool_recycle=3600
+    )
 
-    engine = sqlalchemy.create_engine(dbconfig.url)
-    with Session(engine) as session:
-        num_processed, num_updated, num_errors = update_secondary_metadata(
-            args.input,
-            args.output,
-            session,
-            print_update=args.print_update,
-            print_fail=args.print_fail,
-        )
+    num_processed, num_updated, num_errors = update_secondary_metadata(
+        args.input,
+        args.output,
+        engine,
+        print_update=args.print_update,
+        print_fail=args.print_fail,
+    )
 
-        if num_errors:
-            log.error(
-                "Update failed",
-                num_processed=num_processed,
-                num_updated=num_updated,
-                num_errors=num_errors,
-            )
-            sys.exit(1)
-
-        msg = (
-            "All updates were successful" if num_updated else "No updates were required"
-        )
-        log.info(
-            msg,
+    if num_errors:
+        log.error(
+            "Update failed",
             num_processed=num_processed,
             num_updated=num_updated,
             num_errors=num_errors,
         )
+        sys.exit(1)
+
+    msg = "All updates were successful" if num_updated else "No updates were required"
+    log.info(
+        msg,
+        num_processed=num_processed,
+        num_updated=num_updated,
+        num_errors=num_errors,
+    )

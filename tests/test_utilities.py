@@ -663,8 +663,9 @@ class TestMetadataUtilities:
         with StringIO("\n".join(obj_paths)) as reader:
             print(reader.getvalue())
             with StringIO() as writer:
+                engine = general_synthetic_mlwh.get_bind()
                 num_processed, num_updated, num_errors = update_general_metadata(
-                    reader, writer, general_synthetic_mlwh, print_update=True
+                    reader, writer, engine, print_update=True
                 )
                 assert num_processed == 1
                 assert num_updated == 1
@@ -706,8 +707,9 @@ class TestMetadataUtilities:
         with StringIO("\n".join(obj_paths)) as reader:
             print(reader.getvalue())
             with StringIO() as writer:
+                engine = general_synthetic_mlwh.get_bind()
                 num_processed, num_updated, num_errors = update_general_metadata(
-                    reader, writer, general_synthetic_mlwh, print_update=True
+                    reader, writer, engine, print_update=True
                 )
                 assert num_processed == 1
                 assert num_updated == 1
@@ -742,8 +744,9 @@ class TestMetadataUtilities:
         with StringIO("\n".join(obj_paths)) as reader:
             print(reader.getvalue())
             with StringIO() as writer:
+                engine = general_synthetic_mlwh.get_bind()
                 num_processed, num_updated, num_errors = update_general_metadata(
-                    reader, writer, general_synthetic_mlwh, print_update=True
+                    reader, writer, engine, print_update=True
                 )
                 assert num_processed == 1
                 assert num_updated == 1
