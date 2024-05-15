@@ -18,6 +18,7 @@ dynamic = ["version"]
 dependencies = [
     "npg_id_generation",
     "partisan",
+    "python-dateutil",
     "rich",
     "sqlalchemy",
     "structlog",
@@ -49,6 +50,7 @@ repository = "https://github.com/wtsi-npg/npg-irods-python.git"
 "safe-remove-script" = "npg_irods.cli.safe_remove_script:main"
 "update-secondary-metadata" = "npg_irods.cli.update_secondary_metadata:main"
 "withdraw-consent" = "npg_irods.cli.withdraw_consent:main"
+"write-html-report" = "npg_irods.cli.write_html_report:main"
 
 [build-system]
 requires = ["setuptools>=41", "wheel", "setuptools-git-versioning<2"]

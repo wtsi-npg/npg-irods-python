@@ -370,7 +370,7 @@ class TestONTMetadataUpdate(object):
 class TestONTPermissionsUpdate:
     @tests_have_admin
     @m.context("When ONT permissions are updated")
-    @m.contect("When the experiment is multiplexed")
+    @m.context("When the experiment is multiplexed")
     @m.it("Makes report files publicly readable")
     def test_public_read_reports(self, ont_synthetic_irods, ont_synthetic_mlwh):
         zone = "testZone"
