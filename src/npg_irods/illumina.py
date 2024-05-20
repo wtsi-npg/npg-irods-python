@@ -275,17 +275,21 @@ def split_name(name: str) -> tuple[str, str]:
     Extending this method to handle new types of file:
 
     If your new file can be handled by the pathlib API then you do not need to extend
-    the capabilities of this function. Otherwise, you will need to add an additional
-    regular expression to parse the stem from the file name.
+    the capabilities of this function. Otherwise, you will need to add a regular
+    expression to parse the stem from the file name.
 
     """
 
-    # Handle this form:
+    # The dot separator used in the stem is not consistent across all files.
+    n1 = re.sub(r"_F0x", ".F0x", name)
+    normalised = re.sub(r"_quality_", ".quality_", n1)
+
+    # Handle this form (normalised):
     #
-    # 9930555.ACXX.paired158.550b751b96_F0x900.stats
-    # 9930555.ACXX.paired158.550b751b96_F0xB00.stats
-    # 9930555.ACXX.paired158.550b751b96_F0xF04_target.stats
-    if match := re.match(r"(\d+\.\w+\.\w+\.\w+)(_F0x\d+.*)$", name):
+    # 9930555.ACXX.paired158.550b751b96.F0x900.stats
+    # 9930555.ACXX.paired158.550b751b96.F0xB00.stats
+    # 9930555.ACXX.paired158.550b751b96.F0xF04_target.stats
+    if match := re.match(r"(\d+\.\w+\.\w+\.\w+)(\.F0x[A-F0-9]+.*)$", normalised):
         stem, suffixes = match.groups()
 
     # Handle this form:
@@ -295,26 +299,9 @@ def split_name(name: str) -> tuple[str, str]:
     elif match := re.match(r"(\d+\.\w+\.\w+\.\w+)(.*)$", name):
         stem, suffixes = match.groups()
 
-    # Handle this form:
-    #
-    # [prefix]_F0x900.stats
-    # [prefix]_F0xB00.stats
-    # [prefix]_F0xF04_target.stats
-    # [prefix]_F0xF04_target_autosome.stats
-    elif match := re.match(r"([\w#]+)(_F0x\d+.*)$", name):
-        stem, suffixes = match.groups()
-
-    # Handle this form:
-    #
-    # [prefix]_quality_cycle_caltable.txt
-    # [prefix]_quality_cycle_surv.txt
-    # [prefix]_quality_error.txt
-    elif match := re.match(r"([\w#]+)(_quality_\.txt)$", name):
-        stem, suffixes = match.groups()
-
     else:
-        p = PurePath(name)
-        stem = without_suffixes(p)
+        p = PurePath(normalised)
+        stem = without_suffixes(p).as_posix()
         suffixes = "".join(p.suffixes)
 
     return stem, suffixes

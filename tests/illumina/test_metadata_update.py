@@ -21,7 +21,7 @@ from partisan.irods import AC, AVU, DataObject, Permission
 from pytest import mark as m
 
 from helpers import history_in_meta
-from npg_irods.illumina import Component, ensure_secondary_metadata_updated
+from npg_irods.illumina import Component, ensure_secondary_metadata_updated, split_name
 from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.lims import (
     TrackedSample,
@@ -31,7 +31,7 @@ from npg_irods.metadata.lims import (
 )
 
 
-class TestIlluminaComponent:
+class TestIlluminaAPI:
     @m.context("When a component AVU is available")
     @m.it("Can be used to construct a Component")
     def test_make_component_from_avu(self):
@@ -56,6 +56,78 @@ class TestIlluminaComponent:
         assert c.position == 1
         assert c.tag_index == 1
         assert c.subset == SeqSubset.HUMAN
+
+    @m.context("When parsing names of Illumina data objects")
+    @m.it("Can split the name into a prefix and a suffix")
+    def test_split_name(self):
+        for base in [
+            "12345",  # expt, not multiplexed
+            "12345_phix",  # control, not multiplexed
+            "12345#1",  # expt, multiplexed
+            "12345_phix#1",  # control, multiplexed
+            "12345_1#1",  # expt with lane, multiplexed
+            "12345_phix_1#1",  # control with lane, multiplexed
+        ]:
+            assert split_name(f"{base}.cram") == (base, ".cram")
+            assert split_name(f"{base}.cram.crai") == (base, ".cram.crai")
+            assert split_name(f"{base}_F0x900.stats") == (base, ".F0x900.stats")
+            assert split_name(f"{base}_F0xB00.stats") == (base, ".F0xB00.stats")
+            assert split_name(f"{base}_F0xF04_target.stats") == (
+                base,
+                ".F0xF04_target.stats",
+            )
+            assert split_name(f"{base}_F0xF04_target_autosome.stats") == (
+                base,
+                ".F0xF04_target_autosome.stats",
+            )
+            assert split_name(f"{base}_F0xB00.samtools_stats.json") == (
+                base,
+                ".F0xB00.samtools_stats.json",
+            )
+            assert split_name(f"{base}_quality_cycle_caltable.txt") == (
+                base,
+                ".quality_cycle_caltable.txt",
+            )
+            assert split_name(f"{base}_quality_cycle_surv.txt") == (
+                base,
+                ".quality_cycle_surv.txt",
+            )
+            assert split_name(f"{base}_quality_error.txt") == (
+                base,
+                ".quality_error.txt",
+            )
+
+    @m.context("When parsing names of library-merged Illumina data objects")
+    @m.it("Can split the name into a prefix and a suffix")
+    def test_split_name_library_merge(self):
+        assert split_name("9930555.ACXX.paired158.550b751b96.cram") == (
+            "9930555.ACXX.paired158.550b751b96",
+            ".cram",
+        )
+        assert split_name("9930555.ACXX.paired158.550b751b96.cram.crai") == (
+            "9930555.ACXX.paired158.550b751b96",
+            ".cram.crai",
+        )
+        assert split_name("9930555.ACXX.paired158.550b751b96_F0x900.stats") == (
+            "9930555.ACXX.paired158.550b751b96",
+            ".F0x900.stats",
+        )
+        assert split_name("9930555.ACXX.paired158.550b751b96_F0xB00.stats") == (
+            "9930555.ACXX.paired158.550b751b96",
+            ".F0xB00.stats",
+        )
+        assert split_name("9930555.ACXX.paired158.550b751b96_F0xF04_target.stats") == (
+            "9930555.ACXX.paired158.550b751b96",
+            ".F0xF04_target.stats",
+        )
+        assert split_name("9930555.ACXX.paired158.550b751b96.flagstat") == (
+            "9930555.ACXX.paired158.550b751b96",
+            ".flagstat",
+        )
+        assert split_name("9930555.ACXX.paired158.550b751b96.g.vcf.gz") == (
+            "9930555.ACXX.paired158.550b751b96",
+            ".g.vcf.gz",
+        )
 
 
 class TestIlluminaMetadataUpdate:
