@@ -5,7 +5,7 @@ pymysql==1.1.1
 python-dateutil==2.9.0.post0
 rich==13.7.1
 setuptools-git-versioning==2.0.0
-setuptools==69.5.1
+setuptools==70.0.0
 sqlalchemy==2.0.30
 structlog==24.1.0
 yattag==1.15.2
