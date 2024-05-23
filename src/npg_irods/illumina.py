@@ -22,6 +22,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum, unique
+from functools import lru_cache
 from pathlib import PurePath
 from typing import Iterator, Optional, Type
 
@@ -352,6 +353,8 @@ def find_associated_components(item: DataObject | Collection) -> list[Component]
         )
     item_stem, item_suffix = split_name(item.name)
 
+    log.info("Finding components", path=item, stem=item_stem, suffix=item_suffix)
+
     # The item itself holds the associated metadata (true for BAM and CRAM files)
     if item_suffix.casefold() in [".bam", ".cram"]:
         return [Component.from_avu(avu) for avu in item.metadata(SeqConcept.COMPONENT)]
@@ -363,41 +366,35 @@ def find_associated_components(item: DataObject | Collection) -> list[Component]
     else:
         coll = Collection(item.path.parent)
 
+    log.info("Looking in associated collection", path=coll)
+
     if not coll.exists():
         raise CollectionNotFound(
             f"{errmsg} in this collection (path does not exist)", path=coll
         )
 
-    bams, crams = [], []
-    for obj in coll.iter_contents():
-        if obj.rods_type != DataObject:
-            continue
+    obj = _find_associated_am_file(coll, item_stem)
 
-        stem, suffix = split_name(obj.name)
-        if stem != item_stem:
-            continue
-
-        # Alternatively we could use the "type" AVU to determine the type of data
-        if suffix.casefold() == ".bam":
-            bams.append(obj)
-        elif suffix.casefold() == ".cram":
-            crams.append(obj)
-
-    associated = crams if len(crams) > 0 else bams
-
-    if len(associated) == 0:
-        raise DataObjectNotFound(f"{errmsg} for {item} in {coll}", path=item)
-    if len(associated) > 1:
-        raise NonUniqueError(
-            f"{errmsg}. Multiple associated data objects for {item} "
-            f"found in {coll}: {associated}",
-            path=item,
-            observed=associated,
-        )
-
-    obj = associated.pop()
+    log.debug("LRU cache stats", cache_info=_find_associated_am_file.cache_info())
 
     return [Component.from_avu(avu) for avu in obj.metadata(SeqConcept.COMPONENT)]
+
+
+@lru_cache(maxsize=1024)
+def _find_associated_am_file(coll: Collection, stem: str) -> DataObject:
+    assoc_cram = DataObject(coll.path / f"{stem}.cram")
+    assoc_bam = DataObject(coll.path / f"{stem}.bam")
+
+    if assoc_cram.exists():
+        return assoc_cram
+
+    if assoc_bam.exists():
+        return assoc_bam
+
+    raise DataObjectNotFound(
+        "Failed to find an associated data object bearing "
+        f"component metadata for stem {stem} in {coll}"
+    )
 
 
 def requires_full_metadata(obj: DataObject) -> bool:

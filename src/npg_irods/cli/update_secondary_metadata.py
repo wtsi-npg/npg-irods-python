@@ -22,7 +22,6 @@ import sys
 
 import sqlalchemy
 import structlog
-from sqlalchemy.orm import Session
 
 from npg_irods.cli.util import (
     add_db_config_arguments,
