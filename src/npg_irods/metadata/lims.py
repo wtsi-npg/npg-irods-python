@@ -170,6 +170,8 @@ def make_reduced_study_metadata(study: Study) -> list[AVU]:
     return [avu_if_value(TrackedStudy.ID, study.id_study_lims)]
 
 
+# TODO: Refactor this to avoid it handling sample consent withdrawn which is better
+#  handled by the has_consent_withdrawn_metadata function.
 def make_sample_acl(
     sample: Sample, study: Study, subset: SeqSubset = None, zone=None
 ) -> list[AC]:
@@ -179,7 +181,7 @@ def make_sample_acl(
 
     From the Sample:
 
-        - The statue of the per-sample consent withdrawn flag.
+        - The state of the per-sample consent withdrawn flag.
 
     From the subset:
 
@@ -207,6 +209,28 @@ def make_sample_acl(
         return [AC(irods_group + "_human", perm, zone=zone)]
 
     return [AC(irods_group, perm, zone=zone)]
+
+
+def make_study_acl(study: Study, subset: SeqSubset = None, zone=None) -> list[AC]:
+    """Returns an ACL for a given Study.
+
+    Args:
+        study: A study.
+        subset: Subset of sequence reads.
+        zone: The iRODS zone.
+
+    Returns:
+        An ACL
+    """
+    irods_group = f"{STUDY_IDENTIFIER_PREFIX}{study.id_study_lims}"
+
+    if subset is SeqSubset.XAHUMAN:
+        return []
+
+    if subset is SeqSubset.HUMAN:
+        return [AC(irods_group + "_human", Permission.READ, zone=zone)]
+
+    return [AC(irods_group, Permission.READ, zone=zone)]
 
 
 def make_public_read_acl(zone=None) -> list[AC]:

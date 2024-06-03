@@ -45,7 +45,11 @@ Currently this script supports:
  - Illumina sequencing data objects for data that have not been through the
    library-merge process.
 
- - Oxford nanopore sequencing data collections.
+ - PacBio sequencing data objects.
+
+ - Oxford Nanopore sequencing data collections.
+ 
+ - Other platforms whose data objects have study_id and sample_id metadata. 
 
 If any of the paths could not be updated, the exit code will be non-zero and an
 error message summarising the results will be sent to STDERR.

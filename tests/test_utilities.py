@@ -30,8 +30,8 @@ from pytest import mark as m
 from helpers import set_replicate_invalid
 from npg_irods.metadata.common import ensure_common_metadata, has_trimmable_replicas
 from npg_irods.metadata.lims import (
-    TrackedStudy,
     TrackedSample,
+    TrackedStudy,
     ensure_consent_withdrawn,
 )
 from npg_irods.utilities import (
@@ -41,12 +41,11 @@ from npg_irods.utilities import (
     copy,
     repair_checksums,
     repair_replicas,
+    update_secondary_metadata,
     withdraw_consent,
     write_safe_remove_commands,
     write_safe_remove_script,
-    update_general_metadata,
 )
-from npg_irods.common import update_secondary_metadata_from_mlwh
 
 
 def collect_objs(coll: Collection):
@@ -645,26 +644,15 @@ class TestMetadataUtilities:
     @m.context("When an iRODS object has both study and sample ID metadata")
     @m.context("When it wants both study and sample metadata enhanced")
     @m.it("Counts successes correctly")
-    def test_update_general_metadata(
-        self, general_synthetic_irods, general_synthetic_mlwh
+    def test_update_secondary_metadata(
+        self, simple_study_and_sample_data_object, simple_study_and_sample_mlwh
     ):
-        obj_paths = collect_obj_paths(Collection(general_synthetic_irods))
+        obj_path = simple_study_and_sample_data_object.as_posix()
 
-        data_objects = [DataObject(item) for item in obj_paths]
-
-        old_avus = [
-            AVU(TrackedStudy.ID, "1000"),
-            AVU(TrackedSample.ID, "id_sample_lims1"),
-        ]
-
-        for avu in old_avus:
-            assert avu in data_objects[0].metadata()
-
-        with StringIO("\n".join(obj_paths)) as reader:
-            print(reader.getvalue())
+        with StringIO("\n".join([obj_path])) as reader:
             with StringIO() as writer:
-                engine = general_synthetic_mlwh.get_bind()
-                num_processed, num_updated, num_errors = update_general_metadata(
+                engine = simple_study_and_sample_mlwh.get_bind()
+                num_processed, num_updated, num_errors = update_secondary_metadata(
                     reader, writer, engine, print_update=True
                 )
                 assert num_processed == 1
@@ -672,7 +660,7 @@ class TestMetadataUtilities:
                 assert num_errors == 0
 
                 passed_paths = writer.getvalue().split()
-                assert passed_paths == obj_paths
+                assert passed_paths == [obj_path]
 
         expected_avus = [
             AVU(TrackedStudy.ID, "1000"),
@@ -688,27 +676,25 @@ class TestMetadataUtilities:
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
         ]
 
+        obj = DataObject(simple_study_and_sample_data_object)
         for avu in expected_avus:
-            assert avu in data_objects[0].metadata()
+            assert avu in obj.metadata()
 
     @m.context("When an iRODS object has study ID, but not sample ID metadata")
     @m.context("When it wants study metadata enhanced")
     @m.it("Counts successes correctly")
-    def test_update_general_metadata_with_just_study(
-        self, general_synthetic_irods, general_synthetic_mlwh
+    def test_update_secondary_metadata_with_just_study(
+        self, simple_study_and_sample_data_object, simple_study_and_sample_mlwh
     ):
-        obj_paths = collect_obj_paths(Collection(general_synthetic_irods))
+        obj_path = simple_study_and_sample_data_object.as_posix()
+        obj = DataObject(simple_study_and_sample_data_object)
 
-        data_objects = [DataObject(item) for item in obj_paths]
-        data_objects[0].remove_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
+        assert obj.remove_metadata(AVU(TrackedSample.ID, "id_sample_lims1")) == 1
 
-        assert data_objects[0].metadata() == [AVU(TrackedStudy.ID, "1000")]
-
-        with StringIO("\n".join(obj_paths)) as reader:
-            print(reader.getvalue())
+        with StringIO("\n".join([obj_path])) as reader:
             with StringIO() as writer:
-                engine = general_synthetic_mlwh.get_bind()
-                num_processed, num_updated, num_errors = update_general_metadata(
+                engine = simple_study_and_sample_mlwh.get_bind()
+                num_processed, num_updated, num_errors = update_secondary_metadata(
                     reader, writer, engine, print_update=True
                 )
                 assert num_processed == 1
@@ -716,7 +702,7 @@ class TestMetadataUtilities:
                 assert num_errors == 0
 
                 passed_paths = writer.getvalue().split()
-                assert passed_paths == obj_paths
+                assert passed_paths == [obj_path]
 
             expected_avus = [
                 AVU(TrackedStudy.ID, "1000"),
@@ -726,26 +712,23 @@ class TestMetadataUtilities:
             ]
 
         for avu in expected_avus:
-            assert avu in data_objects[0].metadata()
+            assert avu in obj.metadata()
 
-    @m.context("When an iRODS object has study ID, but not sample ID metadata")
+    @m.context("When an iRODS object has sample ID, but not study ID metadata")
     @m.context("When it wants sample metadata enhanced")
-    @m.it("Counts errors correctly")
+    @m.it("Counts successes correctly")
     def test_update_general_metadata_with_just_study_err(
-        self, general_synthetic_irods, general_synthetic_mlwh
+        self, simple_study_and_sample_data_object, simple_study_and_sample_mlwh
     ):
-        obj_paths = collect_obj_paths(Collection(general_synthetic_irods))
+        obj_path = simple_study_and_sample_data_object.as_posix()
+        obj = DataObject(simple_study_and_sample_data_object)
 
-        data_objects = [DataObject(item) for item in obj_paths]
-        data_objects[0].remove_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
+        assert obj.remove_metadata(AVU(TrackedStudy.ID, "1000")) == 1
 
-        assert data_objects[0].metadata() == [AVU(TrackedStudy.ID, "1000")]
-
-        with StringIO("\n".join(obj_paths)) as reader:
-            print(reader.getvalue())
+        with StringIO("\n".join([obj_path])) as reader:
             with StringIO() as writer:
-                engine = general_synthetic_mlwh.get_bind()
-                num_processed, num_updated, num_errors = update_general_metadata(
+                engine = simple_study_and_sample_mlwh.get_bind()
+                num_processed, num_updated, num_errors = update_secondary_metadata(
                     reader, writer, engine, print_update=True
                 )
                 assert num_processed == 1
@@ -753,10 +736,9 @@ class TestMetadataUtilities:
                 assert num_errors == 0
 
                 passed_paths = writer.getvalue().split()
-                assert passed_paths == obj_paths
+                assert passed_paths == [obj_path]
 
         expected_avus = [
-            AVU(TrackedSample.ID, "id_sample_lims1"),
             AVU(TrackedSample.ACCESSION_NUMBER, "Test Accession"),
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
@@ -766,4 +748,14 @@ class TestMetadataUtilities:
         ]
 
         for avu in expected_avus:
-            assert avu not in data_objects[0].metadata()
+            assert avu in obj.metadata()
+
+        absent_avus = [
+            AVU(TrackedStudy.ID, "1000"),
+            AVU(TrackedStudy.NAME, "Study X"),
+            AVU(TrackedStudy.TITLE, "Test Study Title"),
+            AVU(TrackedStudy.ACCESSION_NUMBER, "Test Accession"),
+        ]
+
+        for avu in absent_avus:
+            assert avu not in obj.metadata()
