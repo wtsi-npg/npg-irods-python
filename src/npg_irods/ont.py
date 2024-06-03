@@ -51,6 +51,7 @@ log = get_logger(__package__)
 # which you can find distributed with MinKNOW and Guppy.
 TAG_IDENTIFIER_GROUP = "tag_id"
 TAG_IDENTIFIER_REGEX = re.compile(r"(?P<tag_id>\d+)$")
+TAG_FOLDER_REGEX = re.compile(r"(?P<tag_folder>barcode\d+)$")
 
 # Directories ignored when searching the run folder for directories containing deplexed
 # data. Examples of sibling directories that are not ignored: fast5_fail, fast5_pass
@@ -446,6 +447,14 @@ def tag_index_from_id(tag_identifier: str) -> int:
     )
 
 
+def check_barcode_path_format(barcode_path: Collection) -> bool:
+    match = TAG_FOLDER_REGEX.search(str(barcode_path))
+    if match:
+        return True
+    else:
+        return False
+
+
 def barcode_name_from_id(tag_identifier: str) -> str:
     """Return the barcode name given a barcode tag identifier. The name is used most
     often for directory naming in ONT experiment results.
@@ -464,10 +473,10 @@ def barcode_name_from_id(tag_identifier: str) -> str:
 
 def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
     """Return the barcode-specific sub-collections that exist under the specified
-    collection.
+    collection basecalled and deplexed on instrument or offline.
 
     The arrangement of these collections mirrors the directory structure created by the
-    guppy basecaller. E.g. for tag identifier NB01:
+    guppy/dorado basecaller. E.g. for tag identifier NB01:
 
         <coll>/fast5_pass/barcode01
         ...
@@ -477,7 +486,18 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
         ...
         <coll>/fastq_fail/barcode01
 
+    ...or for rebasecalled runs:
+
+        <coll>/pass/barcode01
+        <coll>/pass/barcode02
+        ...
+
     etc.
+
+    Old runs (up until June 2024), rebasecalled off-instrument, have the following structure:
+        <coll>/barcode01
+        <coll>/barcode02
+        ...
 
     Args:
         coll: A collection to search.
@@ -488,24 +508,19 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
         A sorted list of existing collections.
     """
     bcolls = []
+    sub_colls = [
+        item for item in coll.contents(recurse=True) if item.rods_type == Collection
+    ]
 
-    sub_colls = [item for item in coll.contents() if item.rods_type == Collection]
-    for sc in sub_colls:  # fast5_fail, fast5_pass etc
-        # These are some known special cases that don't have barcode directories
-        if sc.path.name in IGNORED_DIRECTORIES:
-            log.debug("Ignoring", path=sc)
-            continue
-
+    for bsc in filter(check_barcode_path_format, sub_colls):
         for tag_id in tag_identifier:
-            bpath = sc.path / barcode_name_from_id(tag_id)
-            bcoll = Collection(bpath)
-            if bcoll.exists():
-                bcolls.append(bcoll)
+            if bsc.exists():
+                bcolls.append(bsc)
             else:
                 # LIMS says there is a tag identifier, but there is no sub-collection,
                 # so possibly this was not deplexed on-instrument for some reason e.g.
                 # a non-standard tag set was used
-                log.warn("No barcode sub-collection", path=bcoll, tag_identifier=tag_id)
+                log.warn("No barcode sub-collection", path=bsc, tag_identifier=tag_id)
     bcolls.sort()
 
     return bcolls
