@@ -51,7 +51,6 @@ log = get_logger(__package__)
 # which you can find distributed with MinKNOW and Guppy.
 TAG_IDENTIFIER_GROUP = "tag_id"
 TAG_IDENTIFIER_REGEX = re.compile(r"(?P<tag_id>\d+)$")
-TAG_FOLDER_REGEX = re.compile(r"(?P<tag_folder>barcode\d+)$")
 
 # Directories ignored when searching the run folder for directories containing deplexed
 # data. Examples of sibling directories that are not ignored: fast5_fail, fast5_pass
@@ -447,12 +446,12 @@ def tag_index_from_id(tag_identifier: str) -> int:
     )
 
 
-def check_barcode_path_format(barcode_path: Collection) -> bool:
-    match = TAG_FOLDER_REGEX.search(str(barcode_path))
+def check_barcode_path_format(barcode_path: Collection) -> str:
+    match = TAG_IDENTIFIER_REGEX.search(str(barcode_path))
     if match:
-        return True
+        return match.group(TAG_IDENTIFIER_GROUP)
     else:
-        return False
+        return None
 
 
 def barcode_name_from_id(tag_identifier: str) -> str:
@@ -512,15 +511,17 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
         item for item in coll.contents(recurse=True) if item.rods_type == Collection
     ]
 
-    for bsc in filter(check_barcode_path_format, sub_colls):
-        for tag_id in tag_identifier:
-            if bsc.exists():
-                bcolls.append(bsc)
-            else:
-                # LIMS says there is a tag identifier, but there is no sub-collection,
-                # so possibly this was not deplexed on-instrument for some reason e.g.
-                # a non-standard tag set was used
-                log.warn("No barcode sub-collection", path=bsc, tag_identifier=tag_id)
+    for sc in sub_colls:
+        tag_id = check_barcode_path_format(sc)
+        if tag_id is None:
+            continue
+        if tag_id in tag_identifier:
+            bcolls.append(sc)
+        else:
+            log.error(
+                "The iRODS barcode folder with tag id %s does not correspond to any tag identifier",
+                tag_id,
+            )
     bcolls.sort()
 
     return bcolls
