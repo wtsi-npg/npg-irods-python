@@ -446,14 +446,6 @@ def tag_index_from_id(tag_identifier: str) -> int:
     )
 
 
-def check_barcode_path_format(barcode_path: Collection) -> str:
-    match = TAG_IDENTIFIER_REGEX.search(str(barcode_path))
-    if match:
-        return match.group(TAG_IDENTIFIER_GROUP)
-    else:
-        return None
-
-
 def barcode_name_from_id(tag_identifier: str) -> str:
     """Return the barcode name given a barcode tag identifier. The name is used most
     often for directory naming in ONT experiment results.
@@ -511,16 +503,23 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
         item for item in coll.contents(recurse=True) if item.rods_type == Collection
     ]
 
+    barcodes_tags = {barcode_name_from_id(tag): tag for tag in tag_identifier}
+    barcodes_bcolls = {barcode_name_from_id(tag): None for tag in tag_identifier}
     for sc in sub_colls:
-        tag_id = check_barcode_path_format(sc)
-        if tag_id is None:
-            continue
-        if tag_id in tag_identifier:
-            bcolls.append(sc)
+        if barcodes_tags.get(sc.path.name):
+            barcodes_bcolls[sc.path.name] = sc
+
+    for barcode, bcoll in barcodes_bcolls:
+        if bcoll is not None:
+            bcolls.append(bcoll)
         else:
-            log.error(
-                "The iRODS barcode folder with tag id %s does not correspond to any tag identifier",
-                tag_id,
+            # LIMS says there is a tag identifier, but there is no sub-collection,
+            # so possibly this was not deplexed on-instrument for some reason e.g.
+            # a non-standard tag set was used
+            log.warn(
+                "No barcode sub-collection",
+                path=barcode,
+                tag_identifier=barcodes_tags[barcode],
             )
     bcolls.sort()
 
