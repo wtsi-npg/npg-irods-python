@@ -509,7 +509,7 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
         if barcodes_tags.get(sc.path.name):
             barcodes_bcolls[sc.path.name] = sc
 
-    for barcode, bcoll in barcodes_bcolls:
+    for barcode, bcoll in barcodes_bcolls.items():
         if bcoll is not None:
             bcolls.append(bcoll)
         else:
