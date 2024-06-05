@@ -504,20 +504,20 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
     ]
 
     barcodes_tags = {barcode_name_from_id(tag): tag for tag in tag_identifier}
-    barcodes_bcolls = {barcode_name_from_id(tag): None for tag in tag_identifier}
+    barcodes_colls = {barcode_name_from_id(tag): [] for tag in tag_identifier}
     for sc in sub_colls:
         if barcodes_tags.get(sc.path.name):
-            barcodes_bcolls[sc.path.name] = sc
+            barcodes_colls[sc.path.name].append(sc)
 
-    for barcode, bcoll in barcodes_bcolls.items():
-        if bcoll is not None:
-            bcolls.append(bcoll)
+    for barcode, colls in barcodes_colls.items():
+        if colls:
+            bcolls.extend(colls)
         else:
             # LIMS says there is a tag identifier, but there is no sub-collection,
             # so possibly this was not deplexed on-instrument for some reason e.g.
             # a non-standard tag set was used
             log.warn(
-                "No barcode sub-collection",
+                "No barcode sub-collections",
                 path=barcode,
                 tag_identifier=barcodes_tags[barcode],
             )
