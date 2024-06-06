@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@ import collections
 import io
 import itertools
 import os
-import queue
 import shlex
 import sys
 import threading
@@ -44,12 +43,11 @@ from sqlalchemy import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from structlog import get_logger
 
-from npg_irods import illumina, ont, pacbio
+from npg_irods import common, illumina, ont, pacbio
 from npg_irods.common import (
     AnalysisType,
     Platform,
     infer_data_source,
-    update_secondary_metadata_from_mlwh,
 )
 from npg_irods.db.mlwh import session_context
 from npg_irods.exception import ChecksumError
@@ -676,11 +674,14 @@ def update_secondary_metadata(
                                         rods_item, mlwh_session
                                     )
                                 case platform, analysis:
-                                    log.warn(
-                                        "Unsupported platform/analysis",
+                                    log.info(
+                                        "Falling back to generic study-sample metadata",
                                         path=p,
                                         platform=platform,
                                         analysis=analysis,
+                                    )
+                                    updated = common.ensure_secondary_metadata_updated(
+                                        rods_item, mlwh_session
                                     )
 
                             if updated:
@@ -704,100 +705,6 @@ def update_secondary_metadata(
                         except Exception as e:
                             num_errors += 1
                             log.error(e, item=i)
-                            if print_fail:
-                                _print(path, writer)
-            except SQLAlchemyError as se:
-                # Log any re-raised SQLAlchemy exception and continue with a new
-                # session. If the to_do queue is not empty, we continue with its
-                # remaining contents.
-                log.exception(se)
-
-    return num_processed, num_updated, num_errors
-
-
-def update_general_metadata(
-    reader, writer, engine: Engine, print_update=True, print_fail=False
-) -> (int, int, int):
-    """Update study metadata, on specified iRODS
-    paths, according to current information in the ML warehouse.
-
-    This function is sequencing platform-agnostic and accepts both collection and data
-    object paths.
-
-    Args:
-        reader: A file supplying iRODS collection and/or data object paths to update,
-            one per line.
-        writer: A file where updated paths will be written, one per line.
-        engine: A SQLAlchemy DB engine (ML warehouse).
-        print_update: Print the paths of objects that required updates and were
-            updated successfully. Defaults to True.
-        print_fail: Print the paths that required updates where the update failed.
-            Defaults to False.
-
-    Returns:
-       A tuple of the number of paths checked, the number of paths whose metadata
-       were updated and the number of errors (paths that could not be updated and/or
-       failed to be updated because of an exception).
-    """
-    num_processed, num_updated, num_errors = 0, 0, 0
-    to_do = collections.deque()
-
-    for batch in itertools.batched(enumerate(reader), 100):
-        # Copy the batch so that if we encounter an exception we can pick up where we
-        # left off.
-        to_do.extend(batch)
-
-        while len(to_do) > 0:
-            try:
-                with session_context(engine) as mlwh_session:
-                    while len(to_do) > 0:
-                        i, path = to_do.pop()
-                        num_processed += 1
-
-                        try:
-                            p = path.strip()
-                            rods_item = make_rods_item(p)
-
-                            sample_id = (
-                                rods_item.avu(TrackedSample.ID).value
-                                if rods_item.metadata(TrackedSample.ID)
-                                else None
-                            )
-                            study_id = (
-                                rods_item.avu(TrackedStudy.ID).value
-                                if rods_item.metadata(TrackedStudy.ID)
-                                else None
-                            )
-
-                            log.info("Updated", item=i, path=rods_item)
-                            updated = update_secondary_metadata_from_mlwh(
-                                rods_item,
-                                mlwh_session,
-                                sample_id=sample_id,
-                                study_id=study_id,
-                            )
-
-                            if updated:
-                                num_updated += 1
-                                if print_update:
-                                    _print(p, writer)
-
-                        except RodsError as re:
-                            num_errors += 1
-                            log.error(re.message, item=i, code=re.code)
-                            if print_fail:
-                                _print(path, writer)
-                        except SQLAlchemyError as se:
-                            # Handle here to record which path failed
-                            num_errors += 1
-                            log.error(se, item=i)
-                            if print_fail:
-                                _print(path, writer)
-                            # Re-raise to discard this session (and rollback if needed)
-                            raise se
-                        except Exception as e:
-                            num_errors += 1
-                            log.exception(e, item=i)
                             if print_fail:
                                 _print(path, writer)
             except SQLAlchemyError as se:
@@ -1150,14 +1057,14 @@ def write_safe_remove_commands(target, writer: io.TextIOBase):
     if isinstance(target, partisan.irods.DataObject):
         _log_print("irm", target)
     else:
-        collections = []
+        colls = []
         for item in target.iter_contents(recurse=True):
             if isinstance(item, partisan.irods.DataObject):
                 _log_print("irm", item)
             else:
-                collections.append(item)
-        collections.sort(reverse=True)
-        for coll in collections:
+                colls.append(item)
+        colls.sort(reverse=True)
+        for coll in colls:
             _log_print("irmdir", coll)
         _log_print("irmdir", target)
 

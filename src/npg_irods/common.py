@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ import re
 from enum import Enum, unique
 from os import PathLike
 from pathlib import PurePath
-from typing import Optional, Tuple
+from typing import Tuple
 
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, rods_user
 from sqlalchemy.orm import Session
@@ -31,10 +31,16 @@ from structlog import get_logger
 
 from npg_irods.db.mlwh import find_sample_by_sample_id, find_study_by_study_id
 from npg_irods.metadata.lims import (
+    TrackedSample,
+    TrackedStudy,
+    ensure_consent_withdrawn,
+    has_consent_withdrawn_metadata,
     has_mixed_ownership,
     is_managed_access,
     is_public_access,
+    make_sample_acl,
     make_sample_metadata,
+    make_study_acl,
     make_study_metadata,
 )
 
@@ -46,20 +52,23 @@ class Platform(Enum):
     """An analysis platform (instrument or analysis technology), named by manufacturing
     company."""
 
+    OTHER = 0
     BIONANO = 1
-    FLUIDIGM = 2
-    GENOMICS_10x = 3
-    ILLUMINA = 4
-    OXFORD_NANOPORE_TECHNOLOGIES = 5
-    PACBIO = 6
-    SEQUENOM = 7
-    ULTIMA_GENOMICS = 8
+    ELEMENT_BIOSCIENCES = 2
+    FLUIDIGM = 3
+    GENOMICS_10x = 4
+    ILLUMINA = 5
+    OXFORD_NANOPORE_TECHNOLOGIES = 6
+    PACBIO = 7
+    SEQUENOM = 8
+    ULTIMA_GENOMICS = 9
 
 
 @unique
 class AnalysisType(Enum):
     """A crude classification of bioinformatic analysis types."""
 
+    OTHER = 0
     GENE_EXPRESSION = 1
     GENOTYPING = 2
     NUCLEIC_ACID_SEQUENCING = 3
@@ -89,6 +98,18 @@ def is_illumina(path: PathLike | str) -> bool:
     )
 
 
+def is_infinium(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from an Infinium instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if Infinium data.
+    """
+    return re.match(r"/infinium\b", str(path)) is not None
+
+
 def is_bionano(path: PathLike | str) -> bool:
     """Test whether the argument should be data derived from a BioNano instrument.
 
@@ -99,6 +120,19 @@ def is_bionano(path: PathLike | str) -> bool:
         True if BioNano data.
     """
     return re.match(r"/seq/bionano\b", str(path)) is not None
+
+
+def is_element_biosciences(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from an Element Biosciences
+    instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if Element Biosciences data.
+    """
+    return re.match(r"/seq/elembio\b", str(path)) is not None
 
 
 def is_fluidigm(path: PathLike | str) -> bool:
@@ -173,7 +207,7 @@ def is_ultima_genomics(path: PathLike | str) -> bool:
     Returns:
         True if Ultima data.
     """
-    return re.match(r"/seq/ug\b", str(path)) is not None
+    return re.match(r"/seq/ultimagen\b", str(path)) is not None
 
 
 def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
@@ -187,6 +221,8 @@ def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
     """
     if is_bionano(path):
         return Platform.BIONANO, AnalysisType.OPTICAL_MAPPING
+    if is_element_biosciences(path):
+        return Platform.ELEMENT_BIOSCIENCES, AnalysisType.NUCLEIC_ACID_SEQUENCING
     if is_fluidigm(path):
         return Platform.FLUIDIGM, AnalysisType.GENOTYPING
     if is_10x(path):
@@ -200,12 +236,14 @@ def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
         )
     if is_pacbio(path):
         return Platform.PACBIO, AnalysisType.NUCLEIC_ACID_SEQUENCING
+    if is_infinium(path):
+        return Platform.ILLUMINA, AnalysisType.GENOTYPING
     if is_sequenom(path):
         return Platform.SEQUENOM, AnalysisType.GENOTYPING
     if is_ultima_genomics(path):
         return Platform.ULTIMA_GENOMICS, AnalysisType.NUCLEIC_ACID_SEQUENCING
 
-    raise ValueError(f"Failed to infer a data source for iRODS path '{path}'")
+    return Platform.OTHER, AnalysisType.OTHER
 
 
 def update_metadata(item: Collection | DataObject, avus: list[AVU]) -> bool:
@@ -325,30 +363,59 @@ def infer_zone(path: Collection | DataObject) -> str:
     return parts[1]
 
 
-def update_secondary_metadata_from_mlwh(
-    rods_item: Collection | DataObject,
-    mlwh_session: Session,
-    study_id: Optional[str] = None,
-    sample_id: Optional[str] = None,
+def ensure_secondary_metadata_updated(
+    item: Collection | DataObject, mlwh_session: Session
 ) -> bool:
     """Updates secondary metadata for a iRODS path using data from MLWH.
 
     Args:
-        rods_item: A Collection or DataObject.
+        item: A Collection or DataObject.
         mlwh_session: An open SQL session.
-        study_id: A Study ID from MLWH. Optional, defaults to None.
-        sample_id: A Sample ID from MLWH. Optional, defaults to None.
     Returns:
        True if updated.
     """
-    secondary_metadata = []
+    secondary_metadata, acl = [], []
+    sample, study = None, None
 
-    if study_id is not None:
+    if item.metadata(TrackedStudy.ID):
+        study_id = item.avu(TrackedStudy.ID).value
         study = find_study_by_study_id(mlwh_session, study_id)
-        secondary_metadata.extend(make_study_metadata(study))
 
-    if sample_id is not None:
+    if item.metadata(TrackedSample.ID):
+        sample_id = item.avu(TrackedSample.ID).value
         sample = find_sample_by_sample_id(mlwh_session, sample_id)
-        secondary_metadata.extend(make_sample_metadata(sample))
 
-    return update_metadata(rods_item, secondary_metadata)
+    if study is None and sample is None:
+        raise ValueError(
+            f"Failed to update metadata on {item}. No {TrackedStudy.ID} or "
+            f"{TrackedSample.ID} or metadata are present"
+        )
+
+    if sample is None:
+        secondary_metadata.extend(make_study_metadata(study))
+        acl.extend(make_study_acl(study))
+    elif study is None:
+        secondary_metadata.extend(make_sample_metadata(sample))
+        log.warn(
+            f"Item has no {TrackedStudy.ID} metadata to allow permissions to be set. "
+            "It will be set as unreadable by default.",
+            path=item,
+        )
+    else:
+        secondary_metadata.extend(make_study_metadata(study))
+        secondary_metadata.extend(make_sample_metadata(sample))
+        acl.extend(make_sample_acl(sample, study))
+
+    secondary_metadata = sorted(set(secondary_metadata))
+    acl = sorted(set(acl))
+
+    meta_update = update_metadata(item, secondary_metadata)
+
+    cons_update = perm_update = False
+    if has_consent_withdrawn_metadata(item):
+        log.info("Consent withdrawn", path=item)
+        cons_update = ensure_consent_withdrawn(item)
+    else:
+        perm_update = update_permissions(item, acl)
+
+    return any([meta_update, cons_update, perm_update])

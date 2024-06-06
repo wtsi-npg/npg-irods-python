@@ -15,10 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from partisan.irods import AVU, DataObject
+from partisan.irods import AC, AVU, DataObject, Permission
 from pytest import mark as m
 
-from npg_irods.common import update_secondary_metadata_from_mlwh
+from npg_irods.common import ensure_secondary_metadata_updated
 from npg_irods.metadata.lims import TrackedSample, TrackedStudy
 
 
@@ -26,18 +26,11 @@ class TestCommonFunctions:
     @m.context("When an iRODS object has both study and sample ID metadata")
     @m.context("When it wants both study and sample metadata enhanced")
     @m.it("Updates study and sample metadata from MLWH")
-    def test_update_secondary_metadata_from_mlwh(
-        self, general_synthetic_irods, general_synthetic_mlwh
+    def test_ensure_secondary_metadata_updated(
+        self, simple_study_and_sample_data_object, simple_study_and_sample_mlwh
     ):
-        path = general_synthetic_irods / "lorem.txt"
-        obj = DataObject(path)
         sample_id = "id_sample_lims1"
         study_id = "1000"
-
-        old_avus = [AVU(TrackedStudy.ID, study_id), AVU(TrackedSample.ID, sample_id)]
-
-        for avu in old_avus:
-            assert avu in obj.metadata()
 
         expected_avus = [
             AVU(TrackedStudy.ID, study_id),
@@ -53,40 +46,63 @@ class TestCommonFunctions:
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
         ]
 
-        assert update_secondary_metadata_from_mlwh(
-            obj, general_synthetic_mlwh, sample_id=sample_id, study_id=study_id
-        )
+        obj = DataObject(simple_study_and_sample_data_object)
+        assert ensure_secondary_metadata_updated(obj, simple_study_and_sample_mlwh)
 
         for avu in expected_avus:
             assert avu in obj.metadata()
+
+    @m.context("When an iRODS object has both study and sample ID metadata")
+    @m.context("When it wants both study and sample metadata enhanced")
+    @m.it("Updates permissions according to the study")
+    def test_ensure_secondary_metadata_permissions_updated(
+        self, simple_study_and_sample_data_object, simple_study_and_sample_mlwh
+    ):
+        zone = "testZone"
+
+        obj = DataObject(simple_study_and_sample_data_object)
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+        assert ensure_secondary_metadata_updated(obj, simple_study_and_sample_mlwh)
+        assert obj.permissions() == [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_1000", perm=Permission.READ, zone=zone),
+        ]
 
     @m.context("When an iRODS object has study ID, but not sample ID metadata")
     @m.context("When it wants study metadata enhanced")
-    @m.it("Updates study metadata from MLWH")
-    def test_update_secondary_metadata_from_mlwh_no_sample(
-        self, general_synthetic_irods, general_synthetic_mlwh
+    @m.it("Updates permissions according to the study")
+    def test_ensure_secondary_metadata_permissions_updated_no_sample(
+        self, simple_study_and_sample_data_object, simple_study_and_sample_mlwh
     ):
-        path = general_synthetic_irods / "lorem.txt"
-        obj = DataObject(path)
-        study_id = "1000"
+        zone = "testZone"
 
+        obj = DataObject(simple_study_and_sample_data_object)
         obj.remove_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
 
-        old_avus = [AVU(TrackedStudy.ID, study_id)]
-
-        for avu in old_avus:
-            assert avu in obj.metadata()
-
-        expected_avus = [
-            AVU(TrackedStudy.ID, "1000"),
-            AVU(TrackedStudy.NAME, "Study X"),
-            AVU(TrackedStudy.TITLE, "Test Study Title"),
-            AVU(TrackedStudy.ACCESSION_NUMBER, "Test Accession"),
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+        assert ensure_secondary_metadata_updated(obj, simple_study_and_sample_mlwh)
+        assert obj.permissions() == [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_1000", perm=Permission.READ, zone=zone),
         ]
 
-        assert update_secondary_metadata_from_mlwh(
-            obj, general_synthetic_mlwh, study_id=study_id
+    @m.context("When an iRODS object has no study ID")
+    @m.context("When it wants study metadata enhanced")
+    @m.it("Removes access permissions")
+    def test_ensure_secondary_metadata_permissions_updated_no_study(
+        self, simple_study_and_sample_data_object, simple_study_and_sample_mlwh
+    ):
+        zone = "testZone"
+
+        obj = DataObject(simple_study_and_sample_data_object)
+        obj.remove_metadata(AVU(TrackedStudy.ID, "1000"))
+        obj.add_permissions(
+            AC("ss_1000", perm=Permission.READ, zone=zone),
         )
 
-        for avu in expected_avus:
-            assert avu in obj.metadata()
+        assert obj.permissions() == [
+            AC("irods", perm=Permission.OWN, zone=zone),
+            AC("ss_1000", perm=Permission.READ, zone=zone),
+        ]
+        assert ensure_secondary_metadata_updated(obj, simple_study_and_sample_mlwh)
+        assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]

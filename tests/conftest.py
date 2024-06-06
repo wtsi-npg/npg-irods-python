@@ -26,7 +26,7 @@
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import PurePath
 
 import pytest
@@ -115,7 +115,7 @@ def mlwh_session() -> Session:
     drop_database(engine.url)
 
 
-def initialize_mlwh_synthetic(session: Session):
+def initialize_mlwh_study_and_sample(session: Session):
     """
     Insert ML warehouse test data for synthetic runs.
 
@@ -153,9 +153,9 @@ def initialize_mlwh_synthetic(session: Session):
 
 
 @pytest.fixture(scope="function")
-def general_synthetic_mlwh(mlwh_session) -> Session:
+def simple_study_and_sample_mlwh(mlwh_session) -> Session:
     """An ML warehouse database fixture populated with test study records."""
-    initialize_mlwh_synthetic(mlwh_session)
+    initialize_mlwh_study_and_sample(mlwh_session)
     yield mlwh_session
 
 
@@ -200,7 +200,9 @@ def annotated_data_object(tmp_path):
 
     obj = DataObject(obj_path)
     obj.add_metadata(
-        AVU(DublinCore.CREATED, datetime.utcnow().isoformat(timespec="seconds")),
+        AVU(
+            DublinCore.CREATED, datetime.now(timezone.utc).isoformat(timespec="seconds")
+        ),
         AVU(DublinCore.CREATOR, "dummy creator"),
         AVU(DublinCore.PUBLISHER, "dummy publisher"),
         AVU(DataFile.TYPE, "txt"),
@@ -211,6 +213,31 @@ def annotated_data_object(tmp_path):
         yield obj_path
     finally:
         remove_rods_path(rods_path)
+
+
+@pytest.fixture(scope="function")
+def simple_study_and_sample_data_object(tmp_path):
+    """A fixture providing a collection containing a single data object with sample
+    and study metadata"""
+    root_path = PurePath(
+        "/testZone/home/irods/test/simple_study_and_sample_data_object"
+    )
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    add_test_groups()
+    obj_path = rods_path / "lorem.txt"
+    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
+
+    obj = DataObject(obj_path)
+    obj.add_metadata(
+        AVU(TrackedSample.ID, "id_sample_lims1"), AVU(TrackedStudy.ID, "1000")
+    )
+
+    try:
+        yield obj_path
+    finally:
+        remove_rods_path(rods_path)
+        remove_test_groups()
 
 
 @pytest.fixture(scope="function")
@@ -243,25 +270,6 @@ def consent_withdrawn_npg_data_object(tmp_path):
 
     try:
         yield obj_path
-    finally:
-        remove_rods_path(rods_path)
-
-
-@pytest.fixture(scope="function")
-def general_synthetic_irods(tmp_path):
-    root_path = PurePath("/testZone/home/irods/test/general_study_metadata_update")
-    rods_path = add_rods_path(root_path, tmp_path)
-
-    obj_path = rods_path / "lorem.txt"
-    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
-
-    obj = DataObject(obj_path)
-    obj.add_metadata(
-        AVU(TrackedStudy.ID, "1000"), AVU(TrackedSample.ID, "id_sample_lims1")
-    )
-
-    try:
-        yield rods_path
     finally:
         remove_rods_path(rods_path)
 
