@@ -250,6 +250,68 @@ class TestONTMetadataCreation(object):
                 for item in bc_coll.contents():
                     assert item.acl() == expected_acl
 
+    @tests_have_admin
+    @m.context("When ONT experiment collections of rebasecalled data are annotated")
+    @m.context("When experiments are multiplexed")
+    @m.it("Adds tag_index, sample and study metadata to barcode<0n> sub-collections")
+    def test_add_new_plex_metadata_on_rebasecalled(
+        self, ont_synthetic_irods, ont_synthetic_mlwh
+    ):
+        zone = "testZone"
+        slot = 1
+
+        testdata = {
+            "old_rebasecalled_multiplexed_experiment_001": {
+                "runfolder": "20190904_1514_GA10000_flowcell201_cf751ba1",
+                "subfolder": "",
+            },
+            "rebasecalled_multiplexed_experiment_001": {
+                "runfolder": "20190904_1514_GA10000_flowcell301_cf751ba1",
+                "subfolder": "pass",
+            },
+        }
+
+        for expt in [
+            "old_rebasecalled_multiplexed_experiment_001",
+            "rebasecalled_multiplexed_experiment_001",
+        ]:
+            path = ont_synthetic_irods / expt / testdata[expt]["runfolder"]
+
+            c = Component(experiment_name=expt, instrument_slot=slot)
+
+            assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+
+            for tag_index in range(1, 5):
+                tag_identifier = ont_tag_identifier(tag_index)
+                bc_coll = Collection(
+                    path
+                    / testdata[expt]["subfolder"]
+                    / ont.barcode_name_from_id(tag_identifier)
+                )
+
+                for avu in [
+                    AVU(SeqConcept.TAG_INDEX, ont.tag_index_from_id(tag_identifier)),
+                    AVU(TrackedSample.ACCESSION_NUMBER, f"ACC{tag_index}"),
+                    AVU(TrackedSample.COMMON_NAME, f"common_name{tag_index}"),
+                    AVU(TrackedSample.DONOR_ID, f"donor_id{tag_index}"),
+                    AVU(TrackedSample.ID, f"id_sample_lims{tag_index}"),
+                    AVU(TrackedSample.NAME, f"name{tag_index}"),
+                    AVU(TrackedSample.PUBLIC_NAME, f"public_name{tag_index}"),
+                    AVU(TrackedSample.SUPPLIER_NAME, f"supplier_name{tag_index}"),
+                    AVU(TrackedStudy.ID, "3000"),
+                    AVU(TrackedStudy.NAME, "Study Z"),
+                ]:
+                    assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
+
+                expected_acl = [
+                    AC("irods", Permission.OWN, zone=zone),
+                    AC("ss_3000", Permission.READ, zone=zone),
+                ]
+
+                assert bc_coll.acl() == expected_acl
+                for item in bc_coll.contents():
+                    assert item.acl() == expected_acl
+
 
 class TestONTMetadataUpdate(object):
     @m.context("When ONT metadata are applied")
@@ -365,6 +427,41 @@ class TestONTMetadataUpdate(object):
         assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
         assert ensure_secondary_metadata_updated(coll, mlwh_session=ont_synthetic_mlwh)
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
+
+    @m.context("When rebasecalled ONT metadata are updated")
+    @m.context("When an iRODS path has metadata identifying its run component")
+    @m.it("Updates the metadata")
+    def test_updates_rebasecalled_annotated_collection(
+        self, ont_synthetic_irods, ont_synthetic_mlwh
+    ):
+        slot = 1
+
+        testdata = {
+            "old_rebasecalled_multiplexed_experiment_001": {
+                "runfolder": "20190904_1514_GA10000_flowcell201_cf751ba1",
+            },
+            "rebasecalled_multiplexed_experiment_001": {
+                "runfolder": "20190904_1514_GA10000_flowcell301_cf751ba1",
+            },
+        }
+
+        for expt in [
+            "old_rebasecalled_multiplexed_experiment_001",
+            "rebasecalled_multiplexed_experiment_001",
+        ]:
+            path = ont_synthetic_irods / expt / testdata[expt]["runfolder"]
+
+            coll = Collection(path)
+            coll.add_metadata(
+                AVU(Instrument.EXPERIMENT_NAME, expt),
+                AVU(Instrument.INSTRUMENT_SLOT, slot),
+            )
+
+            assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
+            assert ensure_secondary_metadata_updated(
+                coll, mlwh_session=ont_synthetic_mlwh
+            )
+            assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
 
 
 class TestONTPermissionsUpdate:
