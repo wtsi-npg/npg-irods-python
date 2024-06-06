@@ -32,12 +32,20 @@ class TestHTMLReports:
 
         # Uncomment to write the HTML to a file for manual inspection
         #
-        # with open("ont_meta_report.html", "w") as f:
-        #     f.write(indent((doc.getvalue())))
+        with open("ont_meta_report.html", "w") as f:
+            f.write(indent((doc.getvalue())))
 
         links = [x for x in doc.result if x.startswith('<a href="/testZone/')]
 
         expected_colls = 40
+        expected_rebasecalled_colls = 2
         expected_objs = 3
+        expected_rebasecalled_objs = 2
 
-        assert len(links) == expected_colls + expected_objs
+        assert (
+            len(links)
+            == expected_colls
+            + expected_rebasecalled_colls
+            + expected_objs
+            + expected_rebasecalled_objs
+        )
