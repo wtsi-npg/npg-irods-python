@@ -51,12 +51,16 @@ class TestONTFindUpdates:
         num_simple_expts = 5
         num_multiplexed_expts = 3
         num_slots = 5
+        num_rebasecalled_multiplexed_expts = 1
+        num_rebasecalled_slots = 1
 
         num_found, num_updated, num_errors = apply_metadata(
             mlwh_session=ont_synthetic_mlwh
         )
-        num_expected = (num_simple_expts * num_slots) + (
-            num_multiplexed_expts * num_slots
+        num_expected = (
+            (num_simple_expts * num_slots)
+            + (num_multiplexed_expts * num_slots)
+            + (num_rebasecalled_multiplexed_expts * num_rebasecalled_slots)
         )
 
         assert num_found == num_expected, f"Found {num_expected} collections"
@@ -83,6 +87,8 @@ class TestONTFindUpdates:
                 "multiplexed_experiment_003/20190904_1514_GA10000_flowcell101_cf751ba1",
                 "multiplexed_experiment_003/20190904_1514_GA30000_flowcell103_cf751ba1",
                 "multiplexed_experiment_003/20190904_1514_GA50000_flowcell105_cf751ba1",
+                "old_rebasecalled_multiplexed_experiment_001/20190904_1514_GA10000_flowcell201_cf751ba1",
+                "rebasecalled_multiplexed_experiment_001/20190904_1514_GA10000_flowcell301_cf751ba1",
             ]
         ]
         num_expected = len(expected_colls)
