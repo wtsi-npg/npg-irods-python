@@ -32,8 +32,8 @@ class TestHTMLReports:
 
         # Uncomment to write the HTML to a file for manual inspection
         #
-        with open("ont_meta_report.html", "w") as f:
-            f.write(indent((doc.getvalue())))
+        # with open("ont_meta_report.html", "w") as f:
+        #     f.write(indent((doc.getvalue())))
 
         links = [x for x in doc.result if x.startswith('<a href="/testZone/')]
 
