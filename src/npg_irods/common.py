@@ -54,13 +54,14 @@ class Platform(Enum):
 
     OTHER = 0
     BIONANO = 1
-    FLUIDIGM = 2
-    GENOMICS_10x = 3
-    ILLUMINA = 4
-    OXFORD_NANOPORE_TECHNOLOGIES = 5
-    PACBIO = 6
-    SEQUENOM = 7
-    ULTIMA_GENOMICS = 8
+    ELEMENT_BIOSCIENCES = 2
+    FLUIDIGM = 3
+    GENOMICS_10x = 4
+    ILLUMINA = 5
+    OXFORD_NANOPORE_TECHNOLOGIES = 6
+    PACBIO = 7
+    SEQUENOM = 8
+    ULTIMA_GENOMICS = 9
 
 
 @unique
@@ -119,6 +120,19 @@ def is_bionano(path: PathLike | str) -> bool:
         True if BioNano data.
     """
     return re.match(r"/seq/bionano\b", str(path)) is not None
+
+
+def is_element_biosciences(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from an Element Biosciences
+    instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if Element Biosciences data.
+    """
+    return re.match(r"/seq/elembio\b", str(path)) is not None
 
 
 def is_fluidigm(path: PathLike | str) -> bool:
@@ -193,7 +207,7 @@ def is_ultima_genomics(path: PathLike | str) -> bool:
     Returns:
         True if Ultima data.
     """
-    return re.match(r"/seq/ug\b", str(path)) is not None
+    return re.match(r"/seq/ultimagen\b", str(path)) is not None
 
 
 def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
@@ -207,6 +221,8 @@ def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
     """
     if is_bionano(path):
         return Platform.BIONANO, AnalysisType.OPTICAL_MAPPING
+    if is_element_biosciences(path):
+        return Platform.ELEMENT_BIOSCIENCES, AnalysisType.NUCLEIC_ACID_SEQUENCING
     if is_fluidigm(path):
         return Platform.FLUIDIGM, AnalysisType.GENOTYPING
     if is_10x(path):
