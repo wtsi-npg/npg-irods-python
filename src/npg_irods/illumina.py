@@ -262,7 +262,7 @@ def without_suffixes(path: PurePath) -> PurePath:
 
 def is_qc_data_object(item: DataObject | Collection) -> bool:
     """Return True if the given data object is in the qc sub-collection."""
-    return item.rods_type == DataObject and item.path.parent.name.casefold() == "qc"
+    return item.rods_type == DataObject and item.path.name.casefold() == "qc"
 
 
 def split_name(name: str) -> tuple[str, str]:
@@ -361,10 +361,11 @@ def find_associated_components(item: DataObject | Collection) -> list[Component]
 
     # Try to find the associated BAM or CRAM file. This will be in the same collection,
     # except in the case of QC data objects, where it will be in the parent collection.
+    # As this is data object, item.path is its collection.
     if is_qc_data_object(item):
-        coll = Collection(item.path.parent.parent)
-    else:
         coll = Collection(item.path.parent)
+    else:
+        coll = Collection(item.path)
 
     log.info("Looking in associated collection", path=coll)
 
