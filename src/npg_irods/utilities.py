@@ -69,8 +69,6 @@ from npg_irods.metadata.common import (
     trimmable_replicas,
 )
 from npg_irods.metadata.lims import (
-    TrackedSample,
-    TrackedStudy,
     ensure_consent_withdrawn,
     has_consent_withdrawn,
     has_consent_withdrawn_metadata,
@@ -289,9 +287,9 @@ def check_replicas(
           print_fail: Print the paths of objects failing the check. Defaults to False.
 
       Returns:
-          A tuple of the number of paths checked, the number of paths found to be correct
-          and the number of errors (paths with incorrect checksums and/or paths that
-          failed to be checked because of an exception).
+          A tuple of the number of paths checked, the number of paths found to be
+          correct and the number of errors (paths with incorrect checksums and/or paths
+          that failed to be checked because of an exception).
     """
     with client_pool(num_clients) as bp:
 
