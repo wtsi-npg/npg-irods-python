@@ -51,7 +51,7 @@ class TestONTFindUpdates:
         num_simple_expts = 5
         num_multiplexed_expts = 3
         num_slots = 5
-        num_rebasecalled_multiplexed_expts = 1
+        num_rebasecalled_multiplexed_expts = 2
         num_rebasecalled_slots = 1
 
         num_found, num_updated, num_errors = apply_metadata(
@@ -289,11 +289,12 @@ class TestONTMetadataCreation(object):
 
             for tag_index in range(1, 5):
                 tag_identifier = ont_tag_identifier(tag_index)
-                bc_coll = Collection(
+                bpath = (
                     path
                     / testdata[expt]["subfolder"]
                     / ont.barcode_name_from_id(tag_identifier)
                 )
+                bc_coll = Collection(bpath)
 
                 for avu in [
                     AVU(SeqConcept.TAG_INDEX, ont.tag_index_from_id(tag_identifier)),
