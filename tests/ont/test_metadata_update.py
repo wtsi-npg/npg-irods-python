@@ -442,13 +442,14 @@ class TestONTMetadataUpdate(object):
         self, ont_synthetic_irods, ont_synthetic_mlwh
     ):
         slot = 1
-
         testdata = {
             "old_rebasecalled_multiplexed_experiment_001": {
                 "runfolder": "20190904_1514_GA10000_flowcell201_cf751ba1",
+                "subfolder": "",
             },
             "rebasecalled_multiplexed_experiment_001": {
                 "runfolder": "20190904_1514_GA10000_flowcell301_cf751ba1",
+                "subfolder": "pass",
             },
         }
 
@@ -457,18 +458,32 @@ class TestONTMetadataUpdate(object):
             "rebasecalled_multiplexed_experiment_001",
         ]:
             path = ont_synthetic_irods / expt / testdata[expt]["runfolder"]
-
             coll = Collection(path)
             coll.add_metadata(
                 AVU(Instrument.EXPERIMENT_NAME, expt),
                 AVU(Instrument.INSTRUMENT_SLOT, slot),
             )
 
-            assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
+            samples_paths: tuple[str, Collection] = []
+            for tag_index in range(1, 5):
+                tag_identifier = ont_tag_identifier(tag_index)
+                bpath = (
+                    path
+                    / testdata[expt]["subfolder"]
+                    / ont.barcode_name_from_id(tag_identifier)
+                )
+                bcoll = Collection(bpath)
+                samples_paths.append((f"name{tag_index}", bcoll))
+
+            for sample_name, _ in samples_paths:
+                assert AVU(TrackedSample.NAME, sample_name) not in coll.metadata()
+            for sample_name, bcoll in samples_paths:
+                assert AVU(TrackedSample.NAME, sample_name) not in bcoll.metadata()
             assert ensure_secondary_metadata_updated(
                 coll, mlwh_session=ont_synthetic_mlwh
             )
-            assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
+            for sample_name, bcoll in samples_paths:
+                assert AVU(TrackedSample.NAME, sample_name) in bcoll.metadata()
 
 
 class TestONTPermissionsUpdate:
