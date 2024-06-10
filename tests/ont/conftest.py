@@ -287,7 +287,7 @@ def ont_synthetic_irods(tmp_path):
         for slot in range(1, 2):
             expt_name = f"old_rebasecalled_multiplexed_experiment_{expt :0>3}"
             id_flowcell = f"flowcell{slot + 200 :0>3}"
-            run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_cf751ba1"
+            run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_b4a1fd79"
 
             coll = Collection(expt_root / expt_name / run_folder)
             coll.create(parents=True)
@@ -301,7 +301,7 @@ def ont_synthetic_irods(tmp_path):
         for slot in range(1, 2):
             expt_name = f"rebasecalled_multiplexed_experiment_{expt :0>3}"
             id_flowcell = f"flowcell{slot + 300 :0>3}"
-            run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_cf751ba1"
+            run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_08c179cd"
 
             coll = Collection(expt_root / expt_name / run_folder)
             coll.create(parents=True)

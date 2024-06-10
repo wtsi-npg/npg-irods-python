@@ -87,8 +87,8 @@ class TestONTFindUpdates:
                 "multiplexed_experiment_003/20190904_1514_GA10000_flowcell101_cf751ba1",
                 "multiplexed_experiment_003/20190904_1514_GA30000_flowcell103_cf751ba1",
                 "multiplexed_experiment_003/20190904_1514_GA50000_flowcell105_cf751ba1",
-                "old_rebasecalled_multiplexed_experiment_001/20190904_1514_GA10000_flowcell201_cf751ba1",
-                "rebasecalled_multiplexed_experiment_001/20190904_1514_GA10000_flowcell301_cf751ba1",
+                "old_rebasecalled_multiplexed_experiment_001/20190904_1514_GA10000_flowcell201_b4a1fd79",
+                "rebasecalled_multiplexed_experiment_001/20190904_1514_GA10000_flowcell301_08c179cd",
             ]
         ]
         num_expected = len(expected_colls)
@@ -268,11 +268,11 @@ class TestONTMetadataCreation(object):
 
         testdata = {
             "old_rebasecalled_multiplexed_experiment_001": {
-                "runfolder": "20190904_1514_GA10000_flowcell201_cf751ba1",
+                "runfolder": "20190904_1514_GA10000_flowcell201_b4a1fd79",
                 "subfolder": "",
             },
             "rebasecalled_multiplexed_experiment_001": {
-                "runfolder": "20190904_1514_GA10000_flowcell301_cf751ba1",
+                "runfolder": "20190904_1514_GA10000_flowcell301_08c179cd",
                 "subfolder": "pass",
             },
         }
@@ -444,11 +444,11 @@ class TestONTMetadataUpdate(object):
         slot = 1
         testdata = {
             "old_rebasecalled_multiplexed_experiment_001": {
-                "runfolder": "20190904_1514_GA10000_flowcell201_cf751ba1",
+                "runfolder": "20190904_1514_GA10000_flowcell201_b4a1fd79",
                 "subfolder": "",
             },
             "rebasecalled_multiplexed_experiment_001": {
-                "runfolder": "20190904_1514_GA10000_flowcell301_cf751ba1",
+                "runfolder": "20190904_1514_GA10000_flowcell301_08c179cd",
                 "subfolder": "pass",
             },
         }
