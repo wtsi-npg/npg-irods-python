@@ -391,9 +391,10 @@ def ensure_secondary_metadata_updated(
             f"{TrackedSample.ID} or metadata are present"
         )
 
+    zone = infer_zone(item)
     if sample is None:
         secondary_metadata.extend(make_study_metadata(study))
-        acl.extend(make_study_acl(study))
+        acl.extend(make_study_acl(study, zone=zone))
     elif study is None:
         secondary_metadata.extend(make_sample_metadata(sample))
         log.warn(
@@ -404,7 +405,7 @@ def ensure_secondary_metadata_updated(
     else:
         secondary_metadata.extend(make_study_metadata(study))
         secondary_metadata.extend(make_sample_metadata(sample))
-        acl.extend(make_sample_acl(sample, study))
+        acl.extend(make_sample_acl(sample, study, zone=zone))
 
     secondary_metadata = sorted(set(secondary_metadata))
     acl = sorted(set(acl))
