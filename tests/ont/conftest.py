@@ -288,8 +288,18 @@ def ont_synthetic_irods(tmp_path):
             expt_name = f"old_rebasecalled_multiplexed_experiment_{expt :0>3}"
             id_flowcell = f"flowcell{slot + 200 :0>3}"
             run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_b4a1fd79"
-
-            coll = Collection(expt_root / expt_name / run_folder)
+            path = PurePath(
+                expt_root,
+                expt_name,
+                run_folder,
+                "dorado",
+                "7.2.13",
+                "sup",
+                "simplex",
+                "normal",
+                "default",
+            )
+            coll = Collection(path)
             coll.create(parents=True)
             meta = [
                 AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
@@ -302,8 +312,18 @@ def ont_synthetic_irods(tmp_path):
             expt_name = f"rebasecalled_multiplexed_experiment_{expt :0>3}"
             id_flowcell = f"flowcell{slot + 300 :0>3}"
             run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_08c179cd"
-
-            coll = Collection(expt_root / expt_name / run_folder)
+            path = PurePath(
+                expt_root,
+                expt_name,
+                run_folder,
+                "dorado",
+                "7.2.13",
+                "sup",
+                "simplex",
+                "normal",
+                "default",
+            )
+            coll = Collection(path)
             coll.create(parents=True)
             meta = [
                 AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
@@ -311,8 +331,9 @@ def ont_synthetic_irods(tmp_path):
             ]
             coll.add_metadata(*meta)
 
-    # We have synthetic data only for simple_experiment_001 and
-    # multiplexed_experiment_001
+    # We have synthetic data only for simple_experiment_001,
+    # multiplexed_experiment_001, rebasecalled_multiplexed_experiment_001
+    # and old_rebasecalled_multiplexed_experiment_001
     iput("./tests/data/ont/synthetic", rods_path, recurse=True)
 
     try:

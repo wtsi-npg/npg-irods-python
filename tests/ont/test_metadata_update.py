@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 from datetime import datetime
+from pathlib import PurePath
 
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
 from pytest import mark as m
@@ -266,22 +267,30 @@ class TestONTMetadataCreation(object):
         zone = "testZone"
         slot = 1
 
+        subpath = PurePath(
+            "dorado",
+            "7.2.13",
+            "sup",
+            "simplex",
+            "normal",
+            "default",
+        )
         testdata = {
-            "old_rebasecalled_multiplexed_experiment_001": {
-                "runfolder": "20190904_1514_GA10000_flowcell201_b4a1fd79",
-                "subfolder": "",
-            },
-            "rebasecalled_multiplexed_experiment_001": {
-                "runfolder": "20190904_1514_GA10000_flowcell301_08c179cd",
-                "subfolder": "pass",
-            },
+            "old_rebasecalled_multiplexed_experiment_001": PurePath(
+                "old_rebasecalled_multiplexed_experiment_001",
+                "20190904_1514_GA10000_flowcell201_b4a1fd79",
+                subpath,
+            ),
+            "rebasecalled_multiplexed_experiment_001": PurePath(
+                "rebasecalled_multiplexed_experiment_001",
+                "20190904_1514_GA10000_flowcell301_08c179cd",
+                subpath,
+                "pass",
+            ),
         }
 
-        for expt in [
-            "old_rebasecalled_multiplexed_experiment_001",
-            "rebasecalled_multiplexed_experiment_001",
-        ]:
-            path = ont_synthetic_irods / expt / testdata[expt]["runfolder"]
+        for expt, rel_path in testdata.items():
+            path = ont_synthetic_irods / rel_path
 
             c = Component(experiment_name=expt, instrument_slot=slot)
 
@@ -289,11 +298,7 @@ class TestONTMetadataCreation(object):
 
             for tag_index in range(1, 5):
                 tag_identifier = ont_tag_identifier(tag_index)
-                bpath = (
-                    path
-                    / testdata[expt]["subfolder"]
-                    / ont.barcode_name_from_id(tag_identifier)
-                )
+                bpath = path / ont.barcode_name_from_id(tag_identifier)
                 bc_coll = Collection(bpath)
 
                 for avu in [
@@ -442,22 +447,35 @@ class TestONTMetadataUpdate(object):
         self, ont_synthetic_irods, ont_synthetic_mlwh
     ):
         slot = 1
+        subpath = PurePath(
+            "dorado",
+            "7.2.13",
+            "sup",
+            "simplex",
+            "normal",
+            "default",
+        )
         testdata = {
             "old_rebasecalled_multiplexed_experiment_001": {
-                "runfolder": "20190904_1514_GA10000_flowcell201_b4a1fd79",
+                "runfolder": PurePath(
+                    "old_rebasecalled_multiplexed_experiment_001",
+                    "20190904_1514_GA10000_flowcell201_b4a1fd79",
+                    subpath,
+                ),
                 "subfolder": "",
             },
             "rebasecalled_multiplexed_experiment_001": {
-                "runfolder": "20190904_1514_GA10000_flowcell301_08c179cd",
+                "runfolder": PurePath(
+                    "rebasecalled_multiplexed_experiment_001",
+                    "20190904_1514_GA10000_flowcell301_08c179cd",
+                    subpath,
+                ),
                 "subfolder": "pass",
             },
         }
 
-        for expt in [
-            "old_rebasecalled_multiplexed_experiment_001",
-            "rebasecalled_multiplexed_experiment_001",
-        ]:
-            path = ont_synthetic_irods / expt / testdata[expt]["runfolder"]
+        for expt in testdata.keys():
+            path = ont_synthetic_irods / testdata[expt]["runfolder"]
             coll = Collection(path)
             coll.add_metadata(
                 AVU(Instrument.EXPERIMENT_NAME, expt),
