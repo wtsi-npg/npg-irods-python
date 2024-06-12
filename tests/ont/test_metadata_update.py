@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import PurePath
 
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
-from pytest import mark as m
+from pytest import mark as m, raises
 
 from helpers import LATEST, history_in_meta, tests_have_admin
 from ont.conftest import ont_tag_identifier
@@ -39,6 +39,7 @@ from npg_irods.ont import (
     apply_metadata,
     ensure_secondary_metadata_updated,
     is_minknow_report,
+    barcode_collections,
 )
 
 
@@ -692,3 +693,49 @@ class TestONTPermissionsUpdate:
                 assert (
                     item.acl() == expected_acl
                 ), f"ACL of root collection member {item} is {expected_acl}"
+
+
+class TestBarcodeRelatedFunctions(object):
+    @m.context("When rebasecalled ONT runs are plexed")
+    @m.context("When barcode folders lie one level down in the output folder")
+    @m.it("Barcode collections number is correct")
+    def test_barcode_collections_under_subfolder(self, ont_synthetic_irods):
+        expected_bcolls = 5
+        expt = "multiplexed_folder_experiment_001"
+        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell401_ba641ab1"
+        tag_identifiers = [ont_tag_identifier(tag_index) for tag_index in range(1, 6)]
+        for tag_identifier in tag_identifiers:
+            bpath = path / "pass" / ont.barcode_name_from_id(tag_identifier)
+            Collection(bpath).create(parents=True)
+
+        bcolls = barcode_collections(Collection(path), *tag_identifiers)
+        assert len(bcolls) == expected_bcolls
+
+    @m.context("When rebasecalled ONT runs are plexed")
+    @m.context("When barcodes are right under the output folder")
+    @m.it("Barcode collections number is correct")
+    def test_barcode_collections_under_output_folder(self, ont_synthetic_irods):
+        expected_bcolls = 5
+        expt = "multiplexed_folder_experiment_002"
+        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell402_ca641bc1"
+        tag_identifiers = [ont_tag_identifier(tag_index) for tag_index in range(1, 6)]
+        for tag_identifier in tag_identifiers:
+            bpath = path / ont.barcode_name_from_id(tag_identifier)
+            Collection(bpath).create(parents=True)
+
+        bcolls = barcode_collections(Collection(path), *tag_identifiers)
+        assert len(bcolls) == expected_bcolls
+
+    @m.context("When rebasecalled ONT runs are plexed")
+    @m.context("When the barcode folder is duplicated under a barcode collection")
+    @m.it("Raises exception for duplicated barcode folders")
+    def test_barcode_collections_duplicates(self, ont_synthetic_irods):
+        expt = "multiplexed_folder_experiment_003"
+        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell403_de531cf1"
+        tag_identifiers = [ont_tag_identifier(tag_index) for tag_index in range(1, 6)]
+        for tag_identifier in tag_identifiers:
+            barcode_name = ont.barcode_name_from_id(tag_identifier)
+            bpath = path / barcode_name / barcode_name
+            Collection(bpath).create(parents=True)
+        with raises(ValueError):
+            barcode_collections(Collection(path), *tag_identifiers)

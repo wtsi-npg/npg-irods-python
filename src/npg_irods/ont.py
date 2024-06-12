@@ -480,6 +480,7 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
     ...or for rebasecalled runs:
 
         <coll>/pass/barcode01
+        ...
         <coll>/pass/barcode02
         ...
 
@@ -487,6 +488,7 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
 
     Old runs (up until June 2024), rebasecalled off-instrument, have the following structure:
         <coll>/barcode01
+        ...
         <coll>/barcode02
         ...
 
@@ -507,6 +509,13 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
     barcodes_colls = {barcode_name_from_id(tag): [] for tag in tag_identifier}
     for sc in sub_colls:
         if barcodes_tags.get(sc.path.name):
+            duplicated = re.findall(r"(barcode\d+)", str(sc.path))
+            if len(duplicated) > 1:
+                msg = (
+                    f"Incorrect barcode folder path {str(sc.path)}. "
+                    f"Contains multiple barcode folders {duplicated}"
+                )
+                raise ValueError(msg)
             barcodes_colls[sc.path.name].append(sc)
 
     for barcode, colls in barcodes_colls.items():
