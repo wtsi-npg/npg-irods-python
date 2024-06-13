@@ -501,35 +501,41 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
         A sorted list of existing collections.
     """
     bcolls = []
+    barcode_folders = [barcode_name_from_id(tag_id) for tag_id in tag_identifier]
     sub_colls = [
-        item for item in coll.contents(recurse=True) if item.rods_type == Collection
+        item
+        for item in coll.contents(recurse=True)
+        if item.rods_type == Collection and item.path.name in barcode_folders
     ]
 
-    barcodes_tags = {barcode_name_from_id(tag): tag for tag in tag_identifier}
-    barcodes_colls = {barcode_name_from_id(tag): [] for tag in tag_identifier}
+    parents = set()
     for sc in sub_colls:
-        if barcodes_tags.get(sc.path.name):
-            duplicated = re.findall(r"(barcode\d+)", str(sc.path))
-            if len(duplicated) > 1:
-                msg = (
-                    f"Incorrect barcode folder path {str(sc.path)}. "
-                    f"Contains multiple barcode folders {duplicated}"
-                )
-                raise ValueError(msg)
-            barcodes_colls[sc.path.name].append(sc)
-
-    for barcode, colls in barcodes_colls.items():
-        if colls:
-            bcolls.extend(colls)
-        else:
-            # LIMS says there is a tag identifier, but there is no sub-collection,
-            # so possibly this was not deplexed on-instrument for some reason e.g.
-            # a non-standard tag set was used
-            log.warn(
-                "No barcode sub-collections",
-                path=barcode,
-                tag_identifier=barcodes_tags[barcode],
+        duplicated = re.findall(r"(barcode\d+)", str(sc.path))
+        if len(duplicated) > 1:
+            msg = (
+                f"Incorrect barcode folder path {str(sc.path)}. "
+                f"Contains multiple barcode folders {duplicated}"
             )
+            log.error(msg)
+            raise ValueError(msg)
+        parents.add(str(sc.path.parent))
+
+    for parent in parents:
+        for tag_id in tag_identifier:
+            bpath = PurePath(parent, barcode_name_from_id(tag_id))
+            bcoll = Collection(bpath)
+            if bcoll.exists():
+                bcolls.append(bcoll)
+            else:
+                # LIMS says there is a tag identifier, but there is no sub-collection,
+                # so possibly this was not deplexed on-instrument for some reason e.g.
+                # a non-standard tag set was used
+                log.warn(
+                    "No barcode sub-collections",
+                    parent=parent,
+                    subfolder=barcode_name_from_id(tag_id),
+                    tag_identifier=tag_id,
+                )
     bcolls.sort()
 
     return bcolls
