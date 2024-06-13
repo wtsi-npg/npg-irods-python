@@ -484,13 +484,16 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
         <coll>/pass/barcode02
         ...
 
-    etc.
+    ...or for old rebasecalled runs (up until June 2024):
 
-    Old runs (up until June 2024), rebasecalled off-instrument, have the following structure:
         <coll>/barcode01
         ...
         <coll>/barcode02
         ...
+
+    If collection paths contain duplicated barcode folder names,
+    it will raise a ValueError.
+        E.g. <coll>/pass/barcode01/.../barcode01
 
     Args:
         coll: A collection to search.
@@ -499,6 +502,9 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
 
     Returns:
         A sorted list of existing collections.
+
+    Raises:
+        ValueError: Duplicated barcode folder names are found in a path
     """
     bcolls = []
     barcode_folders = [barcode_name_from_id(tag_id) for tag_id in tag_identifier]
