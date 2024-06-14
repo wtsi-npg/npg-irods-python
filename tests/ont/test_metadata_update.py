@@ -748,3 +748,28 @@ class TestBarcodeRelatedFunctions(object):
             Collection(bpath).create(parents=True)
         with raises(ValueError):
             barcode_collections(Collection(path), *tag_identifiers)
+
+    @m.context("When rebasecalled ONT runs are plexed")
+    @m.context(
+        "When some barcode folders are missing although they were used in the lab"
+    )
+    @m.it("Workflow continues with no error")
+    def test_barcode_collections_missing_folders(self):
+        expected_bcolls = 3
+        root_path = PurePath(
+            "/testZone/home/irods/test/ont_synthetic_irods/synthetic/barcode_collection_test"
+        )
+        expt = "multiplexed_folder_experiment_004"
+        path = root_path / expt / "20190904_1514_GA10000_flowcell404_fg345hil"
+        expected_tag_identifiers = [
+            ont_tag_identifier(tag_index) for tag_index in range(1, 6)
+        ]
+        actual_tag_identifies = [
+            ont_tag_identifier(tag_index) for tag_index in [1, 3, 5]
+        ]
+        for tag_identifier in actual_tag_identifies:
+            bpath = path / ont.barcode_name_from_id(tag_identifier)
+            Collection(bpath).create(parents=True)
+
+        bcolls = barcode_collections(Collection(path), *expected_tag_identifiers)
+        assert len(bcolls) == expected_bcolls
