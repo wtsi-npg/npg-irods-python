@@ -23,7 +23,13 @@ from pathlib import PurePath
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
 from pytest import mark as m, raises
 
-from helpers import LATEST, add_rods_path, history_in_meta, tests_have_admin
+from helpers import (
+    LATEST,
+    add_rods_path,
+    history_in_meta,
+    remove_rods_path,
+    tests_have_admin,
+)
 from ont.conftest import ont_tag_identifier
 from npg_irods import ont
 from npg_irods.metadata.common import SeqConcept
@@ -713,6 +719,7 @@ class TestBarcodeRelatedFunctions(object):
 
         bcolls = barcode_collections(Collection(path), *tag_identifiers)
         assert len(bcolls) == expected_bcolls
+        remove_rods_path(root_path)
 
     @m.context("When rebasecalled ONT runs are plexed")
     @m.context("When barcodes are right under the output folder")
@@ -731,6 +738,7 @@ class TestBarcodeRelatedFunctions(object):
 
         bcolls = barcode_collections(Collection(path), *tag_identifiers)
         assert len(bcolls) == expected_bcolls
+        remove_rods_path(root_path)
 
     @m.context("When rebasecalled ONT runs are plexed")
     @m.context("When the barcode folder is duplicated under a barcode collection")
@@ -748,6 +756,7 @@ class TestBarcodeRelatedFunctions(object):
             Collection(bpath).create(parents=True)
         with raises(ValueError):
             barcode_collections(Collection(path), *tag_identifiers)
+        remove_rods_path(root_path)
 
     @m.context("When rebasecalled ONT runs are plexed")
     @m.context(
@@ -773,3 +782,4 @@ class TestBarcodeRelatedFunctions(object):
 
         bcolls = barcode_collections(Collection(path), *expected_tag_identifiers)
         assert len(bcolls) == expected_bcolls
+        remove_rods_path(root_path)
