@@ -537,10 +537,7 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
                 # so possibly this was not deplexed on-instrument for some reason e.g.
                 # a non-standard tag set was used
                 log.warn(
-                    "No barcode sub-collection",
-                    parent=parent,
-                    subfolder=barcode_name_from_id(tag_id),
-                    tag_identifier=tag_id,
+                    "No barcode sub-collection", path=str(bpath), tag_identifier=tag_id
                 )
     bcolls.sort()
 
