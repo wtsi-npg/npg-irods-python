@@ -773,10 +773,10 @@ class TestBarcodeRelatedFunctions(object):
         expected_tag_identifiers = [
             ont_tag_identifier(tag_index) for tag_index in range(1, 6)
         ]
-        actual_tag_identifies = [
+        actual_tag_identifiers = [
             ont_tag_identifier(tag_index) for tag_index in [1, 3, 5]
         ]
-        for tag_identifier in actual_tag_identifies:
+        for tag_identifier in actual_tag_identifiers:
             bpath = path / "pass" / ont.barcode_name_from_id(tag_identifier)
             Collection(bpath).create(parents=True)
 
