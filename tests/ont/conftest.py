@@ -46,7 +46,7 @@ NUM_INSTRUMENT_SLOTS = 5
 
 def ont_tag_identifier(tag_index: int) -> str:
     """Return an ONT tag identifier in tag set EXP-NBD104, given a tag index."""
-    return f"NB{tag_index :02d}"
+    return f"NB{tag_index:02d}"
 
 
 def initialize_mlwh_ont_synthetic(session: Session):
@@ -103,9 +103,9 @@ def initialize_mlwh_ont_synthetic(session: Session):
             study=study_y,
             instrument_name=instrument_name,
             instrument_slot=sl,
-            experiment_name=f"simple_experiment_{ex :0>3}",
+            experiment_name=f"simple_experiment_{ex:0>3}",
             id_lims=f"Example LIMS ID {n}",
-            id_flowcell_lims=f"flowcell{sl + 10 :0>3}",
+            id_flowcell_lims=f"flowcell{sl + 10:0>3}",
             last_updated=when,
             recorded_at=when,
         )
@@ -138,9 +138,9 @@ def initialize_mlwh_ont_synthetic(session: Session):
             study=study_z,
             instrument_name=instrument_name,
             instrument_slot=sl,
-            experiment_name=f"{ex_name}_{ex_n :0>3}",
+            experiment_name=f"{ex_name}_{ex_n:0>3}",
             id_lims=f"Example LIMS ID {n}",
-            id_flowcell_lims=f"flowcell{sl + fc_start :0>3}",
+            id_flowcell_lims=f"flowcell{sl + fc_start:0>3}",
             tag_set_id_lims="Example LIMS tag set ID",
             tag_set_name="EXP-NBD104",
             tag_sequence=bc,
@@ -257,8 +257,8 @@ def ont_synthetic_irods(tmp_path):
 
     for expt in range(1, NUM_SIMPLE_EXPTS + 1):
         for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
-            expt_name = f"simple_experiment_{expt :0>3}"
-            id_flowcell = f"flowcell{slot + 10 :0>3}"
+            expt_name = f"simple_experiment_{expt:0>3}"
+            id_flowcell = f"flowcell{slot + 10:0>3}"
             run_folder = f"20190904_1514_G{slot}00000_{id_flowcell}_69126024"
 
             coll = Collection(expt_root / expt_name / run_folder)
@@ -271,8 +271,8 @@ def ont_synthetic_irods(tmp_path):
 
     for expt in range(1, NUM_MULTIPLEXED_EXPTS + 1):
         for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
-            expt_name = f"multiplexed_experiment_{expt :0>3}"
-            id_flowcell = f"flowcell{slot + 100 :0>3}"
+            expt_name = f"multiplexed_experiment_{expt:0>3}"
+            id_flowcell = f"flowcell{slot + 100:0>3}"
             run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_cf751ba1"
 
             coll = Collection(expt_root / expt_name / run_folder)
@@ -285,8 +285,8 @@ def ont_synthetic_irods(tmp_path):
 
     for expt in range(1, 2):
         for slot in range(1, 2):
-            expt_name = f"old_rebasecalled_multiplexed_experiment_{expt :0>3}"
-            id_flowcell = f"flowcell{slot + 200 :0>3}"
+            expt_name = f"old_rebasecalled_multiplexed_experiment_{expt:0>3}"
+            id_flowcell = f"flowcell{slot + 200:0>3}"
             run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_b4a1fd79"
             path = PurePath(
                 expt_root,
@@ -309,8 +309,8 @@ def ont_synthetic_irods(tmp_path):
 
     for expt in range(1, 2):
         for slot in range(1, 2):
-            expt_name = f"rebasecalled_multiplexed_experiment_{expt :0>3}"
-            id_flowcell = f"flowcell{slot + 300 :0>3}"
+            expt_name = f"rebasecalled_multiplexed_experiment_{expt:0>3}"
+            id_flowcell = f"flowcell{slot + 300:0>3}"
             run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_08c179cd"
             path = PurePath(
                 expt_root,
