@@ -519,7 +519,7 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
         duplicated = re.findall(r"(barcode\d+)", str(sc.path))
         if len(duplicated) > 1:
             msg = (
-                f"Incorrect barcode folder path {str(sc.path)}. "
+                f"Incorrect barcode folder path {sc.path}. "
                 f"Contains multiple barcode folders {duplicated}"
             )
             log.error(msg)
