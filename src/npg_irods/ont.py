@@ -536,9 +536,7 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
                 # LIMS says there is a tag identifier, but there is no sub-collection,
                 # so possibly this was not deplexed on-instrument for some reason e.g.
                 # a non-standard tag set was used
-                log.warn(
-                    "No barcode sub-collection", path=str(bpath), tag_identifier=tag_id
-                )
+                log.warn("No barcode sub-collection", path=bcoll, tag_identifier=tag_id)
     bcolls.sort()
 
     return bcolls
