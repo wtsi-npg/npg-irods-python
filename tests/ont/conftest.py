@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ NUM_INSTRUMENT_SLOTS = 5
 
 def ont_tag_identifier(tag_index: int) -> str:
     """Return an ONT tag identifier in tag set EXP-NBD104, given a tag index."""
-    return f"NB{tag_index :02d}"
+    return f"NB{tag_index:02d}"
 
 
 def initialize_mlwh_ont_synthetic(session: Session):
@@ -103,9 +103,9 @@ def initialize_mlwh_ont_synthetic(session: Session):
             study=study_y,
             instrument_name=instrument_name,
             instrument_slot=sl,
-            experiment_name=f"simple_experiment_{ex :0>3}",
+            experiment_name=f"simple_experiment_{ex:0>3}",
             id_lims=f"Example LIMS ID {n}",
-            id_flowcell_lims=f"flowcell{sl + 10 :0>3}",
+            id_flowcell_lims=f"flowcell{sl + 10:0>3}",
             last_updated=when,
             recorded_at=when,
         )
@@ -122,12 +122,13 @@ def initialize_mlwh_ont_synthetic(session: Session):
             flowcells.append(make_simple_flowcell(expt, slot, sample_idx))
         sample_idx += 1
 
-    def make_mplex_flowcell(ex, sl, tid, bc, n):
-        """Make a multiplexed flowcell give an experiment number, instrument slot,
-        tag identifier, barcode and sample index."""
+    def make_mplex_flowcell(ex_name, ex_n, fc_start, sl, tid, bc, n):
+        """Make a multiplexed flowcell given an experiment name, experiment number,
+        flowcell start idx, instrument slot, tag identifier, barcode and sample index.
+        """
 
         when = EARLY  # All the even experiments have the early datetime
-        if ex % 2 == 1:
+        if ex_n % 2 == 1:
             when = LATE  # All the odd experiments have the late datetime
             if sl % 2 == 1:
                 when = LATEST  # Or latest if they have an odd instrument position
@@ -137,9 +138,9 @@ def initialize_mlwh_ont_synthetic(session: Session):
             study=study_z,
             instrument_name=instrument_name,
             instrument_slot=sl,
-            experiment_name=f"multiplexed_experiment_{ex :0>3}",
+            experiment_name=f"{ex_name}_{ex_n:0>3}",
             id_lims=f"Example LIMS ID {n}",
-            id_flowcell_lims=f"flowcell{sl + 100 :0>3}",
+            id_flowcell_lims=f"flowcell{sl + fc_start:0>3}",
             tag_set_id_lims="Example LIMS tag set ID",
             tag_set_name="EXP-NBD104",
             tag_sequence=bc,
@@ -172,7 +173,44 @@ def initialize_mlwh_ont_synthetic(session: Session):
                 # MinKNOW.
                 tag_id = ont_tag_identifier(barcode_idx + 1)
                 flowcells.append(
-                    make_mplex_flowcell(expt, slot, tag_id, barcode, msample_idx)
+                    make_mplex_flowcell(
+                        "multiplexed_experiment",
+                        expt,
+                        100,
+                        slot,
+                        tag_id,
+                        barcode,
+                        msample_idx,
+                    )
+                )
+                msample_idx += 1
+
+    msample_idx = 0
+    for expt in range(1, 2):
+        for slot in range(1, 2):
+            for barcode_idx, barcode in enumerate(barcodes[:4]):
+                tag_id = ont_tag_identifier(barcode_idx + 1)
+                flowcells.extend(
+                    [
+                        make_mplex_flowcell(
+                            "old_rebasecalled_multiplexed_experiment",
+                            expt,
+                            200,
+                            slot,
+                            tag_id,
+                            barcode,
+                            msample_idx,
+                        ),
+                        make_mplex_flowcell(
+                            "rebasecalled_multiplexed_experiment",
+                            expt,
+                            300,
+                            slot,
+                            tag_id,
+                            barcode,
+                            msample_idx,
+                        ),
+                    ]
                 )
                 msample_idx += 1
 
@@ -219,8 +257,8 @@ def ont_synthetic_irods(tmp_path):
 
     for expt in range(1, NUM_SIMPLE_EXPTS + 1):
         for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
-            expt_name = f"simple_experiment_{expt :0>3}"
-            id_flowcell = f"flowcell{slot + 10 :0>3}"
+            expt_name = f"simple_experiment_{expt:0>3}"
+            id_flowcell = f"flowcell{slot + 10:0>3}"
             run_folder = f"20190904_1514_G{slot}00000_{id_flowcell}_69126024"
 
             coll = Collection(expt_root / expt_name / run_folder)
@@ -233,8 +271,8 @@ def ont_synthetic_irods(tmp_path):
 
     for expt in range(1, NUM_MULTIPLEXED_EXPTS + 1):
         for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
-            expt_name = f"multiplexed_experiment_{expt :0>3}"
-            id_flowcell = f"flowcell{slot + 100 :0>3}"
+            expt_name = f"multiplexed_experiment_{expt:0>3}"
+            id_flowcell = f"flowcell{slot + 100:0>3}"
             run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_cf751ba1"
 
             coll = Collection(expt_root / expt_name / run_folder)
@@ -245,8 +283,57 @@ def ont_synthetic_irods(tmp_path):
             ]
             coll.add_metadata(*meta)
 
-    # We have synthetic data only for simple_experiment_001 and
-    # multiplexed_experiment_001
+    for expt in range(1, 2):
+        for slot in range(1, 2):
+            expt_name = f"old_rebasecalled_multiplexed_experiment_{expt:0>3}"
+            id_flowcell = f"flowcell{slot + 200:0>3}"
+            run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_b4a1fd79"
+            path = PurePath(
+                expt_root,
+                expt_name,
+                run_folder,
+                "dorado",
+                "7.2.13",
+                "sup",
+                "simplex",
+                "normal",
+                "default",
+            )
+            coll = Collection(path)
+            coll.create(parents=True)
+            meta = [
+                AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
+                AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
+            ]
+            coll.add_metadata(*meta)
+
+    for expt in range(1, 2):
+        for slot in range(1, 2):
+            expt_name = f"rebasecalled_multiplexed_experiment_{expt:0>3}"
+            id_flowcell = f"flowcell{slot + 300:0>3}"
+            run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_08c179cd"
+            path = PurePath(
+                expt_root,
+                expt_name,
+                run_folder,
+                "dorado",
+                "7.2.13",
+                "sup",
+                "simplex",
+                "normal",
+                "default",
+            )
+            coll = Collection(path)
+            coll.create(parents=True)
+            meta = [
+                AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
+                AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
+            ]
+            coll.add_metadata(*meta)
+
+    # We have synthetic data only for simple_experiment_001,
+    # multiplexed_experiment_001, rebasecalled_multiplexed_experiment_001
+    # and old_rebasecalled_multiplexed_experiment_001
     iput("./tests/data/ont/synthetic", rods_path, recurse=True)
 
     try:

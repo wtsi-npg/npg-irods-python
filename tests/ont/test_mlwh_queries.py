@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2020, 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2020, 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,6 +41,8 @@ class TestONTMLWarehouseQueries(object):
             "multiplexed_experiment_001",
             "multiplexed_experiment_002",
             "multiplexed_experiment_003",
+            "old_rebasecalled_multiplexed_experiment_001",
+            "rebasecalled_multiplexed_experiment_001",
         ]
         assert find_recent_expt(ont_synthetic_mlwh, EARLY) == all_expts
 
@@ -51,6 +53,8 @@ class TestONTMLWarehouseQueries(object):
             "simple_experiment_005",
             "multiplexed_experiment_001",
             "multiplexed_experiment_003",
+            "old_rebasecalled_multiplexed_experiment_001",
+            "rebasecalled_multiplexed_experiment_001",
         ]
         assert find_recent_expt(ont_synthetic_mlwh, before_late) == odd_expts
 
@@ -103,6 +107,8 @@ class TestONTMLWarehouseQueries(object):
                 ("multiplexed_experiment_003", 3),
                 ("multiplexed_experiment_003", 4),
                 ("multiplexed_experiment_003", 5),
+                ("old_rebasecalled_multiplexed_experiment_001", 1),
+                ("rebasecalled_multiplexed_experiment_001", 1),
                 ("simple_experiment_001", 1),
                 ("simple_experiment_001", 2),
                 ("simple_experiment_001", 3),
@@ -137,6 +143,8 @@ class TestONTMLWarehouseQueries(object):
                 ("multiplexed_experiment_003", 1),
                 ("multiplexed_experiment_003", 3),
                 ("multiplexed_experiment_003", 5),
+                ("old_rebasecalled_multiplexed_experiment_001", 1),
+                ("rebasecalled_multiplexed_experiment_001", 1),
             ]
         ]
         assert [
@@ -170,6 +178,15 @@ class TestONTMLWarehouseQueries(object):
                 # Tag identifiers NB01 - NB12
                 for tag_id in [ont_tag_identifier(i + 1) for i in range(12)]:
                     odd_positions.append(Component(expt_name, slot, tag_id))
+        for rebasecalled_expt_name in [
+            "old_rebasecalled_multiplexed_experiment_001",
+            "rebasecalled_multiplexed_experiment_001",
+        ]:
+            for slot in [1]:
+                for tag_id in [ont_tag_identifier(i + 1) for i in range(4)]:
+                    odd_positions.append(
+                        Component(rebasecalled_expt_name, slot, tag_id)
+                    )
 
         assert [
             c

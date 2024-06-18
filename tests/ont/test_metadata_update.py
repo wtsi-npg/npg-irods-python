@@ -18,11 +18,18 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 from datetime import datetime
+from pathlib import PurePath
 
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
-from pytest import mark as m
+from pytest import mark as m, raises
 
-from helpers import LATEST, history_in_meta, tests_have_admin
+from helpers import (
+    LATEST,
+    add_rods_path,
+    history_in_meta,
+    remove_rods_path,
+    tests_have_admin,
+)
 from ont.conftest import ont_tag_identifier
 from npg_irods import ont
 from npg_irods.metadata.common import SeqConcept
@@ -38,6 +45,7 @@ from npg_irods.ont import (
     apply_metadata,
     ensure_secondary_metadata_updated,
     is_minknow_report,
+    barcode_collections,
 )
 
 
@@ -51,12 +59,16 @@ class TestONTFindUpdates:
         num_simple_expts = 5
         num_multiplexed_expts = 3
         num_slots = 5
+        num_rebasecalled_multiplexed_expts = 2
+        num_rebasecalled_slots = 1
 
         num_found, num_updated, num_errors = apply_metadata(
             mlwh_session=ont_synthetic_mlwh
         )
-        num_expected = (num_simple_expts * num_slots) + (
-            num_multiplexed_expts * num_slots
+        num_expected = (
+            (num_simple_expts * num_slots)
+            + (num_multiplexed_expts * num_slots)
+            + (num_rebasecalled_multiplexed_expts * num_rebasecalled_slots)
         )
 
         assert num_found == num_expected, f"Found {num_expected} collections"
@@ -83,6 +95,8 @@ class TestONTFindUpdates:
                 "multiplexed_experiment_003/20190904_1514_GA10000_flowcell101_cf751ba1",
                 "multiplexed_experiment_003/20190904_1514_GA30000_flowcell103_cf751ba1",
                 "multiplexed_experiment_003/20190904_1514_GA50000_flowcell105_cf751ba1",
+                "old_rebasecalled_multiplexed_experiment_001/20190904_1514_GA10000_flowcell201_b4a1fd79",
+                "rebasecalled_multiplexed_experiment_001/20190904_1514_GA10000_flowcell301_08c179cd",
             ]
         ]
         num_expected = len(expected_colls)
@@ -250,6 +264,73 @@ class TestONTMetadataCreation(object):
                 for item in bc_coll.contents():
                     assert item.acl() == expected_acl
 
+    @tests_have_admin
+    @m.context("When ONT experiment collections of rebasecalled data are annotated")
+    @m.context("When experiments are multiplexed")
+    @m.it("Adds tag_index, sample and study metadata to barcode<0n> sub-collections")
+    def test_add_new_plex_metadata_on_rebasecalled(
+        self, ont_synthetic_irods, ont_synthetic_mlwh
+    ):
+        zone = "testZone"
+        slot = 1
+
+        subpath = PurePath(
+            "dorado",
+            "7.2.13",
+            "sup",
+            "simplex",
+            "normal",
+            "default",
+        )
+        testdata = {
+            "old_rebasecalled_multiplexed_experiment_001": PurePath(
+                "old_rebasecalled_multiplexed_experiment_001",
+                "20190904_1514_GA10000_flowcell201_b4a1fd79",
+                subpath,
+            ),
+            "rebasecalled_multiplexed_experiment_001": PurePath(
+                "rebasecalled_multiplexed_experiment_001",
+                "20190904_1514_GA10000_flowcell301_08c179cd",
+                subpath,
+                "pass",
+            ),
+        }
+
+        for expt, rel_path in testdata.items():
+            path = ont_synthetic_irods / rel_path
+
+            c = Component(experiment_name=expt, instrument_slot=slot)
+
+            assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
+
+            for tag_index in range(1, 5):
+                tag_identifier = ont_tag_identifier(tag_index)
+                bpath = path / ont.barcode_name_from_id(tag_identifier)
+                bc_coll = Collection(bpath)
+
+                for avu in [
+                    AVU(SeqConcept.TAG_INDEX, ont.tag_index_from_id(tag_identifier)),
+                    AVU(TrackedSample.ACCESSION_NUMBER, f"ACC{tag_index}"),
+                    AVU(TrackedSample.COMMON_NAME, f"common_name{tag_index}"),
+                    AVU(TrackedSample.DONOR_ID, f"donor_id{tag_index}"),
+                    AVU(TrackedSample.ID, f"id_sample_lims{tag_index}"),
+                    AVU(TrackedSample.NAME, f"name{tag_index}"),
+                    AVU(TrackedSample.PUBLIC_NAME, f"public_name{tag_index}"),
+                    AVU(TrackedSample.SUPPLIER_NAME, f"supplier_name{tag_index}"),
+                    AVU(TrackedStudy.ID, "3000"),
+                    AVU(TrackedStudy.NAME, "Study Z"),
+                ]:
+                    assert avu in bc_coll.metadata(), f"{avu} is in {bc_coll} metadata"
+
+                expected_acl = [
+                    AC("irods", Permission.OWN, zone=zone),
+                    AC("ss_3000", Permission.READ, zone=zone),
+                ]
+
+                assert bc_coll.acl() == expected_acl
+                for item in bc_coll.contents():
+                    assert item.acl() == expected_acl
+
 
 class TestONTMetadataUpdate(object):
     @m.context("When ONT metadata are applied")
@@ -365,6 +446,69 @@ class TestONTMetadataUpdate(object):
         assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
         assert ensure_secondary_metadata_updated(coll, mlwh_session=ont_synthetic_mlwh)
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
+
+    @m.context("When rebasecalled ONT metadata are updated")
+    @m.context("When an iRODS path has metadata identifying its run component")
+    @m.it("Updates the metadata")
+    def test_updates_rebasecalled_annotated_collection(
+        self, ont_synthetic_irods, ont_synthetic_mlwh
+    ):
+        slot = 1
+        subpath = PurePath(
+            "dorado",
+            "7.2.13",
+            "sup",
+            "simplex",
+            "normal",
+            "default",
+        )
+        testdata = {
+            "old_rebasecalled_multiplexed_experiment_001": {
+                "runfolder": PurePath(
+                    "old_rebasecalled_multiplexed_experiment_001",
+                    "20190904_1514_GA10000_flowcell201_b4a1fd79",
+                    subpath,
+                ),
+                "subfolder": "",
+            },
+            "rebasecalled_multiplexed_experiment_001": {
+                "runfolder": PurePath(
+                    "rebasecalled_multiplexed_experiment_001",
+                    "20190904_1514_GA10000_flowcell301_08c179cd",
+                    subpath,
+                ),
+                "subfolder": "pass",
+            },
+        }
+
+        for expt in testdata.keys():
+            path = ont_synthetic_irods / testdata[expt]["runfolder"]
+            coll = Collection(path)
+            coll.add_metadata(
+                AVU(Instrument.EXPERIMENT_NAME, expt),
+                AVU(Instrument.INSTRUMENT_SLOT, slot),
+            )
+
+            samples_paths: tuple[str, Collection] = []
+            for tag_index in range(1, 5):
+                tag_identifier = ont_tag_identifier(tag_index)
+                bpath = (
+                    path
+                    / testdata[expt]["subfolder"]
+                    / ont.barcode_name_from_id(tag_identifier)
+                )
+                bcoll = Collection(bpath)
+                samples_paths.append((f"name{tag_index}", bcoll))
+
+            for sample_name, _ in samples_paths:
+                assert AVU(TrackedSample.NAME, sample_name) not in coll.metadata()
+            for sample_name, bcoll in samples_paths:
+                assert AVU(TrackedSample.NAME, sample_name) not in bcoll.metadata()
+            assert ensure_secondary_metadata_updated(
+                coll, mlwh_session=ont_synthetic_mlwh
+            )
+            for sample_name, bcoll in samples_paths:
+                assert AVU(TrackedSample.NAME, sample_name) in bcoll.metadata()
 
 
 class TestONTPermissionsUpdate:
@@ -555,3 +699,87 @@ class TestONTPermissionsUpdate:
                 assert (
                     item.acl() == expected_acl
                 ), f"ACL of root collection member {item} is {expected_acl}"
+
+
+class TestBarcodeRelatedFunctions(object):
+    @m.context("When rebasecalled ONT runs are plexed")
+    @m.context("When barcode folders lie one level down in the output folder")
+    @m.it("Barcode collections number is correct")
+    def test_barcode_collections_under_subfolder(self):
+        expected_bcolls = 5
+        root_path = PurePath(
+            "/testZone/home/irods/test/ont_synthetic_irods/synthetic/barcode_collection_test"
+        )
+        expt = "multiplexed_folder_experiment_001"
+        path = root_path / expt / "20190904_1514_GA10000_flowcell401_ba641ab1"
+        tag_identifiers = [ont_tag_identifier(tag_index) for tag_index in range(1, 6)]
+        for tag_identifier in tag_identifiers:
+            bpath = path / "pass" / ont.barcode_name_from_id(tag_identifier)
+            Collection(bpath).create(parents=True)
+
+        bcolls = barcode_collections(Collection(path), *tag_identifiers)
+        assert len(bcolls) == expected_bcolls
+        remove_rods_path(root_path)
+
+    @m.context("When rebasecalled ONT runs are plexed")
+    @m.context("When barcodes are right under the output folder")
+    @m.it("Barcode collections number is correct")
+    def test_barcode_collections_under_output_folder(self):
+        expected_bcolls = 5
+        root_path = PurePath(
+            "/testZone/home/irods/test/ont_synthetic_irods/synthetic/barcode_collection_test"
+        )
+        expt = "multiplexed_folder_experiment_002"
+        path = root_path / expt / "20190904_1514_GA10000_flowcell402_ca641bc1"
+        tag_identifiers = [ont_tag_identifier(tag_index) for tag_index in range(1, 6)]
+        for tag_identifier in tag_identifiers:
+            bpath = path / ont.barcode_name_from_id(tag_identifier)
+            Collection(bpath).create(parents=True)
+
+        bcolls = barcode_collections(Collection(path), *tag_identifiers)
+        assert len(bcolls) == expected_bcolls
+        remove_rods_path(root_path)
+
+    @m.context("When rebasecalled ONT runs are plexed")
+    @m.context("When the barcode folder is duplicated under a barcode collection")
+    @m.it("Raises exception for duplicated barcode folders")
+    def test_barcode_collections_duplicates(self):
+        root_path = PurePath(
+            "/testZone/home/irods/test/ont_synthetic_irods/synthetic/barcode_collection_test"
+        )
+        expt = "multiplexed_folder_experiment_003"
+        path = root_path / expt / "20190904_1514_GA10000_flowcell403_de531cf1"
+        tag_identifiers = [ont_tag_identifier(tag_index) for tag_index in range(1, 6)]
+        for tag_identifier in tag_identifiers:
+            barcode_name = ont.barcode_name_from_id(tag_identifier)
+            bpath = path / barcode_name / barcode_name
+            Collection(bpath).create(parents=True)
+        with raises(ValueError):
+            barcode_collections(Collection(path), *tag_identifiers)
+        remove_rods_path(root_path)
+
+    @m.context("When rebasecalled ONT runs are plexed")
+    @m.context(
+        "When some barcode folders are missing although they were used in the lab"
+    )
+    @m.it("Workflow continues with no error")
+    def test_barcode_collections_missing_folders(self):
+        expected_bcolls = 3
+        root_path = PurePath(
+            "/testZone/home/irods/test/ont_synthetic_irods/synthetic/barcode_collection_test"
+        )
+        expt = "multiplexed_folder_experiment_004"
+        path = root_path / expt / "20190904_1514_GA10000_flowcell404_fg345hil"
+        expected_tag_identifiers = [
+            ont_tag_identifier(tag_index) for tag_index in range(1, 6)
+        ]
+        actual_tag_identifiers = [
+            ont_tag_identifier(tag_index) for tag_index in [1, 3, 5]
+        ]
+        for tag_identifier in actual_tag_identifiers:
+            bpath = path / "pass" / ont.barcode_name_from_id(tag_identifier)
+            Collection(bpath).create(parents=True)
+
+        bcolls = barcode_collections(Collection(path), *expected_tag_identifiers)
+        assert len(bcolls) == expected_bcolls
+        remove_rods_path(root_path)

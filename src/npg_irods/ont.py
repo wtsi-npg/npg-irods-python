@@ -464,10 +464,10 @@ def barcode_name_from_id(tag_identifier: str) -> str:
 
 def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
     """Return the barcode-specific sub-collections that exist under the specified
-    collection.
+    collection basecalled and deplexed on instrument or offline.
 
     The arrangement of these collections mirrors the directory structure created by the
-    guppy basecaller. E.g. for tag identifier NB01:
+    guppy/dorado basecaller. E.g. for tag identifier NB01:
 
         <coll>/fast5_pass/barcode01
         ...
@@ -477,7 +477,23 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
         ...
         <coll>/fastq_fail/barcode01
 
-    etc.
+    ...or for rebasecalled runs:
+
+        <coll>/pass/barcode01
+        ...
+        <coll>/pass/barcode02
+        ...
+
+    ...or for old rebasecalled runs (up until June 2024):
+
+        <coll>/barcode01
+        ...
+        <coll>/barcode02
+        ...
+
+    If collection paths contain duplicated barcode folder names,
+    it will raise a ValueError.
+        E.g. <coll>/pass/barcode01/.../barcode01
 
     Args:
         coll: A collection to search.
@@ -486,18 +502,33 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
 
     Returns:
         A sorted list of existing collections.
+
+    Raises:
+        ValueError: Duplicated barcode folder names are found in a path
     """
     bcolls = []
+    barcode_folders = [barcode_name_from_id(tag_id) for tag_id in tag_identifier]
+    sub_colls = [
+        item
+        for item in coll.contents(recurse=True)
+        if item.rods_type == Collection and item.path.name in barcode_folders
+    ]
 
-    sub_colls = [item for item in coll.contents() if item.rods_type == Collection]
-    for sc in sub_colls:  # fast5_fail, fast5_pass etc
-        # These are some known special cases that don't have barcode directories
-        if sc.path.name in IGNORED_DIRECTORIES:
-            log.debug("Ignoring", path=sc)
-            continue
+    parents = set()
+    for sc in sub_colls:
+        duplicated = re.findall(r"(barcode\d+)", str(sc.path))
+        if len(duplicated) > 1:
+            msg = (
+                f"Incorrect barcode folder path {sc.path}. "
+                f"Contains multiple barcode folders {duplicated}"
+            )
+            log.error(msg)
+            raise ValueError(msg)
+        parents.add(str(sc.path.parent))
 
+    for parent in parents:
         for tag_id in tag_identifier:
-            bpath = sc.path / barcode_name_from_id(tag_id)
+            bpath = PurePath(parent, barcode_name_from_id(tag_id))
             bcoll = Collection(bpath)
             if bcoll.exists():
                 bcolls.append(bcoll)
