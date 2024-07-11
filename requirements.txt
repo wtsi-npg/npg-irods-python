@@ -9,3 +9,4 @@ setuptools==70.3.0
 sqlalchemy==2.0.31
 structlog==24.2.0
 yattag==1.15.2
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
