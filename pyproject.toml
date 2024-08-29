@@ -52,7 +52,7 @@ repository = "https://github.com/wtsi-npg/npg-irods-python.git"
 "write-html-report" = "npg_irods.cli.write_html_report:main"
 
 [build-system]
-requires = ["setuptools>=41", "wheel", "setuptools-git-versioning<2"]
+requires = ["setuptools>=41", "wheel", "setuptools-git-versioning>=2.0,<3"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]

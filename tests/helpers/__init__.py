@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 """Helper functions for testing."""
+import os
 from datetime import datetime
 from pathlib import PurePath
 
@@ -56,6 +57,14 @@ LATEST = datetime(year=2020, month=6, day=30, hour=0, minute=0, second=0)
 # iRODS aliases for canned SQL statements.
 TEST_SQL_STALE_REPLICATE = "setObjectReplStale"
 TEST_SQL_INVALID_CHECKSUM = "setObjectChecksumInvalid"
+
+
+def is_running_in_github_ci():
+    """Return True if running in GitHub CI, False otherwise.
+
+    https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/store-information-in-variables
+    """
+    return "GITHUB_ACTIONS" in os.environ
 
 
 def add_sql_test_utilities():

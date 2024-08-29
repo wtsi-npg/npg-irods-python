@@ -1,11 +1,11 @@
-# syntax = docker/dockerfile:1.2
 
-FROM ubuntu:bionic as builder
+FROM --platform=linux/amd64 ubuntu:bionic AS builder
 
 ARG PYTHON_VERSION=3.12
 
-RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selections && \
-    apt-get update && \
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
     apt-get install -q -y --no-install-recommends \
     autoconf \
     automake \
@@ -24,14 +24,14 @@ RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selectio
 
 WORKDIR /app
 
-COPY . .
-
-ENV PYENV_ROOT "/app/.pyenv"
+ENV PYENV_ROOT="/app/.pyenv"
 
 # Put PYENV first to ensure we use the pyenv-installed Python
-ENV PATH "${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+ENV PATH="${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 
-RUN ./docker/install_pyenv.sh
+COPY . /app
+
+RUN /app/docker/install_pyenv.sh
 
 RUN pyenv install "$PYTHON_VERSION"
 RUN pyenv global "$PYTHON_VERSION"
@@ -40,22 +40,23 @@ RUN pyenv global "$PYTHON_VERSION"
 # available for anything more recent than Ubuntu bionic, so that's what we use for
 # the builder (above) and for the clients. This is also the reason we resort to
 # pyenv to get a recent Python, rather than using a python-slim base image.
-FROM ghcr.io/wtsi-npg/ub-18.04-irods-clients-4.2.11
+FROM --platform=linux/amd64 ghcr.io/wtsi-npg/ub-18.04-irods-clients-4.2.11
 
-RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selections && \
-    apt-get update && \
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
     apt-get install -q -y --no-install-recommends \
     ca-certificates \
     git \
     unattended-upgrades && \
     unattended-upgrade -d -v
 
-ENV PYENV_ROOT "/app/.pyenv"
+ENV PYENV_ROOT="/app/.pyenv"
 
 # Put PYENV first to ensure we use the pyenv-installed Python
-ENV PATH "${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
-ENV PYTHONUNBUFFERED 1
-ENV PYTHONPATH ""
+ENV PATH="${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=""
 
 WORKDIR /app
 
@@ -78,6 +79,6 @@ RUN apt-get remove -q -y unattended-upgrades \
 
 USER appuser
 
-ENTRYPOINT ["/app/docker/docker-entrypoint.sh"]
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
 
 CMD ["check-checksums", "--version"]

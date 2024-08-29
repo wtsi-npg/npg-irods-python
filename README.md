@@ -38,16 +38,37 @@ docker pull ghcr.io/wtsi-npg/npg-irods-python:latest
 docker pull ghcr.io/wtsi-npg/npg-irods-python:1.1.0
 ```
 
-## Building and testing 
+## Running tests
 
-The tests require some services to be running (iRODS and possibly MySQL). See the
-`docker-compose.yml` file for an example of how to achieve this using our Docker images. 
+### Running directly on your local machine
 
-```commandline
-pip install -r requirements.txt
-pip install -r test-requirements.txt
-pytest --it
-```
+To run the tests locally, you will need to have the `irods` clients installed (`icommands`
+and `baton`, which means your local machine must be either be running Linux, or have
+containerised versions of these tools installed and runnable via proxy wrappers of the
+same name, to emulate the Linux environment.
+
+You will also need to have a working iRODS server to connect to.
+
+With this in place, you can run the tests with the following command:
+
+    pytest --it
+
+### Running in a container
+
+The tests can be run in a container, which requires less setup and will be less likely
+to be affected by your local environment. A Docker Compose file is provided to run the
+tests in a Linux container, against containerised iRODS and MySQL servers.
+
+To run the tests in a container, you will need to have Docker installed.
+
+With this in place, you can run the tests with the following command:
+
+    docker-compose run app pytest --it
+
+There will be a delay the first time this is run because the Docker image will be built.
+To pre-build the image, you can run:
+
+    docker-compose build
 
 ## Logging
 
