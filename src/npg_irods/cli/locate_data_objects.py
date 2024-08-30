@@ -110,7 +110,10 @@ log = structlog.get_logger("main")
 
 def consent_withdrawn(cli_args: argparse.ArgumentParser):
     dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
-    engine = sqlalchemy.create_engine(dbconfig.url)
+    engine = sqlalchemy.create_engine(
+        dbconfig.url, pool_pre_ping=True, pool_recycle=3600
+    )
+
     with Session(engine) as session:
         num_processed = num_errors = 0
 
@@ -150,14 +153,16 @@ def consent_withdrawn(cli_args: argparse.ArgumentParser):
 def illumina_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Illumina data objects and execute
     the command."""
-    dbconf = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
-    eng = sqlalchemy.create_engine(dbconf.url)
+    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    engine = sqlalchemy.create_engine(
+        dbconfig.url, pool_pre_ping=True, pool_recycle=3600
+    )
     since = cli_args.begin_date
     until = cli_args.end_date
     skip_absent_runs = cli_args.skip_absent_runs
     zone = cli_args.zone
 
-    with Session(eng) as sess:
+    with Session(engine) as sess:
         num_proc, num_errors = illumina_updates(
             sess, since, until, skip_absent_runs=skip_absent_runs, zone=zone
         )
@@ -262,14 +267,16 @@ def illumina_updates(
 def ont_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding ONT data objects and execute the
     command."""
-    dbconf = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
-    eng = sqlalchemy.create_engine(dbconf.url)
+    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    engine = sqlalchemy.create_engine(
+        dbconfig.url, pool_pre_ping=True, pool_recycle=3600
+    )
     since = cli_args.begin_date
     until = cli_args.end_date
     report_tags = cli_args.report_tags
     zone = cli_args.zone
 
-    with Session(eng) as sess:
+    with Session(engine) as sess:
         num_proc, num_errors = ont_updates(
             sess, since, until, report_tags=report_tags, zone=zone
         )
@@ -328,14 +335,16 @@ def ont_updates(
 def pacbio_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding PacBio data objects and execute
     the command."""
-    dbconf = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
-    eng = sqlalchemy.create_engine(dbconf.url)
+    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    engine = sqlalchemy.create_engine(
+        dbconfig.url, pool_pre_ping=True, pool_recycle=3600
+    )
     since = cli_args.begin_date
     until = cli_args.end_date
     skip_absent_runs = cli_args.skip_absent_runs
     zone = cli_args.zone
 
-    with Session(eng) as sess:
+    with Session(engine) as sess:
         num_proc, num_errors = pacbio_updates(
             sess, since, until, skip_absent_runs=skip_absent_runs, zone=zone
         )
@@ -415,13 +424,15 @@ def pacbio_updates(
 def infinium_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Infinium microarray data objects
     and execute the command."""
-    dbconf = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
-    eng = sqlalchemy.create_engine(dbconf.url)
+    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    engine = sqlalchemy.create_engine(
+        dbconfig.url, pool_pre_ping=True, pool_recycle=3600
+    )
     since = cli_args.begin_date
     until = cli_args.end_date
     zone = cli_args.zone
 
-    with Session(eng) as sess:
+    with Session(engine) as sess:
         num_proc, num_errors = infinium_microarray_updates(
             sess, since, until, zone=zone
         )
@@ -446,13 +457,15 @@ def infinium_microarray_updates(
 def sequenom_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Sequenom genotype data objects
     and execute the command."""
-    dbconf = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
-    eng = sqlalchemy.create_engine(dbconf.url)
+    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    engine = sqlalchemy.create_engine(
+        dbconfig.url, pool_pre_ping=True, pool_recycle=3600
+    )
     since = cli_args.begin_date
     until = cli_args.end_date
     zone = cli_args.zone
 
-    with Session(eng) as sess:
+    with Session(engine) as sess:
         num_proc, num_errors = sequenom_genotype_updates(sess, since, until, zone=zone)
 
         if num_errors:

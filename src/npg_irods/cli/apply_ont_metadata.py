@@ -82,8 +82,10 @@ def main():
         sys.exit(0)
 
     dbconfig = DBConfig.from_file(args.db_config.name, "mlwh_ro")
+    engine = sqlalchemy.create_engine(
+        dbconfig.url, pool_pre_ping=True, pool_recycle=3600
+    )
 
-    engine = sqlalchemy.create_engine(dbconfig.url)
     with Session(engine) as session:
         num_processed, num_updated, num_errors = apply_metadata(
             session, since=args.begin_date, zone=args.zone
