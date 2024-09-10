@@ -17,6 +17,7 @@ services:
       retries: 10
 
   irods-server:
+    platform: linux/amd64
     container_name: irods-server
     image: "ghcr.io/wtsi-npg/ub-16.04-irods-4.2.7:latest"
     ports:
@@ -30,18 +31,19 @@ services:
       timeout: 10s
       retries: 12
 
-  irods-clients:
-    container_name: irods-clients
-    image: "ghcr.io/wtsi-npg/ub-16.04-irods-clients-4.2.7:latest"
+  app:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: always
     volumes:
-      - "${PWD}:${PWD}"
-      - "${PWD}/tests/.irods:${HOME}/.irods/"
+      - "./tests/.irods:/home/appuser/.irods/"
     environment:
-      CLIENT_USER: "${USER:? ERROR: The USER environment variable is unset}"
-      CLIENT_USER_ID: "${UID:? ERROR: The UID environment variable is unset}"
-      CLIENT_USER_HOME: "${HOME}"
-      IRODS_ENVIRONMENT_FILE: "${HOME}/.irods/irods_environment.json"
-    command: sleep infinity
+      IRODS_ENVIRONMENT_FILE: "/home/appuser/.irods/irods_environment.json"
+      IRODS_PASSWORD: "irods"
     depends_on:
       irods-server:
+        condition: service_healthy
+      mysql-server:
         condition: service_healthy

@@ -47,6 +47,7 @@ from helpers import (
     add_rods_path,
     add_sql_test_utilities,
     add_test_groups,
+    is_running_in_github_ci,
     remove_rods_path,
     remove_sql_test_utilities,
     remove_test_groups,
@@ -67,7 +68,8 @@ structlog.configure(
 )
 
 TEST_INI = os.path.join(os.path.dirname(__file__), "testdb.ini")
-INI_SECTION = "dev"
+INI_SECTION_LOCAL = "docker"
+INI_SECTION_GITHUB = "github"
 
 
 @pytest.fixture(scope="session")
@@ -83,7 +85,9 @@ def sql_test_utilities():
 @pytest.fixture(scope="function")
 def mlwh_session() -> Session:
     """Create an empty ML warehouse database fixture."""
-    dbconfig = DBConfig.from_file(TEST_INI, INI_SECTION)
+    section = INI_SECTION_GITHUB if is_running_in_github_ci() else INI_SECTION_LOCAL
+
+    dbconfig = DBConfig.from_file(TEST_INI, section)
     engine = create_engine(dbconfig.url, echo=False)
 
     if database_exists(engine.url):
