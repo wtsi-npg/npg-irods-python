@@ -79,7 +79,9 @@ parser.add_argument(
     type=int,
     default=4,
 )
-parser.add_argument("--version", help="Print the version and exit", action="store_true")
+parser.add_argument(
+    "--version", help="Print the version and exit.", action="store_true"
+)
 
 args = parser.parse_args()
 configure_logging(
