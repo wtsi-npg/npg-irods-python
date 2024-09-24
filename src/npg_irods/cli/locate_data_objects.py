@@ -567,7 +567,7 @@ def main():
         type=str,
     )
     parser.add_argument(
-        "--version", help="Print the version and exit", action="store_true"
+        "--version", help="Print the version and exit.", action="store_true"
     )
 
     subparsers = parser.add_subparsers(title="Sub-commands", required=True)
