@@ -20,12 +20,21 @@
 """API common to all analysis instruments and processes."""
 
 import re
+from argparse import ArgumentTypeError
 from enum import Enum, unique
 from os import PathLike
 from pathlib import PurePath
 from typing import Tuple
 
-from partisan.irods import AC, AVU, Collection, DataObject, Permission, rods_user
+from partisan.irods import (
+    AC,
+    AVU,
+    Collection,
+    DataObject,
+    Permission,
+    rods_path_type,
+    rods_user,
+)
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
@@ -78,6 +87,23 @@ class AnalysisType(Enum):
 # There are further tests we can do, aside from inspecting the path, such as looking
 # at metadata or neighbouring data objects, but this will suffice to start with.
 # Having the test wrapped in a function means it can be changed in one place.
+
+
+def rods_path(path):
+    """Return the iRODS path, if it exists, or raise ArgumentTypeError.
+
+    This function is to be used as an argparse type check.
+
+    Args:
+        path: An iRODS path
+
+    Returns:
+        The path
+    """
+    if rods_path_type(path) is None:
+        raise ArgumentTypeError(f"iRODS path does not exist '{path}'")
+
+    return path
 
 
 def is_illumina(path: PathLike | str) -> bool:

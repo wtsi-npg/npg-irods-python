@@ -25,18 +25,18 @@ from typing import Any, Iterator
 
 import sqlalchemy
 import structlog
+from npg.cli import (
+    add_date_range_arguments,
+    add_db_config_arguments,
+    add_logging_arguments,
+    integer_in_range,
+)
+from npg.iter import with_previous
+from npg.log import configure_structlog
 from partisan.irods import AVU, DataObject, query_metadata
 from sqlalchemy.orm import Session
 
 from npg_irods import illumina, ont, pacbio, sequenom
-from npg_irods.cli.util import (
-    add_date_range_arguments,
-    add_db_config_arguments,
-    add_logging_arguments,
-    configure_logging,
-    integer_in_range,
-    with_previous,
-)
 from npg_irods.db import DBConfig
 from npg_irods.db.mlwh import (
     find_consent_withdrawn_samples,
@@ -648,7 +648,7 @@ def main():
     squp_parser.set_defaults(func=sequenom_updates_cli)
 
     args = parser.parse_args()
-    configure_logging(
+    configure_structlog(
         config_file=args.log_config,
         debug=args.debug,
         verbose=args.verbose,

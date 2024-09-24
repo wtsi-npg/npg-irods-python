@@ -21,13 +21,10 @@ import argparse
 import sys
 
 import structlog
+from npg.cli import add_io_arguments, add_logging_arguments
+from npg.log import configure_structlog
 
 from npg_irods.utilities import repair_common_metadata
-from npg_irods.cli.util import (
-    add_io_arguments,
-    add_logging_arguments,
-    configure_logging,
-)
 from npg_irods.version import version
 
 description = """
@@ -86,7 +83,7 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-configure_logging(
+configure_structlog(
     config_file=args.log_config,
     debug=args.debug,
     verbose=args.verbose,

@@ -21,11 +21,13 @@ import argparse
 import sys
 
 import structlog
+from npg.cli import add_logging_arguments
+from npg.log import configure_structlog
 from partisan.exception import RodsError
 
+from npg_irods.common import rods_path
 from npg_irods.exception import ChecksumError
 from npg_irods.utilities import copy
-from npg_irods.cli.util import add_logging_arguments, configure_logging, rods_path
 from npg_irods.version import version
 
 description = """
@@ -86,7 +88,7 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-configure_logging(
+configure_structlog(
     config_file=args.log_config,
     debug=args.debug,
     verbose=args.verbose,
