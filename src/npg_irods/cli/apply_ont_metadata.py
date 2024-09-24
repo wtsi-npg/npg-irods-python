@@ -22,14 +22,14 @@ import sys
 
 import sqlalchemy
 import structlog
-from sqlalchemy.orm import Session
-
-from npg_irods.cli.util import (
+from npg.cli import (
     add_date_range_arguments,
     add_db_config_arguments,
     add_logging_arguments,
-    configure_logging,
 )
+from npg.log import configure_structlog
+from sqlalchemy.orm import Session
+
 from npg_irods.db import DBConfig
 from npg_irods.ont import apply_metadata
 from npg_irods.version import version
@@ -68,7 +68,7 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-configure_logging(
+configure_structlog(
     config_file=args.log_config,
     debug=args.debug,
     verbose=args.verbose,

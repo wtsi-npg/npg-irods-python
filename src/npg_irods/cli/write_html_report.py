@@ -21,10 +21,11 @@ import argparse
 import sys
 
 import structlog
+from npg.cli import add_logging_arguments
+from npg.log import configure_structlog
 from partisan.exception import RodsError
 from yattag import indent
 
-from npg_irods.cli.util import add_logging_arguments, configure_logging
 from npg_irods.html_reports import ont_runs_html_report_this_year
 from npg_irods.version import version
 
@@ -72,7 +73,7 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-configure_logging(
+configure_structlog(
     config_file=args.log_config,
     debug=args.debug,
     verbose=args.verbose,

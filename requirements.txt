@@ -1,6 +1,7 @@
 cryptography==43.0.1
 npg_id_generation@https://github.com/wtsi-npg/npg_id_generation/releases/download/5.0.1/npg_id_generation-5.0.1.tar.gz
-partisan@https://github.com/wtsi-npg/partisan/releases/download/2.11.1/partisan-2.11.1.tar.gz
+npg-python-lib@https://github.com/wtsi-npg/npg-python-lib/releases/download/0.2.0/npg_python_lib-0.2.0.tar.gz
+partisan@https://github.com/wtsi-npg/partisan/releases/download/2.12.0/partisan-2.12.0.tar.gz
 pymysql==1.1.1
 python-dateutil==2.9.0.post0
 rich==13.7.1
