@@ -27,10 +27,12 @@ from npg.cli import (
     add_db_config_arguments,
     add_logging_arguments,
 )
+
+from npg.conf import IniData
 from npg.log import configure_structlog
 from sqlalchemy.orm import Session
 
-from npg_irods.db import DBConfig
+from npg_irods import db
 from npg_irods.ont import apply_metadata
 from npg_irods.version import version
 
@@ -83,7 +85,7 @@ def main():
         print(version())
         sys.exit(0)
 
-    dbconfig = DBConfig.from_file(args.db_config.name, "mlwh_ro")
+    dbconfig = IniData(db.Config).from_file(args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )

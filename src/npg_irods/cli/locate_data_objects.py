@@ -31,13 +31,14 @@ from npg.cli import (
     add_logging_arguments,
     integer_in_range,
 )
+from npg.conf import IniData
 from npg.iter import with_previous
 from npg.log import configure_structlog
 from partisan.irods import AVU, DataObject, query_metadata
 from sqlalchemy.orm import Session
 
-from npg_irods import illumina, ont, pacbio, sequenom
-from npg_irods.db import DBConfig
+from npg_irods import db, illumina, ont, pacbio, sequenom
+
 from npg_irods.db.mlwh import (
     find_consent_withdrawn_samples,
     find_updated_samples,
@@ -109,7 +110,7 @@ log = structlog.get_logger("main")
 
 
 def consent_withdrawn(cli_args: argparse.ArgumentParser):
-    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
@@ -153,7 +154,7 @@ def consent_withdrawn(cli_args: argparse.ArgumentParser):
 def illumina_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Illumina data objects and execute
     the command."""
-    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
@@ -267,7 +268,7 @@ def illumina_updates(
 def ont_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding ONT data objects and execute the
     command."""
-    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
@@ -335,7 +336,7 @@ def ont_updates(
 def pacbio_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding PacBio data objects and execute
     the command."""
-    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
@@ -424,7 +425,7 @@ def pacbio_updates(
 def infinium_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Infinium microarray data objects
     and execute the command."""
-    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
@@ -457,7 +458,7 @@ def infinium_microarray_updates(
 def sequenom_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Sequenom genotype data objects
     and execute the command."""
-    dbconfig = DBConfig.from_file(cli_args.db_config.name, "mlwh_ro")
+    dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )

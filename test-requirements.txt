@@ -1,4 +1,4 @@
+black==24.8.0
 pytest-it==0.1.5
 pytest==8.3.3
 sqlalchemy-utils==0.41.2
-black==24.8.0
