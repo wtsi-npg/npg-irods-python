@@ -4,7 +4,7 @@ description = "NPG iRODS data management tools."
 license = { file = "LICENSE", content-type = "text/plain" }
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [{ name = "Keith James", email = "kdj@sanger.ac.uk" },
-           { name = "Michael Kubiak", email = "mk35@sanger.ac.uk" }]
+    { name = "Michael Kubiak", email = "mk35@sanger.ac.uk" }]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -16,19 +16,23 @@ requires-python = ">=3.12"
 dynamic = ["version"]
 
 dependencies = [
+    "npg-python-lib",
     "npg_id_generation",
     "partisan",
+    "pymysql",
     "python-dateutil",
     "rich",
     "sqlalchemy",
     "structlog",
+    "yattag",
 ]
 
 [project.optional-dependencies]
 test = [
     "black",
     "pytest",
-    "pytest-it"
+    "pytest-it",
+    "sqlalchemy-utils"
 ]
 
 [project.urls]

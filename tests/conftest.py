@@ -31,6 +31,7 @@ from pathlib import PurePath
 
 import pytest
 import structlog
+from npg.conf import IniData
 from partisan.icommands import (
     iput,
     irm,
@@ -53,12 +54,10 @@ from helpers import (
     remove_test_groups,
     set_replicate_invalid,
 )
-from npg_irods.db import DBConfig
-from npg_irods.db.mlwh import (
-    Base,
-)
+from npg_irods import db
+from npg_irods.db import mlwh
 from npg_irods.metadata.common import DataFile
-from npg_irods.metadata.lims import TrackedSample, TrackedStudy, Study, Sample
+from npg_irods.metadata.lims import Sample, Study, TrackedSample, TrackedStudy
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -87,7 +86,7 @@ def mlwh_session() -> Session:
     """Create an empty ML warehouse database fixture."""
     section = INI_SECTION_GITHUB if is_running_in_github_ci() else INI_SECTION_LOCAL
 
-    dbconfig = DBConfig.from_file(TEST_INI, section)
+    dbconfig = IniData(db.Config).from_file(TEST_INI, section)
     engine = create_engine(dbconfig.url, echo=False)
 
     if database_exists(engine.url):
@@ -100,7 +99,7 @@ def mlwh_session() -> Session:
         conn.execute(text("SET sql_mode = '';"))
         conn.commit()
 
-    Base.metadata.create_all(engine)
+    mlwh.Base.metadata.create_all(engine)
     session_maker = sessionmaker(bind=engine)
     sess: Session() = session_maker()
 
