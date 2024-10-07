@@ -17,22 +17,21 @@ dynamic = ["version"]
 
 dependencies = [
     "npg-python-lib",
-    "npg_id_generation",
-    "partisan",
-    "pymysql",
-    "python-dateutil",
-    "rich",
-    "sqlalchemy",
-    "structlog",
-    "yattag",
+    "npg_id_generation >=5.0.1",
+    "partisan >=2.12.0",
+    "pymysql >=1.1.1",
+    "python-dateutil >=2.9.0,<3",
+    "rich >=13.6.0",
+    "sqlalchemy >=2.0.33",
+    "structlog >=23.3.0",
+    "yattag"
 ]
 
 [project.optional-dependencies]
 test = [
-    "black",
-    "pytest",
-    "pytest-it",
-    "sqlalchemy-utils"
+    "black >=24.3.0,<25",
+    "pytest >=8.0,<9",
+    "sqlalchemy-utils >=0.41.0",
 ]
 
 [project.urls]
