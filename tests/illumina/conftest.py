@@ -29,9 +29,7 @@ from helpers import (
     CREATED,
     LATEST,
     add_rods_path,
-    add_test_groups,
     remove_rods_path,
-    remove_test_groups,
 )
 from npg_irods.db.mlwh import IseqFlowcell, IseqProductMetrics, Sample, Study
 from npg_irods.illumina import EntityType
@@ -392,12 +390,11 @@ def illumina_backfill_mlwh(mlwh_session) -> Session:
 
 
 @pytest.fixture(scope="function")
-def illumina_synthetic_irods(tmp_path):
+def illumina_synthetic_irods(tmp_path, irods_groups):
     root_path = PurePath("/testZone/home/irods/test/illumina_synthetic_irods")
     rods_path = add_rods_path(root_path, tmp_path)
 
     Collection(rods_path).create(parents=True)
-    add_test_groups()
 
     run = illumina.Instrument.RUN
     pos = illumina.Instrument.LANE
@@ -499,4 +496,3 @@ def illumina_synthetic_irods(tmp_path):
         yield rods_path / "synthetic"
     finally:
         remove_rods_path(rods_path)
-        remove_test_groups()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2024 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 import json
 
 import structlog
-from typing import List, Dict
+
 from multiprocessing import Pool, pool
 from partisan.irods import DataObject, Collection, client_pool, AVU
 from npg_irods.metadata.common import SeqConcept
@@ -108,7 +108,7 @@ def has_subset(obj: DataObject) -> bool:
     return False
 
 
-def create_product_dict(obj_path: str, ext: str) -> Dict:
+def create_product_dict(obj_path: str, ext: str) -> dict:
     """
     Gathers information about a data object that is required to load
     it into the seq_product_irods_locations table.
@@ -124,7 +124,7 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
     # rebuild un-pickleable objects inside subprocess
 
     with client_pool(1) as baton_pool:
-        obj = DataObject(obj_path, baton_pool)
+        obj = DataObject(obj_path, pool=baton_pool)
         if has_expected_extension(obj.name, ext) and not is_10x(str(obj.path)):
             product = {
                 "seq_platform_name": ILLUMINA,
@@ -155,8 +155,8 @@ def create_product_dict(obj_path: str, ext: str) -> Dict:
 
 
 def extract_products(
-    results: List[pool.ApplyResult], timeout: int = None
-) -> List[Dict]:
+    results: list[pool.ApplyResult], timeout: int = None
+) -> list[dict]:
     """
     Extracts products from result list and handles errors raised.
 
@@ -180,7 +180,7 @@ def extract_products(
     return products
 
 
-def find_products(coll: Collection, processes: int) -> List[Dict]:
+def find_products(coll: Collection, processes: int) -> list[dict]:
     """
     Recursively finds all (non-human, non-phix) cram data objects in
     a collection.
@@ -215,7 +215,7 @@ def find_products(coll: Collection, processes: int) -> List[Dict]:
     return products
 
 
-def generate_files(colls: List[str], processes: int, out_file: str):
+def generate_files(colls: list[str], processes: int, out_file: str):
     """
     Writes a json file containing information to be loaded into
     seq_product_irods_locations table for each product data object in a set of

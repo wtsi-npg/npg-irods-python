@@ -20,6 +20,7 @@
 """ONT-specific business logic API."""
 
 import re
+import shlex
 from dataclasses import dataclass
 from datetime import datetime
 from os import PathLike
@@ -27,6 +28,7 @@ from pathlib import PurePath
 from typing import Iterator, Optional, Type
 
 from partisan.exception import RodsError
+from partisan.icommands import iquest
 from partisan.irods import AVU, Collection, DataObject, query_metadata
 from sqlalchemy import asc, distinct
 from sqlalchemy.orm import Session
@@ -431,11 +433,39 @@ def find_flowcells_by_component(
     ).all()
 
 
-def tag_index_from_id(tag_identifier: str) -> int:
-    """Return the barcode tag index given a barcode tag identifier.
+def find_run_collections(
+    since: datetime, until: datetime, zone: str = None
+) -> list[Collection]:
+    """Find ONT run collections in iRODS by their metadata and creation time.
 
-    Returns: int
+    Args:
+        since: The earliest creation date of the collections to find.
+        until: The latest creation date of the collections to find.
+        zone: The federated iRODS zone in which to find collections. Optional,
+            defaults to "seq". Use None to search the local zone.
+
+    Returns:
+        Paths of collections created between these times.
     """
+
+    args = []
+    if zone is not None:
+        args.extend(["-z", shlex.quote(zone)])
+    args.append("%s/%s")
+
+    query = (
+        "select COLL_NAME where "
+        f"META_COLL_ATTR_NAME = '{Instrument.EXPERIMENT_NAME}' and "
+        f"META_COLL_ATTR_NAME = '{Instrument.INSTRUMENT_SLOT}' and "
+        f"COLL_CREATE_TIME >= '{int(since.timestamp()) :>011}' amd "
+        f"COLL_CREATE_TIME <= '{int(until.timestamp()) :>011}'"
+    )
+
+    return [Collection(p) for p in iquest(*args, query).splitlines()]
+
+
+def tag_index_from_id(tag_identifier: str) -> int:
+    """Return the barcode tag index given a barcode tag identifier."""
     match = TAG_IDENTIFIER_REGEX.search(tag_identifier)
     if match:
         return int(match.group(TAG_IDENTIFIER_GROUP))
@@ -447,11 +477,9 @@ def tag_index_from_id(tag_identifier: str) -> int:
 
 
 def barcode_name_from_id(tag_identifier: str) -> str:
-    """Return the barcode name given a barcode tag identifier. The name is used most
-    often for directory naming in ONT experiment results.
+    """Return the barcode name given a barcode tag identifier.
 
-    Returns: str
-    """
+    The name is used most often for directory naming in ONT experiment results."""
     match = TAG_IDENTIFIER_REGEX.search(tag_identifier)
     if match:
         return f"barcode{match.group(TAG_IDENTIFIER_GROUP) :0>2}"

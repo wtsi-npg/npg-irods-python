@@ -17,7 +17,7 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import PurePath
 
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_timestamp
@@ -25,12 +25,10 @@ from pytest import mark as m, raises
 
 from helpers import (
     LATEST,
-    add_rods_path,
     history_in_meta,
     remove_rods_path,
     tests_have_admin,
 )
-from ont.conftest import ont_tag_identifier
 from npg_irods import ont
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.lims import (
@@ -43,10 +41,11 @@ from npg_irods.ont import (
     Instrument,
     annotate_results_collection,
     apply_metadata,
+    barcode_collections,
     ensure_secondary_metadata_updated,
     is_minknow_report,
-    barcode_collections,
 )
+from ont.conftest import ont_tag_identifier
 
 
 class TestONTFindUpdates:
@@ -420,7 +419,7 @@ class TestONTMetadataUpdate(object):
         assert history_in_meta(
             AVU(
                 f"{TrackedStudy.NAME}_history",
-                f"[{format_timestamp(datetime.utcnow())}] Study A,Study B",
+                f"[{format_timestamp(datetime.now(timezone.utc))}] Study A,Study B",
             ),
             coll.metadata(),
         )
@@ -489,7 +488,7 @@ class TestONTMetadataUpdate(object):
                 AVU(Instrument.INSTRUMENT_SLOT, slot),
             )
 
-            samples_paths: tuple[str, Collection] = []
+            samples_paths = []
             for tag_index in range(1, 5):
                 tag_identifier = ont_tag_identifier(tag_index)
                 bpath = (
