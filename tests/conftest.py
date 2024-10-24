@@ -71,6 +71,15 @@ INI_SECTION_LOCAL = "docker"
 INI_SECTION_GITHUB = "github"
 
 
+@pytest.fixture(scope="function")
+def irods_groups():
+    try:
+        add_test_groups()
+        yield
+    finally:
+        remove_test_groups()
+
+
 @pytest.fixture(scope="session")
 def sql_test_utilities():
     """Install SQL test utilities for the iRODS backend database."""
@@ -219,7 +228,7 @@ def annotated_data_object(tmp_path):
 
 
 @pytest.fixture(scope="function")
-def simple_study_and_sample_data_object(tmp_path):
+def simple_study_and_sample_data_object(tmp_path, irods_groups):
     """A fixture providing a collection containing a single data object with sample
     and study metadata"""
     root_path = PurePath(
@@ -227,7 +236,6 @@ def simple_study_and_sample_data_object(tmp_path):
     )
     rods_path = add_rods_path(root_path, tmp_path)
 
-    add_test_groups()
     obj_path = rods_path / "lorem.txt"
     iput("./tests/data/simple/data_object/lorem.txt", obj_path)
 
@@ -240,7 +248,6 @@ def simple_study_and_sample_data_object(tmp_path):
         yield obj_path
     finally:
         remove_rods_path(rods_path)
-        remove_test_groups()
 
 
 @pytest.fixture(scope="function")
@@ -294,7 +301,7 @@ def invalid_replica_data_object(tmp_path, sql_test_utilities):
 
 
 @pytest.fixture(scope="function")
-def annotated_collection_tree(tmp_path):
+def annotated_collection_tree(tmp_path, irods_groups):
     """A fixture providing a tree of collections and data objects, with both
     collections and data objects having annotation."""
 
@@ -304,7 +311,6 @@ def annotated_collection_tree(tmp_path):
     iput("./tests/data/tree", rods_path, recurse=True)
     tree_root = rods_path / "tree"
 
-    add_test_groups()
     group_ac = AC("ss_1000", Permission.READ, zone="testZone")
     public_ac = AC("public", Permission.READ, zone="testZone")
 
@@ -327,7 +333,6 @@ def annotated_collection_tree(tmp_path):
         yield tree_root
     finally:
         remove_rods_path(rods_path)
-        remove_test_groups()
 
 
 @pytest.fixture(scope="function")

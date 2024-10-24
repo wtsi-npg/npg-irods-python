@@ -34,7 +34,7 @@ from npg.cli import (
 from npg.conf import IniData
 from npg.iter import with_previous
 from npg.log import configure_structlog
-from partisan.irods import AVU, DataObject, query_metadata
+from partisan.irods import AVU, DataObject, RodsItem, query_metadata
 from sqlalchemy.orm import Session
 
 from npg_irods import db, illumina, ont, pacbio, sequenom
@@ -77,7 +77,7 @@ Examples:
     locate-data-objects --verbose --colour --db-config db.ini --zone seq \\
         consent-withdrawn
 
-    locate-data-objects --verbose --json  --db-config db.ini --zone seq \\
+    locate-data-objects --verbose --json --db-config db.ini --zone seq \\
         illumina-updates --begin-date `date --iso --date=-7day` \\
         --skip-absent-runs 5
 
@@ -111,13 +111,15 @@ log = structlog.get_logger("main")
 
 def consent_withdrawn(cli_args: argparse.ArgumentParser):
     dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
+    json = cli_args.report_json
+
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
 
-    with Session(engine) as session:
-        num_processed = num_errors = 0
+    num_processed = num_errors = 0
 
+    with Session(engine) as session:
         for i, s in enumerate(find_consent_withdrawn_samples(session)):
             num_processed += 1
             log.info("Finding data objects", item=i, sample=s)
@@ -134,13 +136,13 @@ def consent_withdrawn(cli_args: argparse.ArgumentParser):
                 for obj in query_metadata(
                     query, data_object=True, collection=False, zone=zone
                 ):
-                    print(obj)
+                    _print(obj, json=json)
                 for coll in query_metadata(
                     query, data_object=False, collection=True, zone=zone
                 ):
                     for item in coll.iter_contents(recurse=True):
                         if item.rods_type == DataObject:
-                            print(item)
+                            _print(item, json=json)
             except Exception as e:
                 num_errors += 1
                 log.exception(e, item=i, sample=s)
@@ -161,11 +163,12 @@ def illumina_updates_cli(cli_args: argparse.ArgumentParser):
     since = cli_args.begin_date
     until = cli_args.end_date
     skip_absent_runs = cli_args.skip_absent_runs
+    json = cli_args.report_json
     zone = cli_args.zone
 
     with Session(engine) as sess:
         num_proc, num_errors = illumina_updates(
-            sess, since, until, skip_absent_runs=skip_absent_runs, zone=zone
+            sess, since, until, skip_absent_runs=skip_absent_runs, json=json, zone=zone
         )
 
         if num_errors:
@@ -177,18 +180,20 @@ def illumina_updates(
     since: datetime,
     until: datetime,
     skip_absent_runs: int = None,
+    json: bool = False,
     zone: str = None,
 ) -> (int, int):
     """Find recently updated Illumina data in the ML warehouse, locate corresponding
     data objects in iRODS and print their paths.
 
     Args:
-        sess: An open SQL session
-        since: Earliest changes to find
-        until: Latest changes to find
+        sess: An open SQL session.
+        since: Earliest changes to find.
+        until: Latest changes to find.
         skip_absent_runs: Skip any runs where no data objects have been found after
-            this number of attempts
-        zone: iRODS zone to query
+            this number of attempts.
+        json: Print output in JSON format.
+        zone: iRODS zone to query.
 
     Returns:
         The number of ML warehouse records processed, the number of errors encountered.
@@ -238,18 +243,17 @@ def illumina_updates(
             successes += 1
 
             for obj in result:
-                to_print.add(str(obj))
+                to_print.add(obj)
 
                 try:
                     qc_coll = find_qc_collection(obj)
                     for item in qc_coll.iter_contents(recurse=True):
-                        to_print.add(str(item))
+                        to_print.add(item)
                 except CollectionNotFound as e:
                     log.warning("QC collection missing", path=e.path)
 
             if prev is not None and curr.id_run != prev.id_run:  # Reached next run
-                for obj in sorted(to_print):
-                    print(obj)
+                _print_batch(to_print, json=json)
                 to_print.clear()
                 successes = attempts = 0
 
@@ -257,9 +261,7 @@ def illumina_updates(
             num_errors += 1
             log.exception(e, item=num_processed, comp=curr)
 
-    for obj in sorted(to_print):
-        print(obj)
-
+    _print_batch(to_print, json=json)
     log.info(f"Processed {num_processed} with {num_errors} errors")
 
     return num_processed, num_errors
@@ -275,11 +277,12 @@ def ont_updates_cli(cli_args: argparse.ArgumentParser):
     since = cli_args.begin_date
     until = cli_args.end_date
     report_tags = cli_args.report_tags
+    json = cli_args.report_json
     zone = cli_args.zone
 
     with Session(engine) as sess:
         num_proc, num_errors = ont_updates(
-            sess, since, until, report_tags=report_tags, zone=zone
+            sess, since, until, report_tags=report_tags, json=json, zone=zone
         )
 
         if num_errors:
@@ -291,6 +294,7 @@ def ont_updates(
     since: datetime,
     until: datetime,
     report_tags: bool = False,
+    json: bool = False,
     zone: str = None,
 ) -> (int, int):
     num_processed = num_errors = 0
@@ -320,13 +324,54 @@ def ont_updates(
                 # unless requested to report the deplexed collections
                 if report_tags and c.tag_identifier is not None:
                     for bcoll in barcode_collections(coll, c.tag_identifier):
-                        print(bcoll)
+                        _print(bcoll, json=json)
                 else:
-                    print(coll)
+                    _print(coll, json=json)
 
         except Exception as e:
             num_errors += 1
             log.exception(e, item=i, comp=c)
+
+    log.info(f"Processed {num_processed} with {num_errors} errors")
+
+    return num_processed, num_errors
+
+
+def ont_run_collections_created_cli(cli_args: argparse.ArgumentParser):
+    """Process the command line arguments for finding ONT runfolder collections
+    selected on the time they were created in iRODS, and execute the command."""
+    since = cli_args.begin_date
+    until = cli_args.end_date
+    json = cli_args.report_json
+    zone = cli_args.zone
+
+    num_proc, num_errors = ont_run_collections_created(
+        since, until, json=json, zone=zone
+    )
+
+    if num_errors:
+        sys.exit(1)
+
+
+def ont_run_collections_created(
+    since: datetime, until: datetime, json: bool = False, zone: str = None
+) -> (int, int):
+    num_processed = num_errors = 0
+
+    log.info(
+        "Searching iRODS",
+        since=since.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        until=until.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    )
+
+    for i, coll in enumerate(ont.find_run_collections(since, until, zone=zone)):
+        num_processed += 1
+
+        try:
+            _print(coll, json=json)
+        except Exception as e:
+            num_errors += 1
+            log.exception(e, item=i, coll=coll)
 
     log.info(f"Processed {num_processed} with {num_errors} errors")
 
@@ -343,11 +388,12 @@ def pacbio_updates_cli(cli_args: argparse.ArgumentParser):
     since = cli_args.begin_date
     until = cli_args.end_date
     skip_absent_runs = cli_args.skip_absent_runs
+    json = cli_args.report_json
     zone = cli_args.zone
 
     with Session(engine) as sess:
         num_proc, num_errors = pacbio_updates(
-            sess, since, until, skip_absent_runs=skip_absent_runs, zone=zone
+            sess, since, until, skip_absent_runs=skip_absent_runs, json=json, zone=zone
         )
 
         if num_errors:
@@ -359,6 +405,7 @@ def pacbio_updates(
     since: datetime,
     until: datetime,
     skip_absent_runs: int = None,
+    json: bool = False,
     zone: str = None,
 ) -> (int, int):
     num_processed = num_errors = 0
@@ -405,17 +452,20 @@ def pacbio_updates(
             successes += 1
 
             for obj in result:
-                to_print.add(str(obj))
+                to_print.add(obj)
 
             if prev is not None and curr.run_name != prev.run_name:  # Reached next run
                 for obj in sorted(to_print):
-                    print(obj)
+                    _print(obj, json=json)
                 to_print.clear()
                 successes = attempts = 0
 
         except Exception as e:
             num_errors += 1
             log.exception(e, item=num_processed, comp=curr)
+
+    for obj in sorted(to_print):
+        _print(obj, json=json)
 
     log.info(f"Processed {num_processed} with {num_errors} errors")
 
@@ -431,11 +481,12 @@ def infinium_updates_cli(cli_args: argparse.ArgumentParser):
     )
     since = cli_args.begin_date
     until = cli_args.end_date
+    json = cli_args.report_json
     zone = cli_args.zone
 
     with Session(engine) as sess:
         num_proc, num_errors = infinium_microarray_updates(
-            sess, since, until, zone=zone
+            sess, since, until, json=json, zone=zone
         )
 
         if num_errors:
@@ -443,11 +494,15 @@ def infinium_updates_cli(cli_args: argparse.ArgumentParser):
 
 
 def infinium_microarray_updates(
-    sess: Session, since: datetime, until: datetime, zone: str = None
+    sess: Session,
+    since: datetime,
+    until: datetime,
+    json: bool = False,
+    zone: str = None,
 ) -> (int, int):
     query = [AVU(infinium.Instrument.BEADCHIP, "%", operator="like")]
     num_processed, num_errors = _print_data_objects_updated_in_mlwh(
-        sess, query, since=since, until=until, zone=zone
+        sess, query, since=since, until=until, json=json, zone=zone
     )
 
     log.info(f"Processed {num_processed} with {num_errors} errors")
@@ -487,20 +542,25 @@ def sequenom_genotype_updates(
 
 
 def _print_data_objects_updated_in_mlwh(
-    sess: Session, query: list[AVU], since: datetime, until: datetime, zone: str = None
+    sess: Session,
+    query: list[AVU],
+    since: datetime,
+    until: datetime,
+    json: bool = False,
+    zone: str = None,
 ) -> (int, int):
     num_processed = num_errors = 0
 
     studies = find_updated_studies(sess, since=since, until=until)
     np, ne = _find_and_print_data_objects(
-        TrackedStudy.ID, studies, query, since=since, until=until, zone=zone
+        TrackedStudy.ID, studies, query, since=since, until=until, json=json, zone=zone
     )
     num_processed += np
     num_errors += ne
 
     samples = find_updated_samples(sess, since=since, until=until)
     np, ne = _find_and_print_data_objects(
-        TrackedSample.ID, samples, query, since=since, until=until, zone=zone
+        TrackedSample.ID, samples, query, since=since, until=until, json=json, zone=zone
     )
     num_processed += np
     num_errors += ne
@@ -514,6 +574,7 @@ def _find_and_print_data_objects(
     query: list[AVU],
     since: datetime,
     until: datetime,
+    json: bool = False,
     zone: str = None,
 ) -> (int, int):
     """Print data object paths identified by their metadata e.g. sample ID or study ID.
@@ -521,10 +582,11 @@ def _find_and_print_data_objects(
     Args:
         attr: An AVU attribute to search on e.g. sample ID or study ID.
         values: An interator of AVU values corresponding to the attribute to search for.
-        query: Additional AVUs to combine with attr and values in the queries
-        since: Earliest changes to find
-        until: Latest changes to find
-        zone: iRODS zone to query
+        query: Additional AVUs to combine with attr and values in the queries.
+        since: Earliest changes to find.
+        until: Latest changes to find.
+        json: Print output in JSON format.
+        zone: iRODS zone to query.
 
     Returns:
         The number of records processed, the number of errors encountered.
@@ -547,7 +609,7 @@ def _find_and_print_data_objects(
             for obj in query_metadata(
                 avu, *query, data_object=True, collection=False, zone=zone
             ):
-                print(obj)
+                _print(obj, json=json)
         except Exception as e:
             num_errors += 1
             log.exception(e, item=i, attr=attr, value=value)
@@ -578,6 +640,12 @@ def main():
         help="Find data objects related to samples whose consent for data use has "
         "been withdrawn.",
     )
+    cwdr_parser.add_argument(
+        "--report-json",
+        "--report_json",
+        help="Print output in JSON format.",
+        action="store_true",
+    )
     cwdr_parser.set_defaults(func=consent_withdrawn)
 
     ilup_parser = subparsers.add_parser(
@@ -597,6 +665,12 @@ def main():
         type=integer_in_range(1, 10),
         default=3,
     )
+    ilup_parser.add_argument(
+        "--report-json",
+        "--report_json",
+        help="Print output in JSON format.",
+        action="store_true",
+    )
     ilup_parser.set_defaults(func=illumina_updates_cli)
 
     ontup_parser = subparsers.add_parser(
@@ -609,6 +683,12 @@ def main():
         "--report-tags",
         "--report_tags",
         help="Include barcode sub-collections of runs containing de-multiplexed data.",
+        action="store_true",
+    )
+    ontup_parser.add_argument(
+        "--report-json",
+        "--report_json",
+        help="Print output in JSON format.",
         action="store_true",
     )
     ontup_parser.set_defaults(func=ont_updates_cli)
@@ -630,6 +710,12 @@ def main():
         type=integer_in_range(1, 10),
         default=3,
     )
+    pbup_parser.add_argument(
+        "--report-json",
+        "--report_json",
+        help="Print output in JSON format.",
+        action="store_true",
+    )
     pbup_parser.set_defaults(func=pacbio_updates_cli)
 
     imup_parser = subparsers.add_parser(
@@ -638,6 +724,12 @@ def main():
         "metadata in the ML warehouse have changed since a specified time.",
     )
     add_date_range_arguments(imup_parser)
+    imup_parser.add_argument(
+        "--report-json",
+        "--report_json",
+        help="Print output in JSON format.",
+        action="store_true",
+    )
     imup_parser.set_defaults(func=infinium_updates_cli)
 
     squp_parser = subparsers.add_parser(
@@ -646,6 +738,12 @@ def main():
         "metadata in the ML warehouse have changed since a specified time.",
     )
     add_date_range_arguments(squp_parser)
+    squp_parser.add_argument(
+        "--report-json",
+        "--report_json",
+        help="Print output in JSON format.",
+        action="store_true",
+    )
     squp_parser.set_defaults(func=sequenom_updates_cli)
 
     args = parser.parse_args()
@@ -661,3 +759,19 @@ def main():
         print(version())
         sys.exit(0)
     args.func(args)
+
+
+def _print(item: RodsItem, json: bool = False):
+    if json:
+        print(item.to_json(indent=None, sort_keys=True))
+    else:
+        print(item)
+
+
+def _print_batch(items: set[RodsItem], json: bool = False):
+    if json:
+        lines = [item.to_json(indent=None, sort_keys=True) for item in items]
+    else:
+        lines = [str(item) for item in items]
+    lines.sort()
+    print("\n".join(lines))

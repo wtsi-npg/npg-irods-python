@@ -31,9 +31,7 @@ from helpers import (
     LATE,
     LATEST,
     add_rods_path,
-    add_test_groups,
     remove_rods_path,
-    remove_test_groups,
 )
 from npg_irods.db.mlwh import OseqFlowcell, Sample, Study
 from npg_irods.metadata import ont
@@ -226,7 +224,7 @@ def ont_synthetic_mlwh(mlwh_session) -> Session:
 
 
 @pytest.fixture(scope="function")
-def ont_gridion_irods(tmp_path):
+def ont_gridion_irods(tmp_path, irods_groups):
     """A fixture providing a set of files based on output from an ONT GridION
     instrument. This dataset provides an example of file and directory naming
     conventions. The file contents are dummy values."""
@@ -235,17 +233,15 @@ def ont_gridion_irods(tmp_path):
 
     iput("./tests/data/ont/gridion", rods_path, recurse=True)
     expt_root = rods_path / "gridion"
-    add_test_groups()
 
     try:
         yield expt_root
     finally:
         remove_rods_path(rods_path)
-        remove_test_groups()
 
 
 @pytest.fixture(scope="function")
-def ont_synthetic_irods(tmp_path):
+def ont_synthetic_irods(tmp_path, irods_groups):
     """A fixture providing a synthetic set of files and metadata based on output
     from an ONT GridION instrument, modified to represent the way simple and
     multiplexed experiments are laid out. The file contents are dummy values."""
@@ -253,7 +249,6 @@ def ont_synthetic_irods(tmp_path):
     rods_path = add_rods_path(root_path, tmp_path)
 
     expt_root = rods_path / "synthetic"
-    add_test_groups()
 
     for expt in range(1, NUM_SIMPLE_EXPTS + 1):
         for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
@@ -340,4 +335,3 @@ def ont_synthetic_irods(tmp_path):
         yield expt_root
     finally:
         remove_rods_path(rods_path)
-        remove_test_groups()

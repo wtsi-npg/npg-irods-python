@@ -16,8 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
-
-import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -353,7 +352,7 @@ class TestCreationMetadataAPI:
     @m.context("When creation metadata are created")
     @m.it("Has the correct form")
     def test_make_creation_metadata(self):
-        now = datetime.datetime.utcnow()
+        now = datetime.now(timezone.utc)
         name = "dummy"
         assert make_creation_metadata(name, now) == [
             AVU("dcterms:creator", name),

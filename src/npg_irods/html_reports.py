@@ -120,7 +120,7 @@ def ont_runs_this_year(zone: str = None) -> list[tuple[Collection, datetime]]:
     #
     # Testing with hand-crafted iquest commands shows the COLL_CREATE_TIME is ignored.
     #
-    # sec_since_epoch = (start_of_year.utcnow() - datetime(1970, 1, 1)).total_seconds()
+    # sec_since_epoch = (start_of_year.now(timezone.utc) - datetime(1970, 1, 1)).total_seconds()
     #
     # args = [
     #     "%s %s",

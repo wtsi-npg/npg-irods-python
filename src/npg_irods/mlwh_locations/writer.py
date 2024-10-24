@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Michael Kubiak <mk35@sanger.ac.uk>
+
 import json
 from pathlib import PurePath
 
