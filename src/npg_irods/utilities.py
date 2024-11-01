@@ -43,7 +43,7 @@ from sqlalchemy import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from structlog import get_logger
 
-from npg_irods import common, illumina, ont, pacbio
+from npg_irods import common, illumina, ont, pacbio, version
 from npg_irods.common import (
     AnalysisType,
     Platform,
@@ -74,7 +74,6 @@ from npg_irods.metadata.lims import (
     has_consent_withdrawn_metadata,
     has_consent_withdrawn_permissions,
 )
-from npg_irods.version import version
 
 log = get_logger(__name__)
 
