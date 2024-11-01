@@ -26,8 +26,8 @@ from npg.log import configure_structlog
 from partisan.exception import RodsError
 from yattag import indent
 
+from npg_irods import version
 from npg_irods.html_reports import ont_runs_html_report_this_year
-from npg_irods.version import version
 
 description = """Writes an HTML report summarising data in iRODS.
 
@@ -69,7 +69,7 @@ parser.add_argument(
     type=str,
 )
 parser.add_argument(
-    "--version", help="Print the version and exit.", action="store_true"
+    "--version", help="Print the version and exit.", action="version", version=version()
 )
 
 args = parser.parse_args()
@@ -84,10 +84,6 @@ log = structlog.get_logger("main")
 
 
 def main():
-    if args.version:
-        print(version())
-        sys.exit(0)
-
     report = args.report[0]
 
     try:

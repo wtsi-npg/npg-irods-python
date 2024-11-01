@@ -25,10 +25,10 @@ from npg.cli import add_logging_arguments
 from npg.log import configure_structlog
 from partisan.exception import RodsError
 
+from npg_irods import version
 from npg_irods.common import rods_path
 from npg_irods.exception import ChecksumError
 from npg_irods.utilities import copy
-from npg_irods.version import version
 
 description = """
 Copies iRODS collections and data objects from one path to another, optionally
@@ -84,7 +84,7 @@ parser.add_argument(
     action="store_true",
 )
 parser.add_argument(
-    "--version", help="Print the version and exit.", action="store_true"
+    "--version", help="Print the version and exit.", action="version", version=version()
 )
 
 args = parser.parse_args()
@@ -99,10 +99,6 @@ log = structlog.get_logger("main")
 
 
 def main():
-    if args.version:
-        print(version())
-        sys.exit(0)
-
     try:
         num_processed, num_copied = copy(
             args.source,

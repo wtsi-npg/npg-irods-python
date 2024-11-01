@@ -24,10 +24,11 @@ import structlog
 from npg.cli import add_io_arguments, add_logging_arguments
 from npg.log import configure_structlog
 
+from npg_irods import version
 from npg_irods.utilities import (
     check_consent_withdrawn,
 )
-from npg_irods.version import version
+
 
 description = """
 Reads iRODS data object paths from a file or STDIN, one per line and checks that each
@@ -71,7 +72,7 @@ parser.add_argument(
     action="store_true",
 )
 parser.add_argument(
-    "--version", help="Print the version and exit.", action="store_true"
+    "--version", help="Print the version and exit.", action="version", version=version()
 )
 
 
@@ -87,10 +88,6 @@ log = structlog.get_logger("main")
 
 
 def main():
-    if args.version:
-        print(version())
-        sys.exit(0)
-
     num_processed, num_passed, num_errors = check_consent_withdrawn(
         args.input,
         args.output,

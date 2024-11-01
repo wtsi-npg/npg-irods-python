@@ -37,7 +37,7 @@ from npg.log import configure_structlog
 from partisan.irods import AVU, DataObject, RodsItem, query_metadata
 from sqlalchemy.orm import Session
 
-from npg_irods import db, illumina, ont, pacbio, sequenom
+from npg_irods import db, illumina, ont, pacbio, sequenom, version
 
 from npg_irods.db.mlwh import (
     find_consent_withdrawn_samples,
@@ -51,7 +51,6 @@ from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import TrackedSample, TrackedStudy
 from npg_irods.ont import barcode_collections
-from npg_irods.version import version
 
 description = """
 A utility for locating sets of data objects in iRODS.
@@ -630,7 +629,10 @@ def main():
         type=str,
     )
     parser.add_argument(
-        "--version", help="Print the version and exit.", action="store_true"
+        "--version",
+        help="Print the version and exit.",
+        action="version",
+        version=version(),
     )
 
     subparsers = parser.add_subparsers(title="Sub-commands", required=True)
@@ -672,6 +674,20 @@ def main():
         action="store_true",
     )
     ilup_parser.set_defaults(func=illumina_updates_cli)
+
+    ontcre_parser = subparsers.add_parser(
+        "ont-run-creation",
+        help="Find ONT runfolder collections created in iRODS within a specified time "
+        "range.",
+    )
+    add_date_range_arguments(ontcre_parser)
+    ontcre_parser.add_argument(
+        "--report-json",
+        "--report_json",
+        help="Print output in JSON format.",
+        action="store_true",
+    )
+    ontcre_parser.set_defaults(func=ont_run_collections_created_cli)
 
     ontup_parser = subparsers.add_parser(
         "ont-updates",
@@ -755,9 +771,6 @@ def main():
         json=args.json,
     )
 
-    if args.version:
-        print(version())
-        sys.exit(0)
     args.func(args)
 
 

@@ -24,8 +24,8 @@ import structlog
 from npg.cli import add_logging_arguments
 from npg.log import configure_structlog
 
+from npg_irods import version
 from npg_irods.utilities import write_safe_remove_script
-from npg_irods.version import version
 
 description = """
 Writes a shell script to allow safe recursive deletion of collections and data objects
@@ -73,7 +73,7 @@ parser.add_argument(
     action="store_true",
 )
 parser.add_argument(
-    "--version", help="Print the version and exit.", action="store_true"
+    "--version", help="Print the version and exit.", action="version", version=version()
 )
 
 args = parser.parse_args()
@@ -88,10 +88,6 @@ log = structlog.get_logger("main")
 
 
 def main():
-    if args.version:
-        print(version())
-        sys.exit(0)
-
     try:
         write_safe_remove_script(
             args.output,
