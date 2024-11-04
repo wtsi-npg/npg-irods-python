@@ -451,17 +451,24 @@ def find_run_collections(
     args = []
     if zone is not None:
         args.extend(["-z", shlex.quote(zone)])
-    args.append("%s/%s")
+    args.append("%s")
 
     query = (
         "select COLL_NAME where "
         f"META_COLL_ATTR_NAME = '{Instrument.EXPERIMENT_NAME}' and "
         f"META_COLL_ATTR_NAME = '{Instrument.INSTRUMENT_SLOT}' and "
-        f"COLL_CREATE_TIME >= '{int(since.timestamp()) :>011}' amd "
+        f"COLL_CREATE_TIME >= '{int(since.timestamp()) :>011}' and "
         f"COLL_CREATE_TIME <= '{int(until.timestamp()) :>011}'"
     )
 
-    return [Collection(p) for p in iquest(*args, query).splitlines()]
+    # iquest mixes logging and data in its output
+    ignore = f"Zone is {zone}" if zone is not None else "Zone is"
+
+    return [
+        Collection(p)
+        for p in iquest(*args, query).splitlines()
+        if not p.strip().startswith(ignore)
+    ]
 
 
 def tag_index_from_id(tag_identifier: str) -> int:

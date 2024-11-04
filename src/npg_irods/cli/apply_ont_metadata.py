@@ -32,9 +32,8 @@ from npg.conf import IniData
 from npg.log import configure_structlog
 from sqlalchemy.orm import Session
 
-from npg_irods import db
+from npg_irods import db, version
 from npg_irods.ont import apply_metadata
-from npg_irods.version import version
 
 description = """
 Applies metadata and data access permissions on ONT run collections in iRODS, to reflect
@@ -66,7 +65,7 @@ parser.add_argument(
     type=str,
 )
 parser.add_argument(
-    "--version", help="Print the version and exit.", action="store_true"
+    "--version", help="Print the version and exit.", action="version", version=version()
 )
 
 args = parser.parse_args()
@@ -81,10 +80,6 @@ log = structlog.get_logger("main")
 
 
 def main():
-    if args.version:
-        print(version())
-        sys.exit(0)
-
     dbconfig = IniData(db.Config).from_file(args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
