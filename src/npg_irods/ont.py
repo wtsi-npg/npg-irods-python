@@ -457,7 +457,7 @@ def find_run_collections(
         "select COLL_NAME where "
         f"META_COLL_ATTR_NAME = '{Instrument.EXPERIMENT_NAME}' and "
         f"META_COLL_ATTR_NAME = '{Instrument.INSTRUMENT_SLOT}' and "
-        f"COLL_CREATE_TIME >= '{int(since.timestamp()) :>011}' amd "
+        f"COLL_CREATE_TIME >= '{int(since.timestamp()) :>011}' and "
         f"COLL_CREATE_TIME <= '{int(until.timestamp()) :>011}'"
     )
 
