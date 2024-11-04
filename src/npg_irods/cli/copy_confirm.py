@@ -25,7 +25,7 @@ from npg.cli import add_logging_arguments
 from npg.log import configure_structlog
 from partisan.exception import RodsError
 
-from npg_irods import version
+from npg_irods import add_appinfo_structlog_processor, version
 from npg_irods.common import rods_path
 from npg_irods.exception import ChecksumError
 from npg_irods.utilities import copy
@@ -95,6 +95,7 @@ configure_structlog(
     colour=args.colour,
     json=args.json,
 )
+add_appinfo_structlog_processor()
 log = structlog.get_logger("main")
 
 

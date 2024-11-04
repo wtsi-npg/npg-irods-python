@@ -26,7 +26,7 @@ from npg.cli import add_db_config_arguments, add_io_arguments, add_logging_argum
 from npg.conf import IniData
 from npg.log import configure_structlog
 
-from npg_irods import db, version
+from npg_irods import add_appinfo_structlog_processor, db, version
 from npg_irods.utilities import update_secondary_metadata
 
 description = """
@@ -109,6 +109,7 @@ def main():
         colour=args.colour,
         json=args.json,
     )
+    add_appinfo_structlog_processor()
 
     dbconfig = IniData(db.Config).from_file(args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(

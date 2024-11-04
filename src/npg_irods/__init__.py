@@ -19,8 +19,28 @@
 
 
 import importlib.metadata
+import sys
+
+import structlog
 
 __version__ = importlib.metadata.version("npg-irods-python")
+
+
+# If this proves generally useful, it could be moved to npg-python-lib
+def add_appinfo_structlog_processor():
+    """Add a custom structlog processor reporting executable information to the
+    configuration."""
+
+    def _add_executable_info(_logger, _method_name, event: dict):
+        """Add executable name and version to all log entries."""
+        event["application"] = "npg-irods-python"
+        event["executable"] = sys.argv[0]
+        event["version"] = version()
+        return event
+
+    c = structlog.get_config()
+    c["processors"] = [_add_executable_info] + c["processors"]
+    structlog.configure(**c)
 
 
 def version() -> str:

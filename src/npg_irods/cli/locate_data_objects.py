@@ -37,7 +37,15 @@ from npg.log import configure_structlog
 from partisan.irods import AVU, DataObject, RodsItem, query_metadata
 from sqlalchemy.orm import Session
 
-from npg_irods import db, illumina, ont, pacbio, sequenom, version
+from npg_irods import (
+    add_appinfo_structlog_processor,
+    db,
+    illumina,
+    ont,
+    pacbio,
+    sequenom,
+    version,
+)
 
 from npg_irods.db.mlwh import (
     find_consent_withdrawn_samples,
@@ -770,6 +778,7 @@ def main():
         colour=args.colour,
         json=args.json,
     )
+    add_appinfo_structlog_processor()
 
     args.func(args)
 
