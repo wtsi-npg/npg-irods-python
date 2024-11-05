@@ -462,13 +462,17 @@ def find_run_collections(
     )
 
     # iquest mixes logging and data in its output
-    ignore = f"Zone is {zone}" if zone is not None else "Zone is"
+    ignore1 = f"Zone is {zone}" if zone is not None else "Zone is"
+    ignore2 = "CAT_NO_ROWS_FOUND"
 
-    return [
-        Collection(p)
-        for p in iquest(*args, query).splitlines()
-        if not p.strip().startswith(ignore)
-    ]
+    paths = []
+    for line in iquest(*args, query).splitlines():
+        p = line.strip()
+        if p.startswith(ignore1) or p.startswith(ignore2):
+            continue
+        paths.append(p)
+
+    return [Collection(p) for p in paths]
 
 
 def tag_index_from_id(tag_identifier: str) -> int:
