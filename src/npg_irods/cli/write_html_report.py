@@ -26,7 +26,7 @@ from npg.log import configure_structlog
 from partisan.exception import RodsError
 from yattag import indent
 
-from npg_irods import version
+from npg_irods import add_appinfo_structlog_processor, version
 from npg_irods.html_reports import ont_runs_html_report_this_year
 
 description = """Writes an HTML report summarising data in iRODS.
@@ -80,6 +80,7 @@ configure_structlog(
     colour=args.colour,
     json=args.json,
 )
+add_appinfo_structlog_processor()
 log = structlog.get_logger("main")
 
 

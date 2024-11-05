@@ -32,7 +32,7 @@ from npg.conf import IniData
 from npg.log import configure_structlog
 from sqlalchemy.orm import Session
 
-from npg_irods import db, version
+from npg_irods import add_appinfo_structlog_processor, db, version
 from npg_irods.ont import apply_metadata
 
 description = """
@@ -76,6 +76,7 @@ configure_structlog(
     colour=args.colour,
     json=args.json,
 )
+add_appinfo_structlog_processor()
 log = structlog.get_logger("main")
 
 

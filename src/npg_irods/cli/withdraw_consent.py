@@ -24,7 +24,7 @@ import structlog
 from npg.cli import add_logging_arguments
 from npg.log import configure_structlog
 
-from npg_irods import version
+from npg_irods import add_appinfo_structlog_processor, version
 from npg_irods.utilities import (
     withdraw_consent,
 )
@@ -89,6 +89,7 @@ configure_structlog(
     colour=args.colour,
     json=args.json,
 )
+add_appinfo_structlog_processor()
 log = structlog.get_logger("main")
 
 
