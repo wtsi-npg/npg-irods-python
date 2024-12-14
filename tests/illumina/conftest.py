@@ -72,12 +72,17 @@ def initialize_mlwh_illumina_synthetic(session: Session):
             name=f"name{n}",
             public_name=f"public_name{n}",
             supplier_name=f"supplier_name{n}",
+            uuid_sample_lims=f"52429892-0ab6-11ee-b5ba-fa163eac3af{n}",
             **default_timestamps,
         )
 
     samples = [make_sample(n) for n in range(1, 4)]
     control_sample = Sample(
-        id_lims="LIMS_888", id_sample_lims="phix", name="Phi X", **default_timestamps
+        id_lims="LIMS_888",
+        id_sample_lims="phix",
+        name="Phi X",
+        uuid_sample_lims="42429892-0ab6-11ee-b5ba-fa163eac3af3",
+        **default_timestamps,
     )
     session.add_all([*samples, control_sample])
 

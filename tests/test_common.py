@@ -38,17 +38,18 @@ class TestCommonFunctions:
             AVU(TrackedStudy.TITLE, "Test Study Title"),
             AVU(TrackedStudy.ACCESSION_NUMBER, "Test Accession"),
             AVU(TrackedSample.ID, sample_id),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
             AVU(TrackedSample.ACCESSION_NUMBER, "Test Accession"),
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.NAME, "name1"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedSample.UUID, "82429892-0ab6-11ee-b5ba-fa163eac3af7"),
         ]
 
         obj = DataObject(simple_study_and_sample_data_object)
         assert ensure_secondary_metadata_updated(obj, simple_study_and_sample_mlwh)
-
         for avu in expected_avus:
             assert avu in obj.metadata()
 
