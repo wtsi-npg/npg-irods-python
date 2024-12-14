@@ -187,9 +187,11 @@ class TestIlluminaMetadataUpdate:
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
             AVU(TrackedSample.NAME, "name1"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
             AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.NAME, "Study A"),
         ]
@@ -469,9 +471,11 @@ class TestIlluminaPermissionsUpdate:
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
             AVU(TrackedSample.NAME, "name1"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
             AVU(TrackedStudy.ID, "4000"),
             AVU(TrackedStudy.NAME, "Study A"),
         ]
