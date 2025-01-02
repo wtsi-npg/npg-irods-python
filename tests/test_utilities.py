@@ -645,13 +645,13 @@ class TestMetadataUtilities:
     @m.context("When it wants both study and sample metadata enhanced")
     @m.it("Counts successes correctly")
     def test_update_secondary_metadata(
-        self, simple_study_and_sample_data_object, simple_study_and_sample_mlwh
+        self, single_study_and_single_sample_data_object, study_and_samples_mlwh
     ):
-        obj_path = simple_study_and_sample_data_object.as_posix()
+        obj_path = single_study_and_single_sample_data_object.as_posix()
 
         with StringIO("\n".join([obj_path])) as reader:
             with StringIO() as writer:
-                engine = simple_study_and_sample_mlwh.get_bind()
+                engine = study_and_samples_mlwh.get_bind()
                 num_processed, num_updated, num_errors = update_secondary_metadata(
                     reader, writer, engine, print_update=True
                 )
@@ -678,7 +678,7 @@ class TestMetadataUtilities:
             AVU(TrackedSample.UUID, "82429892-0ab6-11ee-b5ba-fa163eac3af7"),
         ]
 
-        obj = DataObject(simple_study_and_sample_data_object)
+        obj = DataObject(single_study_and_single_sample_data_object)
         for avu in expected_avus:
             assert avu in obj.metadata()
 
@@ -686,16 +686,16 @@ class TestMetadataUtilities:
     @m.context("When it wants study metadata enhanced")
     @m.it("Counts successes correctly")
     def test_update_secondary_metadata_with_just_study(
-        self, simple_study_and_sample_data_object, simple_study_and_sample_mlwh
+        self, single_study_and_single_sample_data_object, study_and_samples_mlwh
     ):
-        obj_path = simple_study_and_sample_data_object.as_posix()
-        obj = DataObject(simple_study_and_sample_data_object)
+        obj_path = single_study_and_single_sample_data_object.as_posix()
+        obj = DataObject(single_study_and_single_sample_data_object)
 
         assert obj.remove_metadata(AVU(TrackedSample.ID, "id_sample_lims1")) == 1
 
         with StringIO("\n".join([obj_path])) as reader:
             with StringIO() as writer:
-                engine = simple_study_and_sample_mlwh.get_bind()
+                engine = study_and_samples_mlwh.get_bind()
                 num_processed, num_updated, num_errors = update_secondary_metadata(
                     reader, writer, engine, print_update=True
                 )
@@ -720,16 +720,16 @@ class TestMetadataUtilities:
     @m.context("When it wants sample metadata enhanced")
     @m.it("Counts successes correctly")
     def test_update_general_metadata_with_just_study_err(
-        self, simple_study_and_sample_data_object, simple_study_and_sample_mlwh
+        self, single_study_and_single_sample_data_object, study_and_samples_mlwh
     ):
-        obj_path = simple_study_and_sample_data_object.as_posix()
-        obj = DataObject(simple_study_and_sample_data_object)
+        obj_path = single_study_and_single_sample_data_object.as_posix()
+        obj = DataObject(single_study_and_single_sample_data_object)
 
         assert obj.remove_metadata(AVU(TrackedStudy.ID, "1000")) == 1
 
         with StringIO("\n".join([obj_path])) as reader:
             with StringIO() as writer:
-                engine = simple_study_and_sample_mlwh.get_bind()
+                engine = study_and_samples_mlwh.get_bind()
                 num_processed, num_updated, num_errors = update_secondary_metadata(
                     reader, writer, engine, print_update=True
                 )

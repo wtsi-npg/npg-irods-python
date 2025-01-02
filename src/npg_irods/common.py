@@ -401,37 +401,34 @@ def ensure_secondary_metadata_updated(
        True if updated.
     """
     secondary_metadata, acl = [], []
-    sample, study = None, None
+    samples, study = [], None
 
     if item.metadata(TrackedStudy.ID):
-        study_id = item.avu(TrackedStudy.ID).value
-        study = find_study_by_study_id(mlwh_session, study_id)
+        study = find_study_by_study_id(mlwh_session, item.avu(TrackedStudy.ID).value)
 
-    if item.metadata(TrackedSample.ID):
-        sample_id = item.avu(TrackedSample.ID).value
-        sample = find_sample_by_sample_id(mlwh_session, sample_id)
-
-    if study is None and sample is None:
-        raise ValueError(
-            f"Failed to update metadata on {item}. No {TrackedStudy.ID} or "
-            f"{TrackedSample.ID} or metadata are present"
-        )
+    for avu in item.metadata(TrackedSample.ID):
+        sample = find_sample_by_sample_id(mlwh_session, avu.value)
+        samples.append(sample)
 
     zone = infer_zone(item)
-    if sample is None:
-        secondary_metadata.extend(make_study_metadata(study))
-        acl.extend(make_study_acl(study, zone=zone))
-    elif study is None:
-        secondary_metadata.extend(make_sample_metadata(sample))
-        log.warn(
-            f"Item has no {TrackedStudy.ID} metadata to allow permissions to be set. "
-            "It will be set as unreadable by default.",
-            path=item,
-        )
-    else:
-        secondary_metadata.extend(make_study_metadata(study))
-        secondary_metadata.extend(make_sample_metadata(sample))
-        acl.extend(make_sample_acl(sample, study, zone=zone))
+
+    match study, samples:
+        case None, []:
+            raise ValueError(
+                f"Failed to update metadata on {item}. No {TrackedStudy.ID} or "
+                f"{TrackedSample.ID} or metadata are present"
+            )
+        case study, []:
+            secondary_metadata.extend(make_study_metadata(study))
+            acl.extend(make_study_acl(study, zone=zone))
+        case None, [*sm]:
+            for s in sm:
+                secondary_metadata.extend(make_sample_metadata(s))
+        case study, [*sm]:
+            secondary_metadata.extend(make_study_metadata(study))
+            for s in sm:
+                secondary_metadata.extend(make_sample_metadata(s))
+                acl.extend(make_sample_acl(s, study, zone=zone))
 
     secondary_metadata = sorted(set(secondary_metadata))
     acl = sorted(set(acl))

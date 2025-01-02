@@ -127,7 +127,7 @@ def mlwh_session() -> Session:
     drop_database(engine.url)
 
 
-def initialize_mlwh_study_and_sample(session: Session):
+def initialize_mlwh_study_and_samples(session: Session):
     """
     Insert ML warehouse test data for synthetic runs.
 
@@ -148,7 +148,7 @@ def initialize_mlwh_study_and_sample(session: Session):
     )
     session.add(study_x)
 
-    sample_y = Sample(
+    sample_1 = Sample(
         id_lims="LIMS_01",
         common_name="common_name1",
         donor_id="donor_id1",
@@ -160,15 +160,29 @@ def initialize_mlwh_study_and_sample(session: Session):
         uuid_sample_lims="82429892-0ab6-11ee-b5ba-fa163eac3af7",
         **default_timestamps,
     )
-    session.add(sample_y)
+    session.add(sample_1)
+
+    sample_2 = Sample(
+        id_lims="LIMS_01",
+        common_name="common_name2",
+        donor_id="donor_id2",
+        id_sample_lims="id_sample_lims2",
+        accession_number="Test Accession",
+        name="name2",
+        public_name="public_name2",
+        supplier_name="supplier_name2",
+        **default_timestamps,
+    )
+    session.add(sample_2)
 
     session.commit()
 
 
 @pytest.fixture(scope="function")
-def simple_study_and_sample_mlwh(mlwh_session) -> Session:
-    """An ML warehouse database fixture populated with test study records."""
-    initialize_mlwh_study_and_sample(mlwh_session)
+def study_and_samples_mlwh(mlwh_session) -> Session:
+    """An ML warehouse database fixture populated with a single test study and some
+    sample records."""
+    initialize_mlwh_study_and_samples(mlwh_session)
     yield mlwh_session
 
 
@@ -229,11 +243,11 @@ def annotated_data_object(tmp_path):
 
 
 @pytest.fixture(scope="function")
-def simple_study_and_sample_data_object(tmp_path, irods_groups):
+def single_study_and_single_sample_data_object(tmp_path, irods_groups):
     """A fixture providing a collection containing a single data object with sample
-    and study metadata"""
+    and study metadata."""
     root_path = PurePath(
-        "/testZone/home/irods/test/simple_study_and_sample_data_object"
+        "/testZone/home/irods/test/single_study_and_single_sample_data_object"
     )
     rods_path = add_rods_path(root_path, tmp_path)
 
@@ -243,6 +257,31 @@ def simple_study_and_sample_data_object(tmp_path, irods_groups):
     obj = DataObject(obj_path)
     obj.add_metadata(
         AVU(TrackedSample.ID, "id_sample_lims1"), AVU(TrackedStudy.ID, "1000")
+    )
+
+    try:
+        yield obj_path
+    finally:
+        remove_rods_path(rods_path)
+
+
+@pytest.fixture(scope="function")
+def single_study_and_multi_sample_data_object(tmp_path, irods_groups):
+    """A fixture providing a collection containing a single data object with multiple
+    sample and single study metadata."""
+    root_path = PurePath(
+        "/testZone/home/irods/test/single_study_and_multi_sample_data_object"
+    )
+    rods_path = add_rods_path(root_path, tmp_path)
+
+    obj_path = rods_path / "lorem.txt"
+    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
+
+    obj = DataObject(obj_path)
+    obj.add_metadata(
+        AVU(TrackedSample.ID, "id_sample_lims1"),
+        AVU(TrackedSample.ID, "id_sample_lims2"),
+        AVU(TrackedStudy.ID, "1000"),
     )
 
     try:
