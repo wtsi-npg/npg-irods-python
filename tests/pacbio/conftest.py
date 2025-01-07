@@ -84,6 +84,7 @@ def make_pacbio_fixture(session, num_runs=2, num_wells=2, num_tags=2, is_revio=T
             name=f"name{n}",
             public_name=f"public_name{n}",
             supplier_name=f"supplier_name{n}",
+            uuid_sample_lims=f"72429892-0ab6-11ee-b5ba-fa163eac3af{n}",
             **default_timestamps,
         )
 

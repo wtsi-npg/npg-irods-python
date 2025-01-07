@@ -80,6 +80,7 @@ class Sample(Base):
     donor_id = mapped_column(String(255))
     date_of_consent_withdrawn = mapped_column(DateTime)
     marked_as_consent_withdrawn_by = mapped_column(String(255))
+    uuid_sample_lims = mapped_column(String(36), nullable=False)
 
     iseq_flowcell: Mapped["IseqFlowcell"] = relationship(
         "IseqFlowcell", back_populates="sample"

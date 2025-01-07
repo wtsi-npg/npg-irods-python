@@ -62,9 +62,11 @@ class TrackedSample(AsValueEnum):
     CONTROL = "sample_control"
     DONOR_ID = "sample_donor_id"
     ID = "sample_id"
+    LIMS = "sample_lims"
     NAME = "sample"
     PUBLIC_NAME = "sample_public_name"
     SUPPLIER_NAME = "sample_supplier_name"
+    UUID = "sample_uuid"
 
 
 @unique
@@ -88,6 +90,8 @@ def make_sample_metadata(sample: Sample) -> list[AVU]:
      - sample name
      - sample public name
      - sample supplier name
+     - sample uuid
+     - ID of the LIM system where this sample was registered
 
     Args:
         sample: An ML warehouse schema Sample.
@@ -104,9 +108,11 @@ def make_sample_metadata(sample: Sample) -> list[AVU]:
         ],
         [TrackedSample.DONOR_ID, sample.donor_id],
         [TrackedSample.ID, sample.id_sample_lims],
+        [TrackedSample.LIMS, sample.id_lims],
         [TrackedSample.NAME, sample.name],
         [TrackedSample.PUBLIC_NAME, sample.public_name],
         [TrackedSample.SUPPLIER_NAME, sample.supplier_name],
+        [TrackedSample.UUID, sample.uuid_sample_lims],
     ]
 
     return [avu for avu in starmap(avu_if_value, av) if avu is not None]

@@ -86,6 +86,7 @@ def initialize_mlwh_ont_synthetic(session: Session):
             name=f"name{n}",
             public_name=f"public_name{n}",
             supplier_name=f"supplier_name{n}",
+            uuid_sample_lims=f"62429892-0ab6-11ee-b5ba-fa163eac3af{n}",
             **default_timestamps,
         )
 

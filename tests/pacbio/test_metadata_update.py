@@ -136,9 +136,11 @@ class TestPacBioMetadataUpdate:
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
             AVU(TrackedSample.NAME, "name1"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedSample.UUID, "72429892-0ab6-11ee-b5ba-fa163eac3af1"),
             AVU(TrackedStudy.ID, "1000"),
             AVU(TrackedStudy.NAME, "Study X"),
         ]
@@ -245,9 +247,11 @@ class TestPacBioPermissionsUpdate:
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
             AVU(TrackedSample.NAME, "name1"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
+            AVU(TrackedSample.UUID, "72429892-0ab6-11ee-b5ba-fa163eac3af1"),
             AVU(TrackedStudy.ID, "1000"),
             AVU(TrackedStudy.NAME, "Study X"),
         ]
