@@ -45,7 +45,7 @@ class TestCommonFunctions:
             AVU(TrackedSample.NAME, "name1"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
-            AVU(TrackedSample.UUID, "82429892-0ab6-11ee-b5ba-fa163eac3af7"),
+            AVU(TrackedSample.UUID, "82429892-0ab6-11ee-b5ba-fa163eac3ag7"),
         ]
 
         obj = DataObject(single_study_and_single_sample_data_object)

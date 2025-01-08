@@ -157,7 +157,7 @@ def initialize_mlwh_study_and_samples(session: Session):
         name="name1",
         public_name="public_name1",
         supplier_name="supplier_name1",
-        uuid_sample_lims="82429892-0ab6-11ee-b5ba-fa163eac3af7",
+        uuid_sample_lims="82429892-0ab6-11ee-b5ba-fa163eac3ag7",
         **default_timestamps,
     )
     session.add(sample_1)
@@ -171,6 +171,7 @@ def initialize_mlwh_study_and_samples(session: Session):
         name="name2",
         public_name="public_name2",
         supplier_name="supplier_name2",
+        uuid_sample_lims="82429892-0ab6-11ee-b5ba-fa163eac3ag8",
         **default_timestamps,
     )
     session.add(sample_2)
