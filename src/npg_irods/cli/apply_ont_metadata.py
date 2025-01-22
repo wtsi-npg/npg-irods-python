@@ -88,7 +88,7 @@ def main():
 
     with Session(engine) as session:
         num_processed, num_updated, num_errors = apply_metadata(
-            session, since=args.begin_date, zone=args.zone
+            session, since=args.begin_date, until=args.end_date, zone=args.zone
         )
 
         if num_errors:
