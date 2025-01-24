@@ -182,9 +182,11 @@ class TestONTMetadataCreation(object):
             AVU(TrackedSample.COMMON_NAME, "common_name1"),
             AVU(TrackedSample.DONOR_ID, "donor_id1"),
             AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
             AVU(TrackedSample.NAME, "name1"),
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name1"),
             AVU(TrackedSample.PUBLIC_NAME, "public_name1"),
+            AVU(TrackedSample.UUID, "62429892-0ab6-11ee-b5ba-fa163eac3001"),
             AVU(TrackedStudy.ID, "2000"),
             AVU(TrackedStudy.NAME, "Study Y"),
         ]:
@@ -231,13 +233,14 @@ class TestONTMetadataCreation(object):
         expt = "multiplexed_experiment_001"
         slot = 1
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+        num_barcodes = 12
 
         c = Component(experiment_name=expt, instrument_slot=slot)
 
         assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         for subcoll in ["fast5_fail", "fast5_pass", "fastq_fail", "fastq_pass"]:
-            for tag_index in range(1, 12):
+            for tag_index in range(1, num_barcodes + 1):
                 tag_id = ont_tag_identifier(tag_index)
                 bc_coll = Collection(path / subcoll / ont.barcode_name_from_id(tag_id))
 
@@ -246,9 +249,14 @@ class TestONTMetadataCreation(object):
                     AVU(TrackedSample.COMMON_NAME, f"common_name{tag_index}"),
                     AVU(TrackedSample.DONOR_ID, f"donor_id{tag_index}"),
                     AVU(TrackedSample.ID, f"id_sample_lims{tag_index}"),
+                    AVU(TrackedSample.LIMS, "LIMS_01"),
                     AVU(TrackedSample.NAME, f"name{tag_index}"),
                     AVU(TrackedSample.PUBLIC_NAME, f"public_name{tag_index}"),
                     AVU(TrackedSample.SUPPLIER_NAME, f"supplier_name{tag_index}"),
+                    AVU(
+                        TrackedSample.UUID,
+                        f"62429892-0ab6-11ee-b5ba-fa163eac3{tag_index:0>3}",
+                    ),
                     AVU(TrackedStudy.ID, "3000"),
                     AVU(TrackedStudy.NAME, "Study Z"),
                 ]:
@@ -272,6 +280,7 @@ class TestONTMetadataCreation(object):
     ):
         zone = "testZone"
         slot = 1
+        max_num_barcodes = 4
 
         subpath = PurePath(
             "dorado",
@@ -302,7 +311,7 @@ class TestONTMetadataCreation(object):
 
             assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
-            for tag_index in range(1, 5):
+            for tag_index in range(1, max_num_barcodes + 1):
                 tag_identifier = ont_tag_identifier(tag_index)
                 bpath = path / ont.barcode_name_from_id(tag_identifier)
                 bc_coll = Collection(bpath)
@@ -313,9 +322,14 @@ class TestONTMetadataCreation(object):
                     AVU(TrackedSample.COMMON_NAME, f"common_name{tag_index}"),
                     AVU(TrackedSample.DONOR_ID, f"donor_id{tag_index}"),
                     AVU(TrackedSample.ID, f"id_sample_lims{tag_index}"),
+                    AVU(TrackedSample.LIMS, "LIMS_01"),
                     AVU(TrackedSample.NAME, f"name{tag_index}"),
                     AVU(TrackedSample.PUBLIC_NAME, f"public_name{tag_index}"),
                     AVU(TrackedSample.SUPPLIER_NAME, f"supplier_name{tag_index}"),
+                    AVU(
+                        TrackedSample.UUID,
+                        f"62429892-0ab6-11ee-b5ba-fa163eac3{tag_index:0>3}",
+                    ),
                     AVU(TrackedStudy.ID, "3000"),
                     AVU(TrackedStudy.NAME, "Study Z"),
                 ]:
@@ -453,6 +467,7 @@ class TestONTMetadataUpdate(object):
         self, ont_synthetic_irods, ont_synthetic_mlwh
     ):
         slot = 1
+        max_num_barcodes = 4
         subpath = PurePath(
             "dorado",
             "7.2.13",
@@ -489,7 +504,7 @@ class TestONTMetadataUpdate(object):
             )
 
             samples_paths = []
-            for tag_index in range(1, 5):
+            for tag_index in range(1, max_num_barcodes + 1):
                 tag_identifier = ont_tag_identifier(tag_index)
                 bpath = (
                     path
