@@ -50,7 +50,7 @@ def ont_tag_identifier(tag_index: int) -> str:
     return f"NB{tag_index:02d}"
 
 
-def initialize_mlwh_ont_synthetic(session: Session):
+def initialize_mlwh_ont_synthetic(session: Session, ont_barcodes):
     """Insert ML warehouse test data for all synthetic simple and multiplexed
     ONT experiments.
 
@@ -151,24 +151,9 @@ def initialize_mlwh_ont_synthetic(session: Session):
             recorded_at=when,
         )
 
-    barcodes = [
-        "CACAAAGACACCGACAACTTTCTT",
-        "ACAGACGACTACAAACGGAATCGA",
-        "CCTGGTAACTGGGACACAAGACTC",
-        "TAGGGAAACACGATAGAATCCGAA",
-        "AAGGTTACACAAACCCTGGACAAG",
-        "GACTACTTTCTGCCTTTGCGAGAA",
-        "AAGGATTCATTCCCACGGTAACAC",
-        "ACGTAACTTGGTTTGTTCCCTGAA",
-        "AACCAAGACTCGCTGTGCCTAGTT",
-        "GAGAGGACAAAGGTTTCAACGCTT",
-        "TCCATTCCCTCCGATAGATGAAAC",
-        "TCCGATTCTGCTTCTTTCTACCTG",
-    ]
-
     for expt in range(1, NUM_MULTIPLEXED_EXPTS + 1):
         for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
-            for barcode_idx, barcode in enumerate(barcodes):
+            for barcode_idx, barcode in enumerate(ont_barcodes):
                 # The tag_id format and tag_set_name  are taken from the Guppy barcode
                 # arrangement file barcode_arrs_nb12.toml distributed with Guppy and
                 # MinKNOW.
@@ -188,7 +173,7 @@ def initialize_mlwh_ont_synthetic(session: Session):
     for expt in range(1, NUM_MULTIPLEXED_REBASECALLED_EXPTS + 1):
         for slot in range(1, NUM_MULTIPLEXED_REBASECALLED_SLOTS + 1):
             for barcode_idx, barcode in enumerate(
-                barcodes[:MAX_NUM_BARCODES_MULTIPLEXED_EXPTS]
+                ont_barcodes[:MAX_NUM_BARCODES_MULTIPLEXED_EXPTS]
             ):
                 tag_id = ont_tag_identifier(barcode_idx + 1)
                 flowcells.extend(
@@ -219,9 +204,27 @@ def initialize_mlwh_ont_synthetic(session: Session):
 
 
 @pytest.fixture(scope="function")
-def ont_synthetic_mlwh(mlwh_session) -> Session:
+def ont_barcodes() -> list[str]:
+    return [
+        "CACAAAGACACCGACAACTTTCTT",
+        "ACAGACGACTACAAACGGAATCGA",
+        "CCTGGTAACTGGGACACAAGACTC",
+        "TAGGGAAACACGATAGAATCCGAA",
+        "AAGGTTACACAAACCCTGGACAAG",
+        "GACTACTTTCTGCCTTTGCGAGAA",
+        "AAGGATTCATTCCCACGGTAACAC",
+        "ACGTAACTTGGTTTGTTCCCTGAA",
+        "AACCAAGACTCGCTGTGCCTAGTT",
+        "GAGAGGACAAAGGTTTCAACGCTT",
+        "TCCATTCCCTCCGATAGATGAAAC",
+        "TCCGATTCTGCTTCTTTCTACCTG",
+    ]
+
+
+@pytest.fixture(scope="function")
+def ont_synthetic_mlwh(mlwh_session, ont_barcodes) -> Session:
     """An ML warehouse database fixture populated with ONT-related records."""
-    initialize_mlwh_ont_synthetic(mlwh_session)
+    initialize_mlwh_ont_synthetic(mlwh_session, ont_barcodes)
     yield mlwh_session
 
 
