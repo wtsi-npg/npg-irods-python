@@ -204,7 +204,9 @@ class TestONTMetadataCreation(object):
     @m.context("When an ONT experiment collection is annotated")
     @m.context("When the experiment is multiplexed")
     @m.it("Adds {tag_index_from_id => <n>} metadata to barcode<0n> sub-collections")
-    def test_add_new_plex_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
+    def test_add_new_plex_metadata(
+        self, ont_synthetic_irods, ont_synthetic_mlwh, ont_barcodes
+    ):
         expt = "multiplexed_experiment_001"
         slot = 1
         path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
@@ -214,7 +216,7 @@ class TestONTMetadataCreation(object):
         assert annotate_results_collection(path, c, mlwh_session=ont_synthetic_mlwh)
 
         for subcoll in ["fast5_fail", "fast5_pass", "fastq_fail", "fastq_pass"]:
-            for tag_index in range(1, 12):
+            for tag_index in range(1, len(ont_barcodes) + 1):
                 tag_identifier = ont_tag_identifier(tag_index)
                 bc_coll = Collection(
                     path / subcoll / ont.barcode_name_from_id(tag_identifier)
@@ -276,11 +278,11 @@ class TestONTMetadataCreation(object):
     @m.context("When experiments are multiplexed")
     @m.it("Adds tag_index, sample and study metadata to barcode<0n> sub-collections")
     def test_add_new_plex_metadata_on_rebasecalled(
-        self, ont_synthetic_irods, ont_synthetic_mlwh
+        self, ont_synthetic_irods, ont_synthetic_mlwh, ont_smallset_barcodes
     ):
         zone = "testZone"
         slot = 1
-        max_num_barcodes = 4
+        max_num_barcodes = len(ont_smallset_barcodes)
 
         subpath = PurePath(
             "dorado",
@@ -464,10 +466,10 @@ class TestONTMetadataUpdate(object):
     @m.context("When an iRODS path has metadata identifying its run component")
     @m.it("Updates the metadata")
     def test_updates_rebasecalled_annotated_collection(
-        self, ont_synthetic_irods, ont_synthetic_mlwh
+        self, ont_synthetic_irods, ont_synthetic_mlwh, ont_smallset_barcodes
     ):
         slot = 1
-        max_num_barcodes = 4
+        max_num_barcodes = len(ont_smallset_barcodes)
         subpath = PurePath(
             "dorado",
             "7.2.13",

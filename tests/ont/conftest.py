@@ -222,6 +222,11 @@ def ont_barcodes() -> list[str]:
 
 
 @pytest.fixture(scope="function")
+def ont_smallset_barcodes(ont_barcodes) -> list[str]:
+    return ont_barcodes[:MAX_NUM_BARCODES_MULTIPLEXED_EXPTS]
+
+
+@pytest.fixture(scope="function")
 def ont_synthetic_mlwh(mlwh_session, ont_barcodes) -> Session:
     """An ML warehouse database fixture populated with ONT-related records."""
     initialize_mlwh_ont_synthetic(mlwh_session, ont_barcodes)
