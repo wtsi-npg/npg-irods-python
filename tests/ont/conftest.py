@@ -40,6 +40,9 @@ from npg_irods.metadata import ont
 NUM_SIMPLE_EXPTS = 5
 NUM_MULTIPLEXED_EXPTS = 3
 NUM_INSTRUMENT_SLOTS = 5
+NUM_MULTIPLEXED_REBASECALLED_EXPTS = 1
+NUM_MULTIPLEXED_REBASECALLED_SLOTS = 1
+MAX_NUM_BARCODES_MULTIPLEXED_EXPTS = 4
 
 
 def ont_tag_identifier(tag_index: int) -> str:
@@ -47,7 +50,7 @@ def ont_tag_identifier(tag_index: int) -> str:
     return f"NB{tag_index:02d}"
 
 
-def initialize_mlwh_ont_synthetic(session: Session):
+def initialize_mlwh_ont_synthetic(session: Session, ont_barcodes):
     """Insert ML warehouse test data for all synthetic simple and multiplexed
     ONT experiments.
 
@@ -86,7 +89,7 @@ def initialize_mlwh_ont_synthetic(session: Session):
             name=f"name{n}",
             public_name=f"public_name{n}",
             supplier_name=f"supplier_name{n}",
-            uuid_sample_lims=f"62429892-0ab6-11ee-b5ba-fa163eac3af{n}",
+            uuid_sample_lims=f"62429892-0ab6-11ee-b5ba-fa163eac3{n:0>3}",
             **default_timestamps,
         )
 
@@ -148,7 +151,61 @@ def initialize_mlwh_ont_synthetic(session: Session):
             recorded_at=when,
         )
 
-    barcodes = [
+    for expt in range(1, NUM_MULTIPLEXED_EXPTS + 1):
+        for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
+            for barcode_idx, barcode in enumerate(ont_barcodes):
+                # The tag_id format and tag_set_name  are taken from the Guppy barcode
+                # arrangement file barcode_arrs_nb12.toml distributed with Guppy and
+                # MinKNOW.
+                tag_id = ont_tag_identifier(barcode_idx + 1)
+                flowcells.append(
+                    make_mplex_flowcell(
+                        "multiplexed_experiment",
+                        expt,
+                        100,
+                        slot,
+                        tag_id,
+                        barcode,
+                        barcode_idx,
+                    )
+                )
+
+    for expt in range(1, NUM_MULTIPLEXED_REBASECALLED_EXPTS + 1):
+        for slot in range(1, NUM_MULTIPLEXED_REBASECALLED_SLOTS + 1):
+            for barcode_idx, barcode in enumerate(
+                ont_barcodes[:MAX_NUM_BARCODES_MULTIPLEXED_EXPTS]
+            ):
+                tag_id = ont_tag_identifier(barcode_idx + 1)
+                flowcells.extend(
+                    [
+                        make_mplex_flowcell(
+                            "old_rebasecalled_multiplexed_experiment",
+                            expt,
+                            200,
+                            slot,
+                            tag_id,
+                            barcode,
+                            barcode_idx,
+                        ),
+                        make_mplex_flowcell(
+                            "rebasecalled_multiplexed_experiment",
+                            expt,
+                            300,
+                            slot,
+                            tag_id,
+                            barcode,
+                            barcode_idx,
+                        ),
+                    ]
+                )
+
+    session.add_all(flowcells)  # Simple and multiplexed
+    session.commit()
+
+
+@pytest.fixture(scope="function")
+def ont_barcodes() -> list[str]:
+    return [
         "CACAAAGACACCGACAACTTTCTT",
         "ACAGACGACTACAAACGGAATCGA",
         "CCTGGTAACTGGGACACAAGACTC",
@@ -163,64 +220,16 @@ def initialize_mlwh_ont_synthetic(session: Session):
         "TCCGATTCTGCTTCTTTCTACCTG",
     ]
 
-    msample_idx = 0
-    for expt in range(1, NUM_MULTIPLEXED_EXPTS + 1):
-        for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
-            for barcode_idx, barcode in enumerate(barcodes):
-                # The tag_id format and tag_set_name  are taken from the Guppy barcode
-                # arrangement file barcode_arrs_nb12.toml distributed with Guppy and
-                # MinKNOW.
-                tag_id = ont_tag_identifier(barcode_idx + 1)
-                flowcells.append(
-                    make_mplex_flowcell(
-                        "multiplexed_experiment",
-                        expt,
-                        100,
-                        slot,
-                        tag_id,
-                        barcode,
-                        msample_idx,
-                    )
-                )
-                msample_idx += 1
 
-    msample_idx = 0
-    for expt in range(1, 2):
-        for slot in range(1, 2):
-            for barcode_idx, barcode in enumerate(barcodes[:4]):
-                tag_id = ont_tag_identifier(barcode_idx + 1)
-                flowcells.extend(
-                    [
-                        make_mplex_flowcell(
-                            "old_rebasecalled_multiplexed_experiment",
-                            expt,
-                            200,
-                            slot,
-                            tag_id,
-                            barcode,
-                            msample_idx,
-                        ),
-                        make_mplex_flowcell(
-                            "rebasecalled_multiplexed_experiment",
-                            expt,
-                            300,
-                            slot,
-                            tag_id,
-                            barcode,
-                            msample_idx,
-                        ),
-                    ]
-                )
-                msample_idx += 1
-
-    session.add_all(flowcells)  # Simple and multiplexed
-    session.commit()
+@pytest.fixture(scope="function")
+def ont_smallset_barcodes(ont_barcodes) -> list[str]:
+    return ont_barcodes[:MAX_NUM_BARCODES_MULTIPLEXED_EXPTS]
 
 
 @pytest.fixture(scope="function")
-def ont_synthetic_mlwh(mlwh_session) -> Session:
+def ont_synthetic_mlwh(mlwh_session, ont_barcodes) -> Session:
     """An ML warehouse database fixture populated with ONT-related records."""
-    initialize_mlwh_ont_synthetic(mlwh_session)
+    initialize_mlwh_ont_synthetic(mlwh_session, ont_barcodes)
     yield mlwh_session
 
 
@@ -279,8 +288,8 @@ def ont_synthetic_irods(tmp_path, irods_groups):
             ]
             coll.add_metadata(*meta)
 
-    for expt in range(1, 2):
-        for slot in range(1, 2):
+    for expt in range(1, NUM_MULTIPLEXED_REBASECALLED_EXPTS + 1):
+        for slot in range(1, NUM_MULTIPLEXED_REBASECALLED_SLOTS + 1):
             expt_name = f"old_rebasecalled_multiplexed_experiment_{expt:0>3}"
             id_flowcell = f"flowcell{slot + 200:0>3}"
             run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_b4a1fd79"
@@ -303,8 +312,8 @@ def ont_synthetic_irods(tmp_path, irods_groups):
             ]
             coll.add_metadata(*meta)
 
-    for expt in range(1, 2):
-        for slot in range(1, 2):
+    for expt in range(1, NUM_MULTIPLEXED_REBASECALLED_EXPTS + 1):
+        for slot in range(1, NUM_MULTIPLEXED_REBASECALLED_SLOTS + 1):
             expt_name = f"rebasecalled_multiplexed_experiment_{expt:0>3}"
             id_flowcell = f"flowcell{slot + 300:0>3}"
             run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_08c179cd"
