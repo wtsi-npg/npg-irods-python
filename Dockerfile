@@ -1,4 +1,3 @@
-
 FROM --platform=linux/amd64 ubuntu:bionic AS builder
 
 ARG PYTHON_VERSION=3.12
@@ -36,11 +35,12 @@ RUN /app/docker/install_pyenv.sh
 RUN pyenv install "$PYTHON_VERSION"
 RUN pyenv global "$PYTHON_VERSION"
 
+
 # This drives the choice of base system for this Dockerfile. iRODS 4.2.11 is not
 # available for anything more recent than Ubuntu bionic, so that's what we use for
 # the builder (above) and for the clients. This is also the reason we resort to
 # pyenv to get a recent Python, rather than using a python-slim base image.
-FROM --platform=linux/amd64 ghcr.io/wtsi-npg/ub-18.04-irods-clients-4.2.11
+FROM --platform=linux/amd64 ghcr.io/wtsi-npg/ub-18.04-baton-irods-4.2.11:5.0.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -50,6 +50,12 @@ RUN apt-get update && \
     git \
     unattended-upgrades && \
     unattended-upgrade -d -v
+
+RUN echo "deb [arch=amd64] https://packages.irods.org/apt/ $(lsb_release -sc) main" |\
+    tee /etc/apt/sources.list.d/renci-irods.list && \
+    apt-get update && \
+    apt-get install -q -y --no-install-recommends \
+    irods-icommands="4.2.11-1~$(lsb_release -sc)"
 
 ENV PYENV_ROOT="/app/.pyenv"
 
