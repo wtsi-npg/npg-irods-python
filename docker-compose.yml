@@ -1,6 +1,6 @@
 services:
   mysql-server:
-    platform: linux/x86_64
+    platform: linux/amd64
     image: mysql
     restart: always
     ports:
