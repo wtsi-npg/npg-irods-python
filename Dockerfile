@@ -44,6 +44,8 @@ FROM --platform=linux/amd64 ghcr.io/wtsi-npg/ub-18.04-baton-irods-4.2.11:5.0.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+USER root
+
 RUN apt-get update && \
     apt-get install -q -y --no-install-recommends \
     ca-certificates \
