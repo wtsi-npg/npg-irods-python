@@ -71,7 +71,7 @@ RUN --mount=source=.git,target=.git,type=bind \
     git status && \
     ls -al
 
-RUN useradd -l -m -s /bin/false appuser && mkdir /home/appuser/.irods
+RUN id -u appuser || useradd -l -m -s /bin/false appuser && mkdir /home/appuser/.irods
 
 RUN apt-get remove -q -y unattended-upgrades \
     git && \
