@@ -29,7 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "black >=24.3.0,<25",
+    "black >=24.3.0,<26",
     "pytest >=8.0,<9",
     "sqlalchemy-utils >=0.41.0",
 ]
