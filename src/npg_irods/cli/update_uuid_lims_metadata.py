@@ -72,7 +72,7 @@ def main():
     )
     add_appinfo_structlog_processor()
 
-    dbconfig = IniData(db.Config).from_file(args.db_config.name, "docker")
+    dbconfig = IniData(db.Config).from_file(args.db_config.name, "github")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
