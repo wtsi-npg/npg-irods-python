@@ -741,7 +741,7 @@ class TestIlluminaPermissionsUpdate:
         )
         assert obj.permissions() == new_permissions
 
-    @m.context("When the sample ID is in the metadata")
+    @m.context("When the sample_id is in the metadata")
     @m.context("When sample_uuid and sample_lims are not present")
     @m.it("Add sample_uuid and sample_lims")
     def test_add_sample_uuid_lims(
@@ -765,6 +765,8 @@ class TestIlluminaPermissionsUpdate:
                 "--db-config",
                 "tests/testdb.ini",
                 "--verbose",
+                "--db-section",
+                "github",
             ],
             stdin=echo_proc.stdout,
             stdout=subprocess.PIPE,

@@ -56,6 +56,14 @@ def main():
         default=sys.stdin,
     )
     parser.add_argument(
+        "--db_section",
+        "--db-section",
+        help="Input file",
+        type=str,
+        choices=["mlwh_ro", "github"],
+        default="mlwh_ro",
+    )
+    parser.add_argument(
         "--version",
         help="Print the version and exit.",
         action="version",
@@ -72,7 +80,7 @@ def main():
     )
     add_appinfo_structlog_processor()
 
-    dbconfig = IniData(db.Config).from_file(args.db_config.name, "github")
+    dbconfig = IniData(db.Config).from_file(args.db_config.name, args.db_section)
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
