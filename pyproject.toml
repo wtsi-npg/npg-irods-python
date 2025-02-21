@@ -53,6 +53,7 @@ repository = "https://github.com/wtsi-npg/npg-irods-python.git"
 "update-secondary-metadata" = "npg_irods.cli.update_secondary_metadata:main"
 "withdraw-consent" = "npg_irods.cli.withdraw_consent:main"
 "write-html-report" = "npg_irods.cli.write_html_report:main"
+"update-uuid-lims-metadata" = "npg_irods.cli.update_uuid_lims_metadata:main" 
 
 [build-system]
 requires = ["setuptools>=41", "wheel", "setuptools-git-versioning>=2.0,<3"]
