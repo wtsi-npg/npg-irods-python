@@ -21,16 +21,14 @@ import sys
 
 from sqlalchemy import Engine
 import sqlalchemy
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 import structlog
-from npg.cli import add_db_config_arguments, add_io_arguments, add_logging_arguments
+from npg.cli import add_db_config_arguments, add_logging_arguments
 from npg.conf import IniData
 from npg.log import configure_structlog
 
 from npg_irods import add_appinfo_structlog_processor, db, version
 
-from npg_irods.common import update_metadata
 from npg_irods.db.mlwh import Sample, session_context
 
 from partisan.irods import make_rods_item, RodsError
@@ -54,6 +52,18 @@ log = structlog.get_logger("main")
 
 
 def add_lims_uuid_from_input(engine: Engine, input):
+    """
+    Add sample_lims and sample_uuid to the metadata objects given in input
+    only if they have sample_id in their metadata.
+
+    Args:
+        engine (Engine): sqlalchemy.Engine for DB connection
+        input (list[str]): List of strings that represent the iRODS paths
+
+    Returns:
+        num_update, nul_skipped, num_failed: Respectively, the number of iRODS paths
+            updated, skipped and failed during the metadata update
+    """
     num_updated = 0
     num_skipped = 0
     num_failed = 0

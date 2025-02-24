@@ -395,6 +395,7 @@ def challenging_paths_irods(tmp_path):
 
 @pytest.fixture(scope="function")
 def connection_engine():
+    """A fixture providing a connection engine to DB"""
     config_file = Path("tests/testdb.ini")
     dbconfig = IniData(db.Config).from_file(config_file, "github")
     engine = sqlalchemy.create_engine(
