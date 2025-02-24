@@ -16,10 +16,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+from enum import Enum
 from itertools import starmap
 import sys
 
-from sqlalchemy import Engine
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 import structlog
@@ -37,7 +37,7 @@ from npg_irods.metadata.common import avu_if_value
 from npg_irods.metadata.lims import TrackedSample
 
 description = """
-Add sample_lims and sample_uuid given a DataObject or Collection in input.
+Add sample_lims and sample_uuid given a list of DataObjects or Collections in input.
 The AVU is retrieved from the MLWH and added only if it is not present. 
 In particular, the metadata update is skipped when:
     - Both AVUs are present
@@ -51,100 +51,100 @@ In particular, the metadata update is skipped when:
 log = structlog.get_logger("main")
 
 
-def add_lims_uuid_from_input(engine: Engine, input):
+class Status(Enum):
+    SKIPPED = "SKIPPED"
+    UPDATED = "UPDATED"
+    FAILED = "FAILED"
+
+    def __repr__(self):
+        return self.value
+
+    def __str__(self):
+        return self.value
+
+
+def add_lims_uuid_to_iRODS_object(path: str, mlwh_session):
     """
-    Add sample_lims and sample_uuid to the metadata objects given in input
-    only if they have sample_id in their metadata.
+    Add sample_lims and sample_uuid to the iRODS object given in input
+    only if it has sample_id in its metadata.
 
     Args:
-        engine (Engine): sqlalchemy.Engine for DB connection
-        input (list[str]): List of strings that represent the iRODS paths
+        path (str): String that represents an iRODS path
+        mlwh_session (sqlalchemy.orm.Session): DB connection session
 
     Returns:
-        num_update, nul_skipped, num_failed: Respectively, the number of iRODS paths
-            updated, skipped and failed during the metadata update
+        status (Status(Enum)). Updated, Skipped or Failed.
     """
-    num_updated = 0
-    num_skipped = 0
-    num_failed = 0
-    with session_context(engine) as mlwh_session:
-        for path in input:
-            try:
-                iobj = make_rods_item(path.strip())
-                if not iobj.has_metadata_attrs(TrackedSample.ID):
-                    msg = f"No Sample ID attribute ({TrackedSample.ID}) found on {iobj}"
-                    log.info(msg)
-                    num_skipped += 1
-                    continue
+    try:
+        iobj = make_rods_item(path.strip())
+        if not iobj.has_metadata_attrs(TrackedSample.ID):
+            msg = f"No Sample ID attribute ({TrackedSample.ID}) found on {iobj}"
+            log.info(msg)
+            return Status.SKIPPED
 
-                sample_id_avu = iobj.avu(TrackedSample.ID)
+        sample_id_avu = iobj.avu(TrackedSample.ID)
 
-                query = mlwh_session.query(Sample).filter(
-                    Sample.id_sample_lims == sample_id_avu.value,
-                )
-                results = query.all()
-                record_count = len(results)
-                if record_count == 0:
-                    msg = f"No record found for sample ID: {sample_id_avu.value}"
-                    log.error(msg)
-                    num_skipped += 1
-                    continue
-                if record_count > 1:
-                    msg = f"Multiple records found for sample ID: {sample_id_avu.value}"
-                    log.error(msg)
-                    num_skipped += 1
-                    continue
+        query = mlwh_session.query(Sample).filter(
+            Sample.id_sample_lims == sample_id_avu.value,
+        )
+        results = query.all()
+        record_count = len(results)
+        if record_count == 0:
+            msg = f"No record found for sample ID: {sample_id_avu.value}"
+            log.error(msg)
+            return Status.SKIPPED
+        if record_count > 1:
+            msg = f"Multiple records found for sample ID: {sample_id_avu.value}"
+            log.error(msg)
+            return Status.SKIPPED
 
-                lims_ok = iobj.has_metadata_attrs([TrackedSample.LIMS])
-                uuid_ok = iobj.has_metadata_attrs([TrackedSample.UUID])
-                avu_to_add = []
-                if lims_ok:
-                    msg = f"Sample LIMS attribute ({TrackedSample.LIMS}) already found on {iobj}"
-                    log.info(msg)
-                else:
-                    avu_to_add.append([TrackedSample.LIMS, results[0].id_lims])
+        lims_ok = iobj.has_metadata_attrs([TrackedSample.LIMS])
+        uuid_ok = iobj.has_metadata_attrs([TrackedSample.UUID])
+        avu_to_add = []
+        if lims_ok:
+            msg = (
+                f"Sample LIMS attribute ({TrackedSample.LIMS}) already found on {iobj}"
+            )
+            log.info(msg)
+        else:
+            avu_to_add.append([TrackedSample.LIMS, results[0].id_lims])
 
-                if uuid_ok:
-                    msg = f"Sample UUID attribute ({TrackedSample.UUID}) already found on {iobj}"
-                    log.info(msg)
-                else:
-                    avu_to_add.append([TrackedSample.UUID, results[0].uuid_sample_lims])
+        if uuid_ok:
+            msg = (
+                f"Sample UUID attribute ({TrackedSample.UUID}) already found on {iobj}"
+            )
+            log.info(msg)
+        else:
+            avu_to_add.append([TrackedSample.UUID, results[0].uuid_sample_lims])
 
-                if lims_ok and uuid_ok:
-                    num_skipped += 1
-                    msg = (
-                        f"Both Sample UUID and LIMS attributes already found on {iobj}"
-                    )
-                    log.info(msg)
-                    continue
+        if lims_ok and uuid_ok:
+            msg = f"Both Sample UUID and LIMS attributes already found on {iobj}"
+            log.info(msg)
+            return Status.SKIPPED
 
-                no_null_avus = [
-                    avu for avu in starmap(avu_if_value, avu_to_add) if avu is not None
-                ]
-                if len(avu_to_add) > len(no_null_avus):
-                    msg = f"Possible NULL values for {TrackedSample.LIMS} or {TrackedSample.UUID} on {iobj}"
-                    num_skipped += 1
-                    log.warning(msg)
-                    continue
+        no_null_avus = [
+            avu for avu in starmap(avu_if_value, avu_to_add) if avu is not None
+        ]
+        if len(avu_to_add) > len(no_null_avus):
+            msg = f"Possible NULL values for {TrackedSample.LIMS} or {TrackedSample.UUID} on {iobj}"
+            log.warning(msg)
+            return Status.SKIPPED
 
-                num_avu_added = iobj.add_metadata(*no_null_avus)
-                if num_avu_added > 0:
-                    num_updated += 1
-                else:
-                    num_skipped += 1
+        num_avu_added = iobj.add_metadata(*no_null_avus)
+        if num_avu_added > 0:
+            return Status.UPDATED
+        else:
+            return Status.SKIPPED
 
-            except RodsError as re:
-                num_failed += 1
-                log.error(re.message, item=iobj, code=re.code)
-            except SQLAlchemyError as se:
-                num_failed += 1
-                log.error(se, item=iobj)
-                sys.exit(1)
-            except Exception as e:
-                num_failed += 1
-                log.error(e, item=iobj)
-
-    return num_updated, num_skipped, num_failed
+    except RodsError as re:
+        log.error(re.message, item=iobj, code=re.code)
+        return Status.FAILED
+    except SQLAlchemyError as se:
+        log.error(se, item=iobj)
+        return Status.FAILED
+    except Exception as e:
+        log.error(e, item=iobj)
+        return Status.FAILED
 
 
 def main():
@@ -158,6 +158,12 @@ def main():
         help="Input file",
         type=argparse.FileType("r", encoding="UTF-8"),
         default=sys.stdin,
+    )
+    parser.add_argument(
+        "--summary",
+        help="Summary file",
+        type=str,
+        default=None,
     )
     parser.add_argument(
         "--db_section",
@@ -189,7 +195,29 @@ def main():
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
 
-    num_updated, num_skipped, num_failed = add_lims_uuid_from_input(engine, args.input)
+    summary_file = (
+        open(file=args.summary, mode="w") if args.summary is not None else None
+    )
+
+    num_updated = 0
+    num_skipped = 0
+    num_failed = 0
+    with session_context(engine) as mlwh_session:
+        for path in args.input:
+            raw_path = path.strip()
+            status = add_lims_uuid_to_iRODS_object(raw_path, mlwh_session)
+            match status:
+                case Status.UPDATED:
+                    num_updated += 1
+                case Status.SKIPPED:
+                    num_skipped += 1
+                case Status.FAILED:
+                    num_failed += 1
+            if summary_file:
+                print(raw_path, status, file=summary_file, sep=",")
+
+    if summary_file:
+        summary_file.close()
 
     if num_failed:
         log.error(

@@ -17,6 +17,7 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+from pathlib import Path
 import subprocess
 from partisan.irods import AC, AVU, DataObject, Permission
 from pytest import mark as m
@@ -30,7 +31,12 @@ from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
     make_public_read_acl,
 )
-from npg_irods.cli.update_uuid_lims_metadata import add_lims_uuid_from_input
+from npg_irods.cli.update_uuid_lims_metadata import (
+    Status,
+    add_lims_uuid_to_iRODS_object,
+)
+
+from src.npg_irods.db.mlwh import session_context
 
 
 class TestIlluminaAPI:
@@ -766,6 +772,8 @@ class TestIlluminaPermissionsUpdate:
                 "--verbose",
                 "--db-section",
                 "github",
+                "--summary",
+                "summary.txt",
             ],
             stdin=echo_proc.stdout,
             stdout=subprocess.PIPE,
@@ -775,6 +783,8 @@ class TestIlluminaPermissionsUpdate:
 
         for avu in expected_metadata:
             assert avu in obj.metadata()
+        summary_file = Path("summary.txt")
+        assert summary_file.exists()
 
     @m.context("When the sample_id is in the metadata")
     @m.context("When sample_uuid and sample_lims are not present")
@@ -791,11 +801,10 @@ class TestIlluminaPermissionsUpdate:
             AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
         ]
 
-        num_updated, num_skipped, num_failed = add_lims_uuid_from_input(
-            connection_engine, [str(path)]
-        )
+        with session_context(connection_engine) as mlwh_session:
+            status = add_lims_uuid_to_iRODS_object(str(path), mlwh_session)
+            assert status == Status.UPDATED
 
-        assert num_updated == 1 and num_skipped == 0 and num_failed == 0
         for avu in expected_metadata:
             assert avu in obj.metadata()
 
@@ -817,10 +826,9 @@ class TestIlluminaPermissionsUpdate:
         for avu in expected_metadata:
             assert avu in obj.metadata()
 
-        num_updated, num_skipped, num_failed = add_lims_uuid_from_input(
-            connection_engine, [str(path)]
-        )
-        assert num_updated == 0 and num_skipped == 1 and num_failed == 0
+        with session_context(connection_engine) as mlwh_session:
+            status = add_lims_uuid_to_iRODS_object(str(path), mlwh_session)
+            assert status == Status.SKIPPED
 
     @m.context("When the sample_id is in the metadata")
     @m.context("When sample_lims is already present, but uuid is missing")
@@ -841,10 +849,9 @@ class TestIlluminaPermissionsUpdate:
         for avu in expected_metadata:
             assert avu in obj.metadata()
 
-        num_updated, num_skipped, num_failed = add_lims_uuid_from_input(
-            connection_engine, [str(path)]
-        )
-        assert num_updated == 1 and num_skipped == 0 and num_failed == 0
+        with session_context(connection_engine) as mlwh_session:
+            status = add_lims_uuid_to_iRODS_object(str(path), mlwh_session)
+            assert status == Status.UPDATED
         assert uuid_avu in obj.metadata()
 
     @m.context("When the sample_id is in the metadata")
@@ -866,8 +873,7 @@ class TestIlluminaPermissionsUpdate:
         for avu in expected_metadata:
             assert avu in obj.metadata()
 
-        num_updated, num_skipped, num_failed = add_lims_uuid_from_input(
-            connection_engine, [str(path)]
-        )
-        assert num_updated == 1 and num_skipped == 0 and num_failed == 0
+        with session_context(connection_engine) as mlwh_session:
+            status = add_lims_uuid_to_iRODS_object(str(path), mlwh_session)
+            assert status == Status.UPDATED
         assert lims_avu in obj.metadata()
