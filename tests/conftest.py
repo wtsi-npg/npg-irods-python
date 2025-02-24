@@ -27,9 +27,10 @@
 import logging
 import os
 from datetime import datetime, timezone
-from pathlib import PurePath
+from pathlib import Path, PurePath
 
 import pytest
+import sqlalchemy
 import structlog
 from npg.conf import IniData
 from partisan.icommands import (
@@ -390,3 +391,13 @@ def challenging_paths_irods(tmp_path):
         yield expt_root
     finally:
         remove_rods_path(rods_path)
+
+
+@pytest.fixture(scope="function")
+def connection_engine():
+    config_file = Path("tests/testdb.ini")
+    dbconfig = IniData(db.Config).from_file(config_file, "github")
+    engine = sqlalchemy.create_engine(
+        dbconfig.url, pool_pre_ping=True, pool_recycle=3600
+    )
+    return engine

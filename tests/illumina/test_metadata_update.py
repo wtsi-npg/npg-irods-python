@@ -30,6 +30,7 @@ from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
     make_public_read_acl,
 )
+from npg_irods.cli.update_uuid_lims_metadata import add_lims_uuid_from_input
 
 
 class TestIlluminaAPI:
@@ -741,12 +742,10 @@ class TestIlluminaPermissionsUpdate:
         )
         assert obj.permissions() == new_permissions
 
-    @m.context("When the sample_id is in the metadata")
+    @m.context("When the back-population script runs with data in STDIN")
     @m.context("When sample_uuid and sample_lims are not present")
-    @m.it("Add sample_uuid and sample_lims")
-    def test_add_sample_uuid_lims(
-        self, illumina_synthetic_irods, illumina_synthetic_mlwh
-    ):
+    @m.it("Add the metadata with no compilation errors")
+    def test_compile_ok(self, illumina_synthetic_irods, illumina_synthetic_mlwh):
         path = illumina_synthetic_irods / "12345" / "12345.cram"
 
         obj = DataObject(path)
@@ -773,8 +772,102 @@ class TestIlluminaPermissionsUpdate:
             text=True,
         )
         output, error = update_proc.communicate()
-        print(output)
-        print(error)
 
         for avu in expected_metadata:
             assert avu in obj.metadata()
+
+    @m.context("When the sample_id is in the metadata")
+    @m.context("When sample_uuid and sample_lims are not present")
+    @m.it("Add sample_uuid and sample_lims")
+    def test_add_sample_uuid_lims(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh, connection_engine
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
+
+        obj = DataObject(path)
+        obj.add_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
+        expected_metadata = [
+            AVU(TrackedSample.LIMS, "LIMS_01"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
+        ]
+
+        num_updated, num_skipped, num_failed = add_lims_uuid_from_input(
+            connection_engine, [str(path)]
+        )
+
+        assert num_updated == 1 and num_skipped == 0 and num_failed == 0
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+    @m.context("When the sample_id is in the metadata")
+    @m.context("When sample_uuid and sample_lims are already present")
+    @m.it("Skip the update of sample_uuid and sample_lims")
+    def test_sample_uuid_lims_present(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh, connection_engine
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
+
+        obj = DataObject(path)
+        expected_metadata = [
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
+        ]
+        obj.add_metadata(*expected_metadata)
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+        num_updated, num_skipped, num_failed = add_lims_uuid_from_input(
+            connection_engine, [str(path)]
+        )
+        assert num_updated == 0 and num_skipped == 1 and num_failed == 0
+
+    @m.context("When the sample_id is in the metadata")
+    @m.context("When sample_lims is already present, but uuid is missing")
+    @m.it("Add the missing sample_uuid")
+    def test_add_sample_uuid_only(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh, connection_engine
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
+
+        uuid_avu = AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1")
+
+        obj = DataObject(path)
+        expected_metadata = [
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
+        ]
+        obj.add_metadata(*expected_metadata)
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+        num_updated, num_skipped, num_failed = add_lims_uuid_from_input(
+            connection_engine, [str(path)]
+        )
+        assert num_updated == 1 and num_skipped == 0 and num_failed == 0
+        assert uuid_avu in obj.metadata()
+
+    @m.context("When the sample_id is in the metadata")
+    @m.context("When sample_uuid is already present, but sample_lims is missing")
+    @m.it("Add the missing sample_lims")
+    def test_add_sample_lims_only(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh, connection_engine
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
+
+        lims_avu = AVU(TrackedSample.LIMS, "LIMS_01")
+
+        obj = DataObject(path)
+        expected_metadata = [
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
+        ]
+        obj.add_metadata(*expected_metadata)
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+        num_updated, num_skipped, num_failed = add_lims_uuid_from_input(
+            connection_engine, [str(path)]
+        )
+        assert num_updated == 1 and num_skipped == 0 and num_failed == 0
+        assert lims_avu in obj.metadata()
