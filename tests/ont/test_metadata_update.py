@@ -46,6 +46,11 @@ from npg_irods.ont import (
     is_minknow_report,
 )
 from ont.conftest import ont_tag_identifier
+from src.npg_irods.cli.update_uuid_lims_metadata import (
+    Status,
+    add_lims_uuid_to_iRODS_object,
+)
+from src.npg_irods.db.mlwh import session_context
 
 
 class TestONTFindUpdates:
@@ -525,6 +530,62 @@ class TestONTMetadataUpdate(object):
             )
             for sample_name, bcoll in samples_paths:
                 assert AVU(TrackedSample.NAME, sample_name) in bcoll.metadata()
+
+    @m.context("When rebasecalled ONT run is plexed")
+    @m.context("When iRODS barcode collections have sample_id metadata")
+    @m.it("Updates the metadata with sample_uuid and sample_lims")
+    def test_add_sample_lims_uuid_to_barcode_collections(
+        self,
+        ont_synthetic_irods,
+        ont_synthetic_mlwh,
+        ont_smallset_barcodes,
+        connection_engine,
+    ):
+        slot = 1
+        max_num_barcodes = len(ont_smallset_barcodes)
+        subpath = PurePath(
+            "dorado",
+            "7.2.13",
+            "sup",
+            "simplex",
+            "normal",
+            "default",
+        )
+        expt = "rebasecalled_multiplexed_experiment_001"
+        run_folder = PurePath(
+            expt,
+            "20190904_1514_GA10000_flowcell301_08c179cd",
+        )
+        path = ont_synthetic_irods / run_folder / subpath / "pass"
+
+        coll = Collection(path)
+        coll.add_metadata(
+            AVU(Instrument.EXPERIMENT_NAME, expt),
+            AVU(Instrument.INSTRUMENT_SLOT, slot),
+        )
+
+        expected_lims = AVU(TrackedSample.LIMS, "LIMS_01")
+        with session_context(connection_engine) as mlwh_session:
+            for tag_index in range(1, max_num_barcodes + 1):
+                expected_uuid = AVU(
+                    TrackedSample.UUID,
+                    f"62429892-0ab6-11ee-b5ba-fa163eac3{tag_index:0>3}",
+                )
+                tag_identifier = ont_tag_identifier(tag_index)
+                bpath = path / ont.barcode_name_from_id(tag_identifier)
+                bcoll = Collection(bpath)
+                bcoll.add_metadata(
+                    AVU(TrackedSample.ID, f"id_sample_lims{tag_index}"),
+                )
+                previous_metadata = bcoll.metadata()
+                for md in [expected_lims, expected_uuid]:
+                    assert md not in previous_metadata
+
+                status = add_lims_uuid_to_iRODS_object(str(bpath), mlwh_session)
+                assert status == Status.UPDATED
+                actual_metadata = bcoll.metadata()
+                for md in [expected_lims, expected_uuid]:
+                    assert md in actual_metadata
 
 
 class TestONTPermissionsUpdate:
