@@ -38,13 +38,15 @@ from npg_irods.metadata.lims import TrackedSample
 
 description = """
 Add sample_lims and sample_uuid given a list of DataObjects or Collections in input.
-The AVU is retrieved from the MLWH and added only if it is not present. 
-In particular, the metadata update is skipped when:
-    - Both AVUs are present
-    - One of the AVUs has NULL value in MLWH
-    - No sample_id has been found on the iRODS path
-    - No sample_id record is found in MLWH
-    - Multiple records have been found in MLWH with the sample_id from iRODS metadata
+Each AVU is retrieved from the MLWH and added only if it is not present. 
+In particular, the AVU addition is avoided when:
+    - The AVU is present (Skipped)
+    - One of the AVU has NULL value in MLWH (Failed)
+    - No sample_id has been found on the iRODS path (Failed)
+    - No sample_id record is found in MLWH (Failed)
+    - Multiple records have been found in MLWH with the sample_id from iRODS metadata (Failed)
+    
+The number of skipped, updated and failed updates can be checked with --summary option.
 """
 
 
@@ -52,6 +54,14 @@ log = structlog.get_logger("main")
 
 
 class Status(Enum):
+    """
+    Result status from adding sample_uuid and sample_lims
+    to an iRODS collection or data object
+        - SKIPPED: AVU already exists in metadata
+        - UPDATED: AVU correctly added to object metadata
+        - FAILED: Failed to retrieve metadata due to metadata inconsistency
+    """
+
     SKIPPED = "SKIPPED"
     UPDATED = "UPDATED"
     FAILED = "FAILED"
@@ -73,78 +83,65 @@ def add_lims_uuid_to_iRODS_object(path: str, mlwh_session):
         mlwh_session (sqlalchemy.orm.Session): DB connection session
 
     Returns:
-        status (Status(Enum)). Updated, Skipped or Failed.
+        status (list[Status(Enum)]). One status for each avu processed (Updated, Skipped or Failed).
     """
+    statuses = []
     try:
         iobj = make_rods_item(path.strip())
-        if not iobj.has_metadata_attrs(TrackedSample.ID):
+        num_avu_to_add = 2
+        sample_id_avus = iobj.metadata(TrackedSample.ID)
+        if not sample_id_avus:
             msg = f"No Sample ID attribute ({TrackedSample.ID}) found on {iobj}"
             log.info(msg)
-            return Status.SKIPPED
+            return [Status.FAILED] * num_avu_to_add
 
-        sample_id_avu = iobj.avu(TrackedSample.ID)
-
-        query = mlwh_session.query(Sample).filter(
-            Sample.id_sample_lims == sample_id_avu.value,
-        )
-        results = query.all()
-        record_count = len(results)
-        if record_count == 0:
-            msg = f"No record found for sample ID: {sample_id_avu.value}"
-            log.error(msg)
-            return Status.SKIPPED
-        if record_count > 1:
-            msg = f"Multiple records found for sample ID: {sample_id_avu.value}"
-            log.error(msg)
-            return Status.SKIPPED
-
-        lims_ok = iobj.has_metadata_attrs([TrackedSample.LIMS])
-        uuid_ok = iobj.has_metadata_attrs([TrackedSample.UUID])
-        avu_to_add = []
-        if lims_ok:
-            msg = (
-                f"Sample LIMS attribute ({TrackedSample.LIMS}) already found on {iobj}"
+        for sample_id_avu in sample_id_avus:
+            query = mlwh_session.query(Sample).filter(
+                Sample.id_sample_lims == sample_id_avu.value,
             )
-            log.info(msg)
-        else:
-            avu_to_add.append([TrackedSample.LIMS, results[0].id_lims])
+            results = query.all()
+            record_count = len(results)
+            if record_count == 0:
+                msg = f"No record found in MLWH for sample ID: {sample_id_avu.value}"
+                log.error(msg)
+                statuses.extend([Status.FAILED] * num_avu_to_add)
+                continue
+            if record_count > 1:
+                msg = f"Multiple records found in MLWH for sample ID: {sample_id_avu.value}"
+                log.error(msg)
+                statuses.extend([Status.FAILED] * num_avu_to_add)
+                continue
 
-        if uuid_ok:
-            msg = (
-                f"Sample UUID attribute ({TrackedSample.UUID}) already found on {iobj}"
-            )
-            log.info(msg)
-        else:
-            avu_to_add.append([TrackedSample.UUID, results[0].uuid_sample_lims])
+            avu_to_add = [
+                [TrackedSample.LIMS, results[0].id_lims],
+                [TrackedSample.UUID, results[0].uuid_sample_lims],
+            ]
+            no_null_avus = [
+                avu for avu in starmap(avu_if_value, avu_to_add) if avu is not None
+            ]
+            if len(avu_to_add) > len(no_null_avus):
+                msg = f"Possible NULL values in MLWH for {TrackedSample.LIMS} or {TrackedSample.UUID} for {iobj}"
+                log.warning(msg)
+                statuses.extend([Status.FAILED] * num_avu_to_add)
+                continue
 
-        if lims_ok and uuid_ok:
-            msg = f"Both Sample UUID and LIMS attributes already found on {iobj}"
-            log.info(msg)
-            return Status.SKIPPED
-
-        no_null_avus = [
-            avu for avu in starmap(avu_if_value, avu_to_add) if avu is not None
-        ]
-        if len(avu_to_add) > len(no_null_avus):
-            msg = f"Possible NULL values for {TrackedSample.LIMS} or {TrackedSample.UUID} on {iobj}"
-            log.warning(msg)
-            return Status.SKIPPED
-
-        num_avu_added = iobj.add_metadata(*no_null_avus)
-        if num_avu_added > 0:
-            return Status.UPDATED
-        else:
-            return Status.SKIPPED
+            for av in no_null_avus:
+                num_avu_added = iobj.add_metadata(av)
+                if num_avu_added == 1:
+                    statuses.append(Status.UPDATED)
+                else:
+                    statuses.append(Status.SKIPPED)
+        return statuses
 
     except RodsError as re:
         log.error(re.message, item=iobj, code=re.code)
-        return Status.FAILED
+        raise
     except SQLAlchemyError as se:
         log.error(se, item=iobj)
-        return Status.FAILED
+        raise
     except Exception as e:
         log.error(e, item=iobj)
-        return Status.FAILED
+        raise
 
 
 def main():
@@ -199,22 +196,32 @@ def main():
         open(file=args.summary, mode="w") if args.summary is not None else None
     )
 
-    num_updated = 0
-    num_skipped = 0
-    num_failed = 0
     with session_context(engine) as mlwh_session:
         for path in args.input:
             raw_path = path.strip()
-            status = add_lims_uuid_to_iRODS_object(raw_path, mlwh_session)
-            match status:
-                case Status.UPDATED:
-                    num_updated += 1
-                case Status.SKIPPED:
-                    num_skipped += 1
-                case Status.FAILED:
-                    num_failed += 1
+            statuses = add_lims_uuid_to_iRODS_object(raw_path, mlwh_session)
+
+            num_updated = 0
+            num_skipped = 0
+            num_failed = 0
+            for status in statuses:
+                match status:
+                    case Status.UPDATED:
+                        num_updated += 1
+                    case Status.SKIPPED:
+                        num_skipped += 1
+                    case Status.FAILED:
+                        num_failed += 1
+
             if summary_file:
-                print(raw_path, status, file=summary_file, sep=",")
+                print(
+                    raw_path,
+                    str(num_updated),
+                    str(num_skipped),
+                    str(num_failed),
+                    file=summary_file,
+                    sep=",",
+                )
 
     if summary_file:
         summary_file.close()

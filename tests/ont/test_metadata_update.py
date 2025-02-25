@@ -46,11 +46,11 @@ from npg_irods.ont import (
     is_minknow_report,
 )
 from ont.conftest import ont_tag_identifier
-from src.npg_irods.cli.update_uuid_lims_metadata import (
+from npg_irods.cli.update_uuid_lims_metadata import (
     Status,
     add_lims_uuid_to_iRODS_object,
 )
-from src.npg_irods.db.mlwh import session_context
+from npg_irods.db.mlwh import session_context
 
 
 class TestONTFindUpdates:
@@ -581,8 +581,9 @@ class TestONTMetadataUpdate(object):
                 for md in [expected_lims, expected_uuid]:
                     assert md not in previous_metadata
 
-                status = add_lims_uuid_to_iRODS_object(str(bpath), mlwh_session)
-                assert status == Status.UPDATED
+                statuses = add_lims_uuid_to_iRODS_object(str(bpath), mlwh_session)
+                assert statuses.count(Status.UPDATED) == 2
+
                 actual_metadata = bcoll.metadata()
                 for md in [expected_lims, expected_uuid]:
                     assert md in actual_metadata
