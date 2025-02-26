@@ -16,7 +16,7 @@ requires-python = ">=3.12"
 dynamic = ["version"]
 
 dependencies = [
-    "npg-python-lib",
+    "npg-python-lib >= 1.0.0,<2",
     "npg_id_generation >=5.0.1",
     "partisan >=2.14.0",
     "pymysql >=1.1.1",
