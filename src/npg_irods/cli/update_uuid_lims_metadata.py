@@ -33,7 +33,7 @@ from npg_irods.db.mlwh import Sample, session_context
 
 from partisan.irods import make_rods_item, RodsError
 
-from npg_irods.metadata.common import avu_if_value
+from npg_irods.metadata.common import AVU
 from npg_irods.metadata.lims import TrackedSample
 
 description = """
@@ -113,19 +113,11 @@ def add_lims_uuid_to_iRODS_object(path: str, mlwh_session):
                 continue
 
             avu_to_add = [
-                [TrackedSample.LIMS, results[0].id_lims],
-                [TrackedSample.UUID, results[0].uuid_sample_lims],
+                AVU(TrackedSample.LIMS, results[0].id_lims),
+                AVU(TrackedSample.UUID, results[0].uuid_sample_lims),
             ]
-            no_null_avus = [
-                avu for avu in starmap(avu_if_value, avu_to_add) if avu is not None
-            ]
-            if len(avu_to_add) > len(no_null_avus):
-                msg = f"Possible NULL values in MLWH for {TrackedSample.LIMS} or {TrackedSample.UUID} for {iobj}"
-                log.warning(msg)
-                statuses.extend([Status.FAILED] * num_avu_to_add)
-                continue
 
-            for av in no_null_avus:
+            for av in avu_to_add:
                 num_avu_added = iobj.add_metadata(av)
                 if num_avu_added == 1:
                     statuses.append(Status.UPDATED)
