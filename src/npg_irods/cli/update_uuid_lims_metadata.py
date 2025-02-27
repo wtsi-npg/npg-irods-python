@@ -175,7 +175,7 @@ def main():
         debug=args.debug,
         verbose=args.verbose,
         colour=args.colour,
-        json=args.json,
+        json=args.log_json,
     )
     add_appinfo_structlog_processor()
 
