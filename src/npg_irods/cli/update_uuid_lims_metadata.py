@@ -120,8 +120,12 @@ def add_lims_uuid_to_iRODS_object(path: str, mlwh_session):
             for av in avu_to_add:
                 num_avu_added = iobj.add_metadata(av)
                 if num_avu_added == 1:
+                    msg = f"Added AVU: attribute '{av.attribute}', value '{av.value}' on {iobj}"
+                    log.info(msg)
                     statuses.append(Status.UPDATED)
                 else:
+                    msg = f"Skipped existing AVU: attribute '{av.attribute}', value '{av.value}' on {iobj}"
+                    log.info(msg)
                     statuses.append(Status.SKIPPED)
         return statuses
 
