@@ -754,18 +754,30 @@ class TestIlluminaPermissionsUpdate:
     def test_add_sample_compile_ok(
         self, illumina_synthetic_irods, illumina_synthetic_mlwh
     ):
-        path = illumina_synthetic_irods / "12345" / "12345.cram"
+        path1 = illumina_synthetic_irods / "12345" / "12345.cram"
+        path2 = illumina_synthetic_irods / "67890" / "67890#1.cram"
 
-        obj = DataObject(path)
-        obj.add_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
+        obj1 = DataObject(path1)
+        obj2 = DataObject(path2)
+        for obj in [obj1, obj2]:
+            obj.add_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
         expected_metadata = [
             AVU(TrackedSample.LIMS, "LIMS_01"),
             AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
         ]
 
+        input_file = Path("input.txt")
+        with open(file=input_file, mode="w") as fh:
+            fh.writelines("\n".join([str(path1), str(path2)]))
+
+        for avu in expected_metadata:
+            assert avu not in obj1.metadata()
+            assert avu not in obj2.metadata()
+
         echo_proc = subprocess.Popen(
-            ["echo", str(path)], stdout=subprocess.PIPE, text=True
+            ["cat", fh.name], stdout=subprocess.PIPE, text=True
         )
+        summary_file = Path("summary.txt")
         update_proc = subprocess.Popen(
             [
                 "update-uuid-lims-metadata",
@@ -775,7 +787,7 @@ class TestIlluminaPermissionsUpdate:
                 "--db-section",
                 "github",
                 "--summary",
-                "summary.txt",
+                summary_file.name,
             ],
             stdin=echo_proc.stdout,
             stdout=subprocess.PIPE,
@@ -784,9 +796,11 @@ class TestIlluminaPermissionsUpdate:
         output, error = update_proc.communicate()
 
         for avu in expected_metadata:
-            assert avu in obj.metadata()
-        summary_file = Path("summary.txt")
+            assert avu in obj1.metadata()
+            assert avu in obj2.metadata()
         assert summary_file.exists()
+        input_file.unlink()
+        summary_file.unlink()
 
     @m.context("When the sample_id is in the metadata")
     @m.context("When sample_uuid and sample_lims are not present")
