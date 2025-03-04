@@ -17,6 +17,8 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+from pathlib import Path
+import subprocess
 from partisan.irods import AC, AVU, DataObject, Permission
 from pytest import mark as m
 
@@ -29,6 +31,12 @@ from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
     make_public_read_acl,
 )
+from npg_irods.cli.update_uuid_lims_metadata import (
+    Status,
+    add_lims_uuid_to_iRODS_object,
+)
+
+from npg_irods.db.mlwh import session_context
 
 
 class TestIlluminaAPI:
@@ -739,3 +747,186 @@ class TestIlluminaPermissionsUpdate:
             obj, mlwh_session=illumina_synthetic_mlwh
         )
         assert obj.permissions() == new_permissions
+
+    @m.context("When the back-population script runs with data in STDIN")
+    @m.context("When sample_uuid and sample_lims are not present")
+    @m.it("Add the metadata with no compilation errors")
+    def test_add_sample_compile_ok(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path1 = illumina_synthetic_irods / "12345" / "12345.cram"
+        path2 = illumina_synthetic_irods / "67890" / "67890#1.cram"
+
+        obj1 = DataObject(path1)
+        obj2 = DataObject(path2)
+        for obj in [obj1, obj2]:
+            obj.add_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
+        expected_metadata = [
+            AVU(TrackedSample.LIMS, "LIMS_01"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
+        ]
+
+        input_file = Path("input.txt")
+        with open(file=input_file, mode="w") as fh:
+            fh.writelines("\n".join([str(path1), str(path2)]))
+
+        for avu in expected_metadata:
+            assert avu not in obj1.metadata()
+            assert avu not in obj2.metadata()
+
+        echo_proc = subprocess.Popen(
+            ["cat", fh.name], stdout=subprocess.PIPE, text=True
+        )
+        summary_file = Path("summary.txt")
+        update_proc = subprocess.Popen(
+            [
+                "update-uuid-lims-metadata",
+                "--db-config",
+                "tests/testdb.ini",
+                "--verbose",
+                "--db-section",
+                "github",
+                "--summary",
+                summary_file.name,
+            ],
+            stdin=echo_proc.stdout,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        output, error = update_proc.communicate()
+
+        for avu in expected_metadata:
+            assert avu in obj1.metadata()
+            assert avu in obj2.metadata()
+        assert summary_file.exists()
+        input_file.unlink()
+        summary_file.unlink()
+
+    @m.context("When the sample_id is in the metadata")
+    @m.context("When sample_uuid and sample_lims are not present")
+    @m.it("Add sample_uuid and sample_lims")
+    def test_add_sample_uuid_lims(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh, connection_engine
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
+
+        obj = DataObject(path)
+        obj.add_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
+        expected_metadata = [
+            AVU(TrackedSample.LIMS, "LIMS_01"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
+        ]
+
+        with session_context(connection_engine) as mlwh_session:
+            statuses = add_lims_uuid_to_iRODS_object(str(path), mlwh_session)
+            for status in statuses:
+                assert status == Status.UPDATED
+
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+    @m.context("When the sample_id is in the metadata")
+    @m.context("When sample_uuid and sample_lims are already present")
+    @m.it("Skip the update of sample_uuid and sample_lims")
+    def test_add_sample_uuid_lims_present(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh, connection_engine
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
+
+        obj = DataObject(path)
+        expected_metadata = [
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
+        ]
+        obj.add_metadata(*expected_metadata)
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+        with session_context(connection_engine) as mlwh_session:
+            statuses = add_lims_uuid_to_iRODS_object(str(path), mlwh_session)
+            for status in statuses:
+                assert status == Status.SKIPPED
+
+    @m.context("When the sample_id is in the metadata")
+    @m.context("When sample_lims is already present, but uuid is missing")
+    @m.it("Add the missing sample_uuid")
+    def test_add_sample_uuid_only(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh, connection_engine
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
+
+        uuid_avu = AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1")
+
+        obj = DataObject(path)
+        expected_metadata = [
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
+        ]
+        obj.add_metadata(*expected_metadata)
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+        with session_context(connection_engine) as mlwh_session:
+            statuses = add_lims_uuid_to_iRODS_object(str(path), mlwh_session)
+            assert statuses.count(Status.UPDATED) == 1
+            assert statuses.count(Status.SKIPPED) == 1
+        assert uuid_avu in obj.metadata()
+
+    @m.context("When the sample_id is in the metadata")
+    @m.context("When sample_uuid is already present, but sample_lims is missing")
+    @m.it("Add the missing sample_lims")
+    def test_add_sample_lims_only(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh, connection_engine
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
+
+        lims_avu = AVU(TrackedSample.LIMS, "LIMS_01")
+
+        obj = DataObject(path)
+        expected_metadata = [
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
+        ]
+        obj.add_metadata(*expected_metadata)
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+        with session_context(connection_engine) as mlwh_session:
+            statuses = add_lims_uuid_to_iRODS_object(str(path), mlwh_session)
+            assert statuses.count(Status.UPDATED) == 1
+            assert statuses.count(Status.SKIPPED) == 1
+        assert lims_avu in obj.metadata()
+
+    @m.context("When the data are multiplexed")
+    @m.context("When the data are associated with the computationally created tag 0")
+    @m.context("When the sample_uuid and sample_lims metadata are absent")
+    @m.it("Adds sample_uuid and sample_lims from all samples and studies in the pool")
+    def test_add_sample_lims_uuid_tag0(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh, connection_engine
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345#0.cram"
+
+        obj = DataObject(path)
+        required_metadata = [
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.ID, "id_sample_lims2"),
+        ]
+        obj.add_metadata(*required_metadata)
+        expected_metadata = [
+            AVU(TrackedSample.LIMS, "LIMS_01"),
+            AVU(TrackedSample.LIMS, "LIMS_01"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af1"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af2"),
+        ]
+
+        for avu in expected_metadata:
+            assert avu not in obj.metadata()
+
+        with session_context(connection_engine) as mlwh_session:
+            statuses = add_lims_uuid_to_iRODS_object(str(path), mlwh_session)
+            assert statuses.count(Status.UPDATED) == 3
+            assert statuses.count(Status.SKIPPED) == 1
+
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
