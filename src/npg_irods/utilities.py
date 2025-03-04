@@ -24,6 +24,7 @@ import os
 import shlex
 import sys
 import threading
+from importlib import resources
 from multiprocessing.pool import ThreadPool
 from pathlib import PurePath
 
@@ -83,6 +84,25 @@ print_lock = threading.Lock()
 def _print(path, writer):
     with print_lock:
         print(path, file=writer)
+
+
+def load_resource(filename: str) -> str:
+    """Load a resource file from the npg_irods.data.resources package.
+
+    Args:
+        filename: A filename within the data/resources directory.
+
+    Returns:
+        The file contents as a string.
+    """
+
+    p = resources.path("npg_irods.resources", filename)
+    log.debug("Loading resource", path=p)
+
+    resc = resources.files("npg_irods.resources").joinpath(filename)
+    with resources.as_file(resc) as r:
+        with open(r) as f:
+            return f.read()
 
 
 def check_checksums(

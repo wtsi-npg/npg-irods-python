@@ -263,36 +263,43 @@ def ont_synthetic_irods(tmp_path, irods_groups):
     for expt in range(1, NUM_SIMPLE_EXPTS + 1):
         for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
             expt_name = f"simple_experiment_{expt:0>3}"
-            id_flowcell = f"flowcell{slot + 10:0>3}"
-            run_folder = f"20190904_1514_G{slot}00000_{id_flowcell}_69126024"
+            flowcell_id = f"flowcell{slot + 10:0>3}"
+            sample_id = f"simple_sample_{expt:0>3}"
+            run_folder = f"20190904_1514_G{slot}00000_{flowcell_id}_69126024"
 
             coll = Collection(expt_root / expt_name / run_folder)
             coll.create(parents=True)
             meta = [
                 AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
                 AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
+                AVU(ont.Instrument.SAMPLE_ID, sample_id),
+                AVU(ont.Instrument.FLOWCELL_ID, flowcell_id),
             ]
             coll.add_metadata(*meta)
 
     for expt in range(1, NUM_MULTIPLEXED_EXPTS + 1):
         for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
             expt_name = f"multiplexed_experiment_{expt:0>3}"
-            id_flowcell = f"flowcell{slot + 100:0>3}"
-            run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_cf751ba1"
+            flowcell_id = f"flowcell{slot + 100:0>3}"
+            sample_id = f"multi_rb_sample_{expt:0>3}"
+            run_folder = f"20190904_1514_GA{slot}0000_{flowcell_id}_cf751ba1"
 
             coll = Collection(expt_root / expt_name / run_folder)
             coll.create(parents=True)
             meta = [
                 AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
                 AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
+                AVU(ont.Instrument.SAMPLE_ID, sample_id),
+                AVU(ont.Instrument.FLOWCELL_ID, flowcell_id),
             ]
             coll.add_metadata(*meta)
 
     for expt in range(1, NUM_MULTIPLEXED_REBASECALLED_EXPTS + 1):
         for slot in range(1, NUM_MULTIPLEXED_REBASECALLED_SLOTS + 1):
             expt_name = f"old_rebasecalled_multiplexed_experiment_{expt:0>3}"
-            id_flowcell = f"flowcell{slot + 200:0>3}"
-            run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_b4a1fd79"
+            flowcell_id = f"flowcell{slot + 200:0>3}"
+            sample_id = f"multi_rb_sample_{expt:0>3}"
+            run_folder = f"20190904_1514_GA{slot}0000_{flowcell_id}_b4a1fd79"
             path = PurePath(
                 expt_root,
                 expt_name,
@@ -308,15 +315,18 @@ def ont_synthetic_irods(tmp_path, irods_groups):
             coll.create(parents=True)
             meta = [
                 AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
+                AVU(ont.Instrument.SAMPLE_ID, sample_id),
                 AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
+                AVU(ont.Instrument.FLOWCELL_ID, flowcell_id),
             ]
             coll.add_metadata(*meta)
 
     for expt in range(1, NUM_MULTIPLEXED_REBASECALLED_EXPTS + 1):
         for slot in range(1, NUM_MULTIPLEXED_REBASECALLED_SLOTS + 1):
             expt_name = f"rebasecalled_multiplexed_experiment_{expt:0>3}"
-            id_flowcell = f"flowcell{slot + 300:0>3}"
-            run_folder = f"20190904_1514_GA{slot}0000_{id_flowcell}_08c179cd"
+            flowcell_id = f"flowcell{slot + 300:0>3}"
+            sample_id = f"multi_rb_sample_{expt:0>3}"
+            run_folder = f"20190904_1514_GA{slot}0000_{flowcell_id}_08c179cd"
             path = PurePath(
                 expt_root,
                 expt_name,
@@ -333,6 +343,7 @@ def ont_synthetic_irods(tmp_path, irods_groups):
             meta = [
                 AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
                 AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
+                AVU(ont.Instrument.SAMPLE_ID, sample_id),
             ]
             coll.add_metadata(*meta)
 
