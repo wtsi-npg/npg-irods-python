@@ -192,6 +192,9 @@ def main():
         open(file=args.summary, mode="w") if args.summary is not None else None
     )
 
+    tot_updated = 0
+    tot_skipped = 0
+    tot_failed = 0
     with session_context(engine) as mlwh_session:
         for path in args.input:
             raw_path = path.strip()
@@ -209,6 +212,10 @@ def main():
                     case Status.FAILED:
                         num_failed += 1
 
+            tot_updated += num_updated
+            tot_skipped += num_skipped
+            tot_failed += num_failed
+
             if summary_file:
                 print(
                     raw_path,
@@ -225,15 +232,15 @@ def main():
     if num_failed:
         log.error(
             "Update failed",
-            num_updated=num_updated,
-            num_skipped=num_skipped,
-            num_errors=num_failed,
+            num_updated=tot_updated,
+            num_skipped=tot_skipped,
+            num_errors=tot_failed,
         )
         sys.exit(1)
 
     msg = "All updates were successful" if num_updated else "No updates were required"
     log.info(
         msg,
-        num_updated=num_updated,
-        num_skipped=num_skipped,
+        num_updated=tot_updated,
+        num_skipped=tot_skipped,
     )
