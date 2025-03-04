@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2024, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import calendar
-import re
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import StrEnum
@@ -31,6 +30,7 @@ from yattag import Doc, SimpleDoc
 
 from npg_irods.metadata import ont
 from npg_irods.ont import is_minknow_report
+from npg_irods.utilities import load_resource
 
 log = get_logger(__package__)
 
@@ -149,9 +149,6 @@ def ont_runs_this_year(zone: str = None) -> list[tuple[Collection, datetime]]:
 
     colls = []
     for n, line in enumerate(iquest(*args, query).splitlines()):
-        if re.match(r"^Zone is", line) and n == 0:
-            continue
-
         try:
             path, timestamp = line.split("\t")
             coll = Collection(path)
@@ -160,7 +157,7 @@ def ont_runs_this_year(zone: str = None) -> list[tuple[Collection, datetime]]:
             if created >= start_of_year:
                 colls.append((coll, created))
         except Exception as e:
-            log.error(f"Error processing iquest result line", n=n, line=line, error=e)
+            log.error("Error processing iquest result line", n=n, line=line, error=e)
             continue
 
     return colls
@@ -212,7 +209,6 @@ def ont_runs_html_report_this_year(
                 ont.Instrument.GUPPY_VERSION,
                 ont.Instrument.HOSTNAME,
                 ont.Instrument.PROTOCOL_GROUP_ID,
-                ont.Instrument.RUN_ID,
             ]
         ]:
             return False
@@ -257,23 +253,25 @@ def ont_runs_html_report_this_year(
             return
 
         for item in contents:
-            if item.rods_type == DataObject and is_minknow_report(item):
+            if is_minknow_report(item):
                 with tag(Tags.div, klass=Styles.url_cell):
                     with tag(Tags.a, href=str(item)):
-                        text(f"{coll.path.name}/{item.name}")
+                        text(item.name)
                 do_info_cell(item)
                 do_acl_cell(item)
-                do_metadata_cell(item)
+                do_metadata_cell(c)
 
     doc, tag, text, line = Doc().ttl()
     doc.asis("<!DOCTYPE html>")
+
+    stylesheet = load_resource("style.css")
 
     with tag(Tags.html):
         with tag(Tags.head):
             with tag(Tags.title):
                 text(f"ONT runs for {now.year}")
 
-            doc.asis(f'<{Tags.link} href="style.css" rel="stylesheet" />')
+            doc.asis(f"<{Tags.style}>{stylesheet}</{Tags.style}>")
 
         with tag(Tags.body):
             with tag(Tags.div, klass=Styles.container):
@@ -283,7 +281,7 @@ def ont_runs_html_report_this_year(
                 with tag(Tags.div, klass=Styles.top_right_cell):
                     text(f"Generated: {now.strftime('%Y-%m-%d %H:%M:%S')}")
                 with tag(Tags.div, klass=Styles.top_cell):
-                    line(Tags.h1, "ONT Meta-report")
+                    line(Tags.h1, f"ONT Year Report {now.year}")
 
                 # Main cell containing the report content
                 with tag(Tags.div, klass=Styles.main_cell):
@@ -321,14 +319,15 @@ def ont_runs_html_report_this_year(
                                     )
 
                                 for coll in colls:
-                                    with tag(Tags.div, klass=Styles.url_cell):
-                                        with tag(Tags.a, href=str(coll)):
-                                            text(coll.path.name)
+                                    # This would report the collection itself, which will
+                                    # become useful when Sqyrrl can navigate the iRODS
+                                    # filesystem:
+                                    #
+                                    # with tag(Tags.div, klass=Styles.url_cell):
+                                    #     with tag(Tags.a, href=str(coll)):
+                                    #         text(coll.path.as_posix())
 
-                                    # Don't report on the collection's ACL because it
-                                    # can be huge
-                                    do_metadata_cell(coll)
-
+                                    # do_metadata_cell(coll)
                                     do_contents(coll)
 
     return doc

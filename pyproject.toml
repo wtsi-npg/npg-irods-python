@@ -74,5 +74,8 @@ script-files = [
     "scripts/backfill_pacbio_ids",
 ]
 
+[tool.setuptools.package-data]
+"*" = ["*.css"]
+
 [tool.setuptools-git-versioning]
 enabled = true

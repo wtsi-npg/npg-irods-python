@@ -94,7 +94,7 @@ def main():
             case _:
                 raise ValueError(f"Invalid HTML report type '{report}'")
 
-        print(indent(doc.getvalue()), file=args.output)
+        print(indent(doc.getvalue(), indent_text=True), file=args.output)
     except RodsError as re:
         log.error(re.message, code=re.code)
         sys.exit(1)

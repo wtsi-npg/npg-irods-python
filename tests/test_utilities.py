@@ -39,6 +39,7 @@ from npg_irods.utilities import (
     check_consent_withdrawn,
     check_replicas,
     copy,
+    load_resource,
     repair_checksums,
     repair_replicas,
     update_secondary_metadata,
@@ -56,6 +57,16 @@ def collect_objs(coll: Collection):
 
 def collect_obj_paths(coll: Collection):
     return [str(item) for item in collect_objs(coll)]
+
+
+@m.describe("Resource utilities")
+class TestResourceUtilities:
+    @m.context("When a resource is loaded")
+    @m.it("Returns the resource as a string")
+    def test_load_resource(self):
+        stylesheet = load_resource("style.css")
+        assert stylesheet.lstrip().startswith("html {")
+        assert stylesheet.rstrip().endswith("}")
 
 
 @m.describe("Checksum utilities")

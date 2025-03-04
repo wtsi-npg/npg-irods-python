@@ -590,7 +590,11 @@ def is_minknow_report(obj: DataObject) -> bool:
     Returns:
         True if the object is a MinKNOW report.
     """
-    return obj.rods_type == DataObject and "report" in obj.name
+
+    if obj.rods_type != DataObject:
+        return False
+
+    return obj.name.casefold().startswith("report")
 
 
 def _do_secondary_metadata_and_perms_update(
