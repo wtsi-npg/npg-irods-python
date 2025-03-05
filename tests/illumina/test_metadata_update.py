@@ -930,3 +930,30 @@ class TestIlluminaPermissionsUpdate:
 
         for avu in expected_metadata:
             assert avu in obj.metadata()
+
+    @m.context("When the sample_id is in the metadata")
+    @m.context("When sample_uuid and sample_lims are present")
+    @m.context(
+        "When sample_uuid and sample_lims have mismatching values between MLWH and iRODS"
+    )
+    @m.it("Mark them as failed updates")
+    def test_add_sample_uuid_lims_mismatches(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh, connection_engine
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
+
+        obj = DataObject(path)
+        expected_metadata = [
+            AVU(TrackedSample.ID, "id_sample_lims1"),
+            AVU(TrackedSample.LIMS, "LIMS_05"),
+            AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af5"),
+        ]
+        obj.add_metadata(*expected_metadata)
+        for avu in expected_metadata:
+            assert avu in obj.metadata()
+
+        with session_context(connection_engine) as mlwh_session:
+            statuses = add_lims_uuid_to_iRODS_object(str(path), mlwh_session)
+            assert statuses.count(Status.FAILED) == 2
+            assert statuses.count(Status.SKIPPED) == 0
+            assert statuses.count(Status.UPDATED) == 0

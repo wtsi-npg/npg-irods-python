@@ -124,7 +124,7 @@ def add_lims_uuid_to_iRODS_object(path: str, mlwh_session):
                     try:
                         irods_avu = iobj.avu(mlwh_avu.attribute)
                         if irods_avu.value != mlwh_avu.value:
-                            msg = f"Mismatch in {mlwh_avu.attribute} found between MLWH and iRODS for sample ID: {sample_id_avu.value}"
+                            msg = f"Mismatch in {mlwh_avu.attribute} found between MLWH and iRODS for sample ID: {sample_id_avu.value} on {iobj}"
                             log.error(msg)
                             statuses.append(Status.FAILED)
                             continue
