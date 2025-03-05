@@ -358,9 +358,7 @@ def publish_report(doc: SimpleDoc, path: PurePath, category: str = None) -> Data
         with open(tmpfile, "w") as f:
             f.write(indent(doc.getvalue(), indent_text=True))
 
-        obj = DataObject(path).put(
-            tmpfile, calculate_checksum=True, verify_checksum=True, force=True
-        )
+        obj = DataObject(path).put(tmpfile, verify_checksum=True, force=True)
         ensure_common_metadata(obj)
         ensure_sqyrrl_metadata(obj, category=category)
         obj.add_permissions(
