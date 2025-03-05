@@ -42,6 +42,7 @@ Each AVU is retrieved from the MLWH and added only if it is not present.
 In particular, the AVU addition is avoided when:
     - The AVU is present (Skipped)
     - One of the AVU has NULL value in MLWH (Failed)
+    - There is a mismatch between iRODS and MLWH values in single-sample objects (Failed)
     - No sample_id has been found on the iRODS path (Failed)
     - No sample_id record is found in MLWH (Failed)
     - Multiple records have been found in MLWH with the sample_id from iRODS metadata (Failed)
@@ -95,6 +96,7 @@ def add_lims_uuid_to_iRODS_object(path: str, mlwh_session):
             log.info(msg)
             return [Status.FAILED] * num_avu_to_add
 
+        iobj_has_multiple_samples = len(sample_id_avus) > 1
         for sample_id_avu in sample_id_avus:
             query = mlwh_session.query(Sample).filter(
                 Sample.id_sample_lims == sample_id_avu.value,
@@ -112,19 +114,30 @@ def add_lims_uuid_to_iRODS_object(path: str, mlwh_session):
                 statuses.extend([Status.FAILED] * num_avu_to_add)
                 continue
 
-            avu_to_add = [
+            avu_to_add_from_mlwh = [
                 AVU(TrackedSample.LIMS, results[0].id_lims),
                 AVU(TrackedSample.UUID, results[0].uuid_sample_lims),
             ]
 
-            for av in avu_to_add:
-                num_avu_added = iobj.add_metadata(av)
+            for mlwh_avu in avu_to_add_from_mlwh:
+                if not iobj_has_multiple_samples:
+                    try:
+                        irods_avu = iobj.avu(mlwh_avu.attribute)
+                        if irods_avu.value != mlwh_avu.value:
+                            msg = f"Mismatch in {mlwh_avu.attribute} found between MLWH and iRODS for sample ID: {sample_id_avu.value}"
+                            log.error(msg)
+                            statuses.append(Status.FAILED)
+                            continue
+                    except ValueError:
+                        pass
+
+                num_avu_added = iobj.add_metadata(mlwh_avu)
                 if num_avu_added == 1:
-                    msg = f"Added AVU: attribute '{av.attribute}', value '{av.value}' on {iobj}"
+                    msg = f"Added AVU: attribute '{mlwh_avu.attribute}', value '{mlwh_avu.value}' on {iobj}"
                     log.info(msg)
                     statuses.append(Status.UPDATED)
                 else:
-                    msg = f"Skipped existing AVU: attribute '{av.attribute}', value '{av.value}' on {iobj}"
+                    msg = f"Skipped existing AVU: attribute '{mlwh_avu.attribute}', value '{mlwh_avu.value}' on {iobj}"
                     log.info(msg)
                     statuses.append(Status.SKIPPED)
         return statuses
