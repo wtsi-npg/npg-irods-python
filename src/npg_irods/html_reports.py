@@ -18,17 +18,25 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import calendar
+import tempfile
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import StrEnum
+from pathlib import PurePath
 
 from partisan.icommands import iquest
-from partisan.irods import AC, AVU, Collection, DataObject, RodsItem
+from partisan.irods import AC, AVU, Collection, DataObject, Permission, RodsItem
 from partisan.metadata import DublinCore
 from structlog import get_logger
-from yattag import Doc, SimpleDoc
+from yattag import Doc, SimpleDoc, indent
 
+from npg_irods.common import infer_zone
 from npg_irods.metadata import ont
+from npg_irods.metadata.common import (
+    PUBLIC_IRODS_GROUP,
+    ensure_common_metadata,
+    ensure_sqyrrl_metadata,
+)
 from npg_irods.ont import is_minknow_report
 from npg_irods.utilities import load_resource
 
@@ -331,3 +339,31 @@ def ont_runs_html_report_this_year(
                                     do_contents(coll)
 
     return doc
+
+
+def publish_report(doc: SimpleDoc, path: PurePath, category: str = None) -> DataObject:
+    """Publish an HTML report to iRODS, annotated so that Sqyrrl can find it.
+
+    Args:
+        doc: The content to publish.
+        path: The absolute data object path in iRODS to which the report will be written.
+        category: The metadata category to apply to the report for Sqyrrl. Optional,
+            defaults to None.
+    Returns:
+        The published DataObject.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpfile = tmpdir / path.name
+        with open(tmpfile, "w") as f:
+            f.write(indent(doc.getvalue(), indent_text=True))
+
+        obj = DataObject(path).put(
+            tmpfile, calculate_checksum=True, verify_checksum=True, force=True
+        )
+        ensure_common_metadata(obj)
+        ensure_sqyrrl_metadata(obj, category=category)
+        obj.add_permissions(
+            AC(user=PUBLIC_IRODS_GROUP, perm=Permission.READ, zone=infer_zone(obj))
+        )
+
+        return obj

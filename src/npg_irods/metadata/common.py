@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ from pathlib import PurePath
 from typing import List
 
 from partisan.irods import AVU, DataObject, Replica, RodsItem
-from partisan.metadata import AsValueEnum, DublinCore
+from partisan.metadata import AsValueEnum, DublinCore, with_namespace
 from structlog import get_logger
 
 from npg_irods.exception import ChecksumError
@@ -151,6 +151,20 @@ class CompressSuffix(AsValueEnum):
     GZ = "gz"
     XZ = "xz"
     ZIP = "zip"
+
+
+@unique
+class SqyrrlApp(AsValueEnum, metaclass=with_namespace("sqyrrl")):
+    """Sqyrrl application metadata.
+
+    See https://github.com/wtsi-npg/sqyrrl
+    """
+
+    index = "index"
+    category = "category"
+
+    def __repr__(self):
+        return f"{SqyrrlApp.namespace}:{self.value}"
 
 
 # Checksums are not metadata in the sense of iRODS AVUs, but are nevertheless metadata
@@ -678,6 +692,33 @@ def ensure_common_metadata(obj: DataObject, creator=None) -> bool:
     ]
 
     return any(changed)
+
+
+def make_sqyrrl_metadata(category: str = None) -> list[AVU]:
+    """Make Sqyrrl metadata AVUs for a data object to be indexed
+    Args:
+        category:
+
+    Returns:
+
+    """
+    if category is None:
+        return [AVU(SqyrrlApp.index, "1")]
+
+    return [AVU(SqyrrlApp.category, category), AVU(SqyrrlApp.index, "1")]
+
+
+def ensure_sqyrrl_metadata(obj: DataObject, category: str = None) -> bool:
+    """Ensure that an object has Sqyrrl metadata.
+
+    Args:
+        obj: The data object to repair.
+        category: The Sqyrrl category.
+
+    Returns:
+        True if one or more AVUs required adding.
+    """
+    return ensure_avus_present(obj, *make_sqyrrl_metadata(category))
 
 
 def avu_if_value(attribute, value):

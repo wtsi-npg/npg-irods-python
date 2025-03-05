@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2024, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 import argparse
 import sys
+from pathlib import PurePath
 
 import structlog
 from npg.cli import add_logging_arguments
@@ -27,17 +28,22 @@ from partisan.exception import RodsError
 from yattag import indent
 
 from npg_irods import add_appinfo_structlog_processor, version
-from npg_irods.html_reports import ont_runs_html_report_this_year
+from npg_irods.common import PlatformNamespace
+from npg_irods.html_reports import ont_runs_html_report_this_year, publish_report
 
 description = """Writes an HTML report summarising data in iRODS.
 
 The reports include HTTP links to data objects and collections in iRODS. The links
 are only accessible if the report is rendered by a web server that can access the
-relevant iRODS zone. 
+relevant iRODS zone.
+
+If the `--publish` option is used, the report will be written to iRODS with metadata
+that will allow it to be indexed by a Sqyrrl server. If the path exists, it will be
+overwritten.
 
 Available reports are:
 
-    - ont: Oxford Nanopore sequencing data objects and collections.
+    - ont: Oxford Nanopore Technology sequencing data objects and collections.
     
     A summary of ONT runs for the calendar year to date.
 
@@ -48,18 +54,29 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
 )
 add_logging_arguments(parser)
-parser.add_argument(
+outputs = parser.add_mutually_exclusive_group(required=True)
+
+outputs.add_argument(
     "-o",
     "--output",
-    help="Output filename.",
+    help="Write the report to a local files. Default is STDOUT.",
     type=argparse.FileType("w", encoding="UTF-8"),
     default=sys.stdout,
+)
+outputs.add_argument(
+    "-p",
+    "--publish",
+    help="Publish the report to iRODS. The report will be written to the "
+    "specified path in iRODS with metadata that will allow it to be indexed by a "
+    "Sqyrrl server. If the path exists, it "
+    "will be overwritten.",
+    type=str,
 )
 parser.add_argument(
     "report",
     help="Report type.",
     type=str,
-    choices=["ont"],
+    choices=[PlatformNamespace.OXFORD_NANOPORE_TECHNOLOGIES],
     nargs=1,
 )
 parser.add_argument(
@@ -89,12 +106,20 @@ def main():
 
     try:
         match report:
-            case "ont":
+            case PlatformNamespace.OXFORD_NANOPORE_TECHNOLOGIES:
                 doc = ont_runs_html_report_this_year(zone=args.zone)
             case _:
                 raise ValueError(f"Invalid HTML report type '{report}'")
 
-        print(indent(doc.getvalue(), indent_text=True), file=args.output)
+        if args.publish:
+            dest = PurePath(args.publish)
+            category = PlatformNamespace.OXFORD_NANOPORE_TECHNOLOGIES
+
+            obj = publish_report(doc, dest, category=category)
+            log.info("Published report to iRODS", path=obj.path, category=category)
+        else:
+            print(indent(doc.getvalue(), indent_text=True), file=args.output)
+
     except RodsError as re:
         log.error(re.message, code=re.code)
         sys.exit(1)

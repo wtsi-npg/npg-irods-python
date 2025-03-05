@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023, 2025 Genome Research Ltd. All rights
+# reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,9 +22,14 @@ from enum import unique
 
 from partisan.metadata import AsValueEnum, with_namespace
 
+from npg_irods.common import PlatformNamespace
+
 
 @unique
-class Instrument(AsValueEnum, metaclass=with_namespace("ont")):
+class Instrument(
+    AsValueEnum,
+    metaclass=with_namespace(PlatformNamespace.OXFORD_NANOPORE_TECHNOLOGIES),
+):
     """Oxford Nanopore platform metadata"""
 
     DEVICE_ID = "device_id"

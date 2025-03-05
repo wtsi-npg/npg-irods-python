@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2024, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 import re
 from argparse import ArgumentTypeError
-from enum import Enum, unique
+from enum import Enum, StrEnum, unique
 from os import PathLike
 from pathlib import PurePath
 from typing import Tuple
@@ -71,6 +71,25 @@ class Platform(Enum):
     PACBIO = 7
     SEQUENOM = 8
     ULTIMA_GENOMICS = 9
+
+
+@unique
+class PlatformNamespace(StrEnum):
+    """A namespace for controlled vocabulary terms for platforms.
+
+    This can be used as a prefix for metadata keys to ensure uniqueness e.g. in iRODS
+    and also simply to refer to a platform in a consistent way.
+    """
+
+    BIONANO = "bionano"
+    ELEMENT_BIOSCIENCES = "elembio"
+    FLUIDIGM = "fluidigm"
+    GENOMICS_10x = "10x"
+    ILLUMINA = "illumina"
+    OXFORD_NANOPORE_TECHNOLOGIES = "ont"
+    PACBIO = "pacbio"
+    SEQUENOM = "sequenom"
+    ULTIMA_GENOMICS = "ultimagen"
 
 
 @unique
