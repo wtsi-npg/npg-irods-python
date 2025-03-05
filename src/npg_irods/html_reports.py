@@ -18,11 +18,12 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import calendar
+import os.path
 import tempfile
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import StrEnum
-from pathlib import PurePath
+from pathlib import Path, PurePath
 
 from partisan.icommands import iquest
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, RodsItem
@@ -353,7 +354,7 @@ def publish_report(doc: SimpleDoc, path: PurePath, category: str = None) -> Data
         The published DataObject.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        tmpfile = tmpdir / path.name
+        tmpfile = os.path.join(tmpdir, path.name)
         with open(tmpfile, "w") as f:
             f.write(indent(doc.getvalue(), indent_text=True))
 
