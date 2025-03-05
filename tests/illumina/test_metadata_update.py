@@ -943,13 +943,13 @@ class TestIlluminaPermissionsUpdate:
         path = illumina_synthetic_irods / "12345" / "12345.cram"
 
         obj = DataObject(path)
-        expected_metadata = [
+        expected_mismatching_metadata = [
             AVU(TrackedSample.ID, "id_sample_lims1"),
             AVU(TrackedSample.LIMS, "LIMS_05"),
             AVU(TrackedSample.UUID, "52429892-0ab6-11ee-b5ba-fa163eac3af5"),
         ]
-        obj.add_metadata(*expected_metadata)
-        for avu in expected_metadata:
+        obj.add_metadata(*expected_mismatching_metadata)
+        for avu in expected_mismatching_metadata:
             assert avu in obj.metadata()
 
         with session_context(connection_engine) as mlwh_session:
