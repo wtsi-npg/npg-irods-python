@@ -17,7 +17,8 @@
 
 import argparse
 from enum import Enum
-from itertools import starmap
+import json
+from pathlib import Path
 import sys
 
 import sqlalchemy
@@ -52,6 +53,37 @@ The number of skipped, updated and failed updates can be checked with --summary 
 
 
 log = structlog.get_logger("main")
+
+
+def get_log_config_filepath(prefixpath: str):
+    json_logging = {
+        "version": 1,
+        "disable_existing_loggers": "false",
+        "loggers": {
+            "root": {"level": "INFO", "handlers": ["stderr", "file"]},
+            "partisan.irods": {"level": "ERROR", "handlers": ["stderr", "file"]},
+        },
+        "handlers": {
+            "stderr": {
+                "class": "logging.StreamHandler",
+                "level": "ERROR",
+                "formatter": "simple",
+                "stream": "ext://sys.stderr",
+            },
+            "file": {
+                "class": "logging.FileHandler",
+                "level": "INFO",
+                "formatter": "simple",
+                "filename": prefixpath + ".backpopulation.log",
+                "mode": "a",
+            },
+        },
+        "formatters": {"simple": {"format": "%(message)s"}},
+    }
+    logconfig = prefixpath + ".config.json"
+    with open(logconfig, "w") as logconfigfile:
+        json.dump(json_logging, logconfigfile)
+        return Path(logconfig)
 
 
 class Status(Enum):
@@ -187,8 +219,12 @@ def main():
     )
 
     args = parser.parse_args()
+
+    log_config_file = args.log_config
+    if args.input != sys.stdin:
+        log_config_file = get_log_config_filepath(args.input.name)
     configure_structlog(
-        config_file=args.log_config,
+        config_file=log_config_file,
         debug=args.debug,
         verbose=args.verbose,
         colour=args.colour,
@@ -241,6 +277,9 @@ def main():
 
     if summary_file:
         summary_file.close()
+
+    if args.input != sys.stdin:
+        log_config_file.unlink()
 
     if num_failed:
         log.error(

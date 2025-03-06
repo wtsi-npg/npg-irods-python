@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 from pathlib import Path
+import shutil
 import subprocess
 from partisan.irods import AC, AVU, DataObject, Permission
 from pytest import mark as m
@@ -957,3 +958,40 @@ class TestIlluminaPermissionsUpdate:
             assert statuses.count(Status.FAILED) == 2
             assert statuses.count(Status.SKIPPED) == 0
             assert statuses.count(Status.UPDATED) == 0
+
+    @m.context("When the back-population script runs with input data from file")
+    @m.it("Creates the logging file based on the filename in input")
+    def test_add_sample_logging_file(
+        self, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        path = illumina_synthetic_irods / "12345" / "12345.cram"
+
+        obj = DataObject(path)
+        obj.add_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
+
+        test_folder = Path("backpopulation_test")
+        test_folder.mkdir(mode=0o722)
+        input_file = Path(test_folder, "input.txt")
+        with open(file=input_file, mode="w") as fh:
+            fh.writelines("\n".join([str(path)]))
+
+        log_file = Path(str(input_file) + ".backpopulation.log")
+        subprocess.run(
+            [
+                "update-uuid-lims-metadata",
+                "--db-config",
+                "tests/testdb.ini",
+                "--verbose",
+                "--db-section",
+                "github",
+                "--input",
+                str(input_file),
+            ],
+            check=True,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        assert log_file.exists()
+        input_file.unlink()
+        shutil.rmtree(test_folder)
