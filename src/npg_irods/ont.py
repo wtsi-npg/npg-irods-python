@@ -581,20 +581,34 @@ def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
     return bcolls
 
 
-def is_minknow_report(obj: DataObject) -> bool:
+def is_minknow_report(obj: DataObject, suffix=None) -> bool:
     """Return True if the data object is a MinKNOW run report.
 
     Args:
         obj: iRODS path to check.
+        suffix: Optional suffix to check. If supplied, will only return True if the
+            object has this suffix. If omitted, will return True if the object is any
+            MinKNOW report.
 
     Returns:
         True if the object is a MinKNOW report.
     """
+    if suffix is not None:
+        valid_suffixes = [".html", ".json", ".md"]
+        suffix = suffix.casefold()
 
-    if obj.rods_type != DataObject:
+        if suffix not in valid_suffixes:
+            raise ValueError(
+                f"Invalid suffix '{suffix}'; expected one of {valid_suffixes}"
+            )
+
+    if obj.rods_type != DataObject or not obj.name.casefold().startswith("report"):
         return False
 
-    return obj.name.casefold().startswith("report")
+    if suffix is None:
+        return True
+
+    return suffix in PurePath(obj.name).suffixes
 
 
 def _do_secondary_metadata_and_perms_update(

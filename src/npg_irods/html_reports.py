@@ -36,6 +36,7 @@ from npg_irods.metadata import ont
 from npg_irods.metadata.common import (
     PUBLIC_IRODS_GROUP,
     ensure_common_metadata,
+    ensure_matching_checksum_metadata,
     ensure_sqyrrl_metadata,
 )
 from npg_irods.ont import is_minknow_report
@@ -218,6 +219,7 @@ def ont_runs_html_report_this_year(
                 ont.Instrument.GUPPY_VERSION,
                 ont.Instrument.HOSTNAME,
                 ont.Instrument.PROTOCOL_GROUP_ID,
+                ont.Instrument.DEVICE_ID,
             ]
         ]:
             return False
@@ -262,7 +264,7 @@ def ont_runs_html_report_this_year(
             return
 
         for item in contents:
-            if is_minknow_report(item):
+            if is_minknow_report(item, suffix=".html"):
                 with tag(Tags.div, klass=Styles.url_cell):
                     with tag(Tags.a, href=str(item)):
                         text(item.name)
@@ -359,6 +361,7 @@ def publish_report(doc: SimpleDoc, path: PurePath, category: str = None) -> Data
             f.write(indent(doc.getvalue(), indent_text=True))
 
         obj = DataObject(path).put(tmpfile, verify_checksum=True, force=True)
+        ensure_matching_checksum_metadata(obj)
         ensure_common_metadata(obj)
         ensure_sqyrrl_metadata(obj, category=category)
         obj.add_permissions(

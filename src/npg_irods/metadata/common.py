@@ -677,6 +677,10 @@ def ensure_common_metadata(obj: DataObject, creator=None) -> bool:
     """Ensure that an object has any common metadata that it needs. If it does not
     need any, or the metadata are present, do nothing.
 
+    This function doesn't handle cases where invalid checksum metadata are present
+    e.g. if the object was overwritten with a new file but the checksum metadata was
+    not updated. For that, see utilities.ensure_matching_checksum_metadata.
+
     Args:
         obj: The data object to repair.
         creator: The creator name string. Optional, defaults to the WSI_CREATOR

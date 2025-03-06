@@ -37,5 +37,5 @@ class TestHTMLReports:
 
         links = [x for x in doc.result if x.startswith('<a href="/testZone/')]
 
-        expected_objs = 5
+        expected_objs = 3  # Just HTML reports
         assert len(links) == expected_objs
