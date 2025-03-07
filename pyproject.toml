@@ -18,7 +18,7 @@ dynamic = ["version"]
 dependencies = [
     "npg-python-lib >= 1.0.0,<2",
     "npg_id_generation >=5.0.1",
-    "partisan >=2.14.0",
+    "partisan >=2.14.1",
     "pymysql >=1.1.1",
     "python-dateutil >=2.9.0,<3",
     "rich >=13.6.0",
@@ -73,6 +73,9 @@ script-files = [
     "scripts/backfill_illumina_locations.py",
     "scripts/backfill_pacbio_ids",
 ]
+
+[tool.setuptools.package-data]
+"*" = ["*.css"]
 
 [tool.setuptools-git-versioning]
 enabled = true

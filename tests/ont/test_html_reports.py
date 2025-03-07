@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2024, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,20 +32,10 @@ class TestHTMLReports:
 
         # Uncomment to write the HTML to a file for manual inspection
         #
-        # with open("ont_meta_report.html", "w") as f:
-        #     f.write(indent((doc.getvalue())))
+        with open("ont_year_report.html", "w") as f:
+            f.write(indent((doc.getvalue()), indent_text=True))
 
         links = [x for x in doc.result if x.startswith('<a href="/testZone/')]
 
-        expected_colls = 40
-        expected_rebasecalled_colls = 2
-        expected_objs = 3
-        expected_rebasecalled_objs = 2
-
-        assert (
-            len(links)
-            == expected_colls
-            + expected_rebasecalled_colls
-            + expected_objs
-            + expected_rebasecalled_objs
-        )
+        expected_objs = 3  # Just HTML reports
+        assert len(links) == expected_objs

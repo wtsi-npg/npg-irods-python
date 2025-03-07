@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2024, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,19 +18,29 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 import calendar
-import re
+import os.path
+import tempfile
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import StrEnum
+from pathlib import Path, PurePath
 
 from partisan.icommands import iquest
-from partisan.irods import AC, AVU, Collection, DataObject, RodsItem
+from partisan.irods import AC, AVU, Collection, DataObject, Permission, RodsItem
 from partisan.metadata import DublinCore
 from structlog import get_logger
-from yattag import Doc, SimpleDoc
+from yattag import Doc, SimpleDoc, indent
 
+from npg_irods.common import infer_zone
 from npg_irods.metadata import ont
+from npg_irods.metadata.common import (
+    PUBLIC_IRODS_GROUP,
+    ensure_common_metadata,
+    ensure_matching_checksum_metadata,
+    ensure_sqyrrl_metadata,
+)
 from npg_irods.ont import is_minknow_report
+from npg_irods.utilities import load_resource
 
 log = get_logger(__package__)
 
@@ -149,9 +159,6 @@ def ont_runs_this_year(zone: str = None) -> list[tuple[Collection, datetime]]:
 
     colls = []
     for n, line in enumerate(iquest(*args, query).splitlines()):
-        if re.match(r"^Zone is", line) and n == 0:
-            continue
-
         try:
             path, timestamp = line.split("\t")
             coll = Collection(path)
@@ -160,7 +167,7 @@ def ont_runs_this_year(zone: str = None) -> list[tuple[Collection, datetime]]:
             if created >= start_of_year:
                 colls.append((coll, created))
         except Exception as e:
-            log.error(f"Error processing iquest result line", n=n, line=line, error=e)
+            log.error("Error processing iquest result line", n=n, line=line, error=e)
             continue
 
     return colls
@@ -212,7 +219,7 @@ def ont_runs_html_report_this_year(
                 ont.Instrument.GUPPY_VERSION,
                 ont.Instrument.HOSTNAME,
                 ont.Instrument.PROTOCOL_GROUP_ID,
-                ont.Instrument.RUN_ID,
+                ont.Instrument.DEVICE_ID,
             ]
         ]:
             return False
@@ -257,23 +264,25 @@ def ont_runs_html_report_this_year(
             return
 
         for item in contents:
-            if item.rods_type == DataObject and is_minknow_report(item):
+            if is_minknow_report(item, suffix=".html"):
                 with tag(Tags.div, klass=Styles.url_cell):
                     with tag(Tags.a, href=str(item)):
-                        text(f"{coll.path.name}/{item.name}")
+                        text(item.name)
                 do_info_cell(item)
                 do_acl_cell(item)
-                do_metadata_cell(item)
+                do_metadata_cell(c)
 
     doc, tag, text, line = Doc().ttl()
     doc.asis("<!DOCTYPE html>")
+
+    stylesheet = load_resource("style.css")
 
     with tag(Tags.html):
         with tag(Tags.head):
             with tag(Tags.title):
                 text(f"ONT runs for {now.year}")
 
-            doc.asis(f'<{Tags.link} href="style.css" rel="stylesheet" />')
+            doc.asis(f"<{Tags.style}>{stylesheet}</{Tags.style}>")
 
         with tag(Tags.body):
             with tag(Tags.div, klass=Styles.container):
@@ -283,7 +292,7 @@ def ont_runs_html_report_this_year(
                 with tag(Tags.div, klass=Styles.top_right_cell):
                     text(f"Generated: {now.strftime('%Y-%m-%d %H:%M:%S')}")
                 with tag(Tags.div, klass=Styles.top_cell):
-                    line(Tags.h1, "ONT Meta-report")
+                    line(Tags.h1, f"ONT Year Report {now.year}")
 
                 # Main cell containing the report content
                 with tag(Tags.div, klass=Styles.main_cell):
@@ -321,14 +330,42 @@ def ont_runs_html_report_this_year(
                                     )
 
                                 for coll in colls:
-                                    with tag(Tags.div, klass=Styles.url_cell):
-                                        with tag(Tags.a, href=str(coll)):
-                                            text(coll.path.name)
+                                    # This would report the collection itself, which will
+                                    # become useful when Sqyrrl can navigate the iRODS
+                                    # filesystem:
+                                    #
+                                    # with tag(Tags.div, klass=Styles.url_cell):
+                                    #     with tag(Tags.a, href=str(coll)):
+                                    #         text(coll.path.as_posix())
 
-                                    # Don't report on the collection's ACL because it
-                                    # can be huge
-                                    do_metadata_cell(coll)
-
+                                    # do_metadata_cell(coll)
                                     do_contents(coll)
 
     return doc
+
+
+def publish_report(doc: SimpleDoc, path: PurePath, category: str = None) -> DataObject:
+    """Publish an HTML report to iRODS, annotated so that Sqyrrl can find it.
+
+    Args:
+        doc: The content to publish.
+        path: The absolute data object path in iRODS to which the report will be written.
+        category: The metadata category to apply to the report for Sqyrrl. Optional,
+            defaults to None.
+    Returns:
+        The published DataObject.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpfile = os.path.join(tmpdir, path.name)
+        with open(tmpfile, "w") as f:
+            f.write(indent(doc.getvalue(), indent_text=True))
+
+        obj = DataObject(path).put(tmpfile, verify_checksum=True, force=True)
+        ensure_matching_checksum_metadata(obj)
+        ensure_common_metadata(obj)
+        ensure_sqyrrl_metadata(obj, category=category)
+        obj.add_permissions(
+            AC(user=PUBLIC_IRODS_GROUP, perm=Permission.READ, zone=infer_zone(obj))
+        )
+
+        return obj
