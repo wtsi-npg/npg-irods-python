@@ -201,7 +201,7 @@ def is_10x(path: PathLike | str) -> bool:
     Returns:
         True if 10x data.
     """
-    return re.match(r"/seq/illumina/(cell|long|space)ranger", str(path)) is not None
+    return re.match(r"/seq/\S+/(cell|long|space)ranger", str(path)) is not None
 
 
 def is_oxford_nanopore(path: PathLike | str) -> bool:
