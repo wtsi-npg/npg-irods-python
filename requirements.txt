@@ -7,6 +7,6 @@ python-dateutil==2.9.0.post0
 rich==13.9.4
 setuptools-git-versioning==2.1.0
 setuptools==78.1.0
-sqlalchemy==2.0.38
+sqlalchemy==2.0.39
 structlog==25.2.0
 yattag==1.16.1
