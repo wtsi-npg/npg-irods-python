@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 from pathlib import PurePath
+from typing import Any, Generator
 
 import pytest
 from partisan.icommands import iput
@@ -380,14 +381,14 @@ def initialize_mlwh_illumina_backfill(sess: Session):
 
 
 @pytest.fixture(scope="function")
-def illumina_synthetic_mlwh(mlwh_session) -> Session:
+def illumina_synthetic_mlwh(mlwh_session) -> Generator[Session, Any, None]:
     """An ML warehouse database fixture populated with Illumina-related records."""
     initialize_mlwh_illumina_synthetic(mlwh_session)
     yield mlwh_session
 
 
 @pytest.fixture(scope="function")
-def illumina_backfill_mlwh(mlwh_session) -> Session:
+def illumina_backfill_mlwh(mlwh_session) -> Generator[Session, Any, None]:
     """An ML warehouse database fixture populated with Illumina iRODS path backfill
     records."""
     initialize_mlwh_illumina_backfill(mlwh_session)
@@ -395,7 +396,7 @@ def illumina_backfill_mlwh(mlwh_session) -> Session:
 
 
 @pytest.fixture(scope="function")
-def illumina_synthetic_irods(tmp_path, irods_groups):
+def illumina_synthetic_irods(tmp_path):
     root_path = PurePath("/testZone/home/irods/test/illumina_synthetic_irods")
     rods_path = add_rods_path(root_path, tmp_path)
 

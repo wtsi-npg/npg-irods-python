@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
+
 from datetime import datetime, timezone
 from unittest.mock import patch
 
@@ -50,8 +51,10 @@ from npg_irods.metadata.lims import has_consent_withdrawn_metadata
 
 @m.describe("Checksums and checksum metadata predicate API")
 class TestChecksumPredicates:
-    @m.context("When a data object has full checksum coverage")
-    @m.context("When the checksums for each replica are the same as each other")
+    @m.context(
+        "When a data object has full checksum coverage and "
+        "the checksums for each replica are the same as each other"
+    )
     @m.it("Returns True")
     def test_has_complete_checksums_same(self):
         obj = DataObject("/dummy/path.txt")
@@ -64,8 +67,10 @@ class TestChecksumPredicates:
         with patch.multiple(obj, checksum=lambda: checksum, replicas=lambda: replicas):
             assert has_complete_checksums(obj)
 
-    @m.context("When a data object has full checksum coverage")
-    @m.context("When the checksums for each replica are different from each other")
+    @m.context(
+        "When a data object has full checksum coverage and "
+        "the checksums for each replica are different from each other"
+    )
     @m.it("Returns True")
     def test_has_complete_checksums_diff(self):
         obj = DataObject("/dummy/path.txt")
@@ -78,8 +83,10 @@ class TestChecksumPredicates:
         with patch.multiple(obj, checksum=lambda: checksum, replicas=lambda: replicas):
             assert has_complete_checksums(obj)
 
-    @m.context("When a data object does not have full checksum coverage")
-    @m.context("When the replicas not covered are valid")
+    @m.context(
+        "When a data object does not have full checksum coverage and "
+        "the replicas not covered are valid"
+    )
     @m.it("Returns False")
     def test_has_complete_checksums_valid(self):
         obj = DataObject("/dummy/path.txt")
@@ -92,8 +99,10 @@ class TestChecksumPredicates:
         with patch.multiple(obj, checksum=lambda: checksum, replicas=lambda: replicas):
             assert not has_complete_checksums(obj)
 
-    @m.context("When a data object does not have full checksum coverage")
-    @m.context("When the replicas not covered are not valid")
+    @m.context(
+        "When a data object does not have full checksum coverage and "
+        "the replicas not covered are not valid"
+    )
     @m.it("Returns True")
     def test_has_complete_checksum_incomplete(self):
         obj = DataObject("/dummy/path.txt")
@@ -114,8 +123,10 @@ class TestChecksumPredicates:
             with pytest.raises(ValueError):
                 has_complete_checksums(obj)
 
-    @m.context("When a data object has full checksum coverage")
-    @m.context("When the valid replica checksums match")
+    @m.context(
+        "When a data object has full checksum coverage and "
+        "the valid replica checksums match"
+    )
     @m.it("Returns True")
     def test_has_matching_checksums_same(self):
         obj = DataObject("/dummy/path.txt")
@@ -129,8 +140,10 @@ class TestChecksumPredicates:
             assert has_complete_checksums(obj)
             assert has_matching_checksums(obj)
 
-    @m.context("When a data object has full checksum coverage")
-    @m.context("When the valid replica checksums do not match")
+    @m.context(
+        "When a data object has full checksum coverage and "
+        "the valid replica checksums do not match"
+    )
     @m.it("Returns False")
     def test_has_matching_checksums_diff(self):
         obj = DataObject("/dummy/path.txt")
@@ -144,9 +157,11 @@ class TestChecksumPredicates:
             assert has_complete_checksums(obj)
             assert not has_matching_checksums(obj)
 
-    @m.context("When a data object has complete checksums")
-    @m.context("When there is a single checksum in the metadata")
-    @m.context("When data object checksum matches the metadata checksum")
+    @m.context(
+        "When a data object has complete checksums and "
+        "there is a single checksum in the metadata and "
+        "the data object checksum matches the metadata checksum"
+    )
     @m.it("Returns True")
     def test_has_matching_checksum_metadata_same(self):
         obj = DataObject("/dummy/path.txt")
@@ -165,9 +180,11 @@ class TestChecksumPredicates:
         ):
             assert has_matching_checksum_metadata(obj)
 
-    @m.context("When a data object has complete checksums")
-    @m.context("When there is a single checksum in the metadata")
-    @m.context("When data object checksum does not match the metadata checksum")
+    @m.context(
+        "When a data object has complete checksums and "
+        "there is a single checksum in the metadata and"
+        "the data object checksum does not match the metadata checksum"
+    )
     @m.it("Returns False")
     def test_has_matching_checksum_metadata_diff(self):
         checksum = "aaaaaaaaaa"
@@ -184,8 +201,10 @@ class TestChecksumPredicates:
         ):
             assert not has_matching_checksums(obj)
 
-    @m.context("When a data object has complete checksums")
-    @m.context("When there are no checksum metadata")
+    @m.context(
+        "When a data object has complete checksums and "
+        "there are no checksum metadata"
+    )
     @m.it("Returns False")
     def test_has_matching_checksum_metadata_none(self):
         checksum = "aaaaaaaaaa"
@@ -203,8 +222,10 @@ class TestChecksumPredicates:
         ):
             assert not has_matching_checksum_metadata(obj)
 
-    @m.context("When a data object has complete checksums")
-    @m.context("When there are extra, unexpected checksum metadata")
+    @m.context(
+        "When a data object has complete checksums and "
+        "there are extra, unexpected checksum metadata"
+    )
     @m.it("Returns False")
     def test_has_matching_checksum_metadata_extra(self):
         checksum = "aaaaaaaaaa"
@@ -224,9 +245,14 @@ class TestChecksumPredicates:
         ):
             assert not has_matching_checksum_metadata(obj)
 
-    @m.context("When a data object has complete checksums")
-    @m.context("When a data object has matching checksums")
-    @m.context("When there are no existing checksum metadata")
+
+@m.describe("Checksums and checksum metadata update API")
+class TestEnsureChecksumMetadata:
+    @m.context(
+        "When a data object has complete checksums and "
+        "it has matching checksums and "
+        "there are no existing checksum metadata"
+    )
     @m.it("Adds checksum metadata and returns True")
     def test_ensure_matching_checksum_metadata_none(self, simple_data_object):
         obj = DataObject(simple_data_object)
@@ -235,9 +261,11 @@ class TestChecksumPredicates:
         assert ensure_matching_checksum_metadata(obj)
         assert has_matching_checksum_metadata(obj)
 
-    @m.context("When a data object has complete checksums")
-    @m.context("When a data object has matching checksums")
-    @m.context("When there are existing, correct checksum metadata")
+    @m.context(
+        "When a data object has complete checksums and "
+        "it has matching checksums and "
+        "there are existing, correct checksum metadata"
+    )
     @m.it("Does nothing and returns False")
     def test_ensure_matching_checksum_metadata_correct(self, simple_data_object):
         obj = DataObject(simple_data_object)
@@ -246,6 +274,7 @@ class TestChecksumPredicates:
         assert has_matching_checksum_metadata(obj)
         assert not ensure_matching_checksum_metadata(obj)
 
+    @m.context("When a data object has incomplete checksums")
     @m.it("Raises an exception")
     def test_ensure_matching_checksum_metadata_incomplete(self, simple_data_object):
         obj = DataObject(simple_data_object)
@@ -260,8 +289,10 @@ class TestChecksumPredicates:
             ):
                 ensure_matching_checksum_metadata(obj)
 
-    @m.context("When a data object has complete checksums")
-    @m.context("When a data object does not have matching checksums")
+    @m.context(
+        "When a data object has complete checksums and "
+        "it does not have matching checksums"
+    )
     @m.it("Raises an exception")
     def test_ensure_matching_checksum_metadata_mismatch(self, simple_data_object):
         obj = DataObject(simple_data_object)
@@ -276,9 +307,11 @@ class TestChecksumPredicates:
             ):
                 ensure_matching_checksum_metadata(obj)
 
-    @m.context("When a data object has complete checksums")
-    @m.context("When a data object has matching checksums")
-    @m.context("When there are existing, incorrect checksum metadata")
+    @m.context(
+        "When a data object has complete checksums and "
+        "it has matching checksums and "
+        "there are existing, incorrect checksum metadata"
+    )
     @m.it("Corrects the metadata")
     def test_ensure_matching_checksum_metadata_incorrect(self, simple_data_object):
         obj = DataObject(simple_data_object)

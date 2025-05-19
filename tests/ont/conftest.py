@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 from pathlib import PurePath
+from typing import Any, Generator
 
 import pytest
 from partisan.icommands import iput
@@ -227,14 +228,14 @@ def ont_smallset_barcodes(ont_barcodes) -> list[str]:
 
 
 @pytest.fixture(scope="function")
-def ont_synthetic_mlwh(mlwh_session, ont_barcodes) -> Session:
+def ont_synthetic_mlwh(mlwh_session, ont_barcodes) -> Generator[Session, Any, None]:
     """An ML warehouse database fixture populated with ONT-related records."""
     initialize_mlwh_ont_synthetic(mlwh_session, ont_barcodes)
     yield mlwh_session
 
 
 @pytest.fixture(scope="function")
-def ont_gridion_irods(tmp_path, irods_groups):
+def ont_gridion_irods(tmp_path):
     """A fixture providing a set of files based on output from an ONT GridION
     instrument. This dataset provides an example of file and directory naming
     conventions. The file contents are dummy values."""
@@ -251,7 +252,7 @@ def ont_gridion_irods(tmp_path, irods_groups):
 
 
 @pytest.fixture(scope="function")
-def ont_synthetic_irods(tmp_path, irods_groups):
+def ont_synthetic_irods(tmp_path):
     """A fixture providing a synthetic set of files and metadata based on output
     from an ONT GridION instrument, modified to represent the way simple and
     multiplexed experiments are laid out. The file contents are dummy values."""

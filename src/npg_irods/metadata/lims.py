@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023, 2024, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,12 +40,14 @@ from npg_irods.metadata.common import (
     PUBLIC_IRODS_GROUP,
     SeqConcept,
     SeqSubset,
-    ensure_avus_present,
     avu_if_value,
+    ensure_avus_present,
 )
 
 STUDY_IDENTIFIER_PREFIX = "ss_"
-STUDY_IDENTIFIER_REGEX = re.compile(r"^ss_(?P<study_id>\d+)$")
+STUDY_IDENTIFIER_REGEX = re.compile(
+    f"^{STUDY_IDENTIFIER_PREFIX}(?P<study_id>\\d+)(_human)?$"
+)
 
 log = get_logger(__name__)
 
@@ -267,7 +269,8 @@ def has_consent_withdrawn_metadata(
     (readable).
 
     A collection having consent withdrawn metadata may imply that its contents
-    should have permissions removed recursively. This can be checked with the recurse keyword.
+    should have permissions removed recursively. This can be checked with the recurse
+    keyword.
 
     Args:
         item: The collection or data object to check.
@@ -342,6 +345,10 @@ def is_managed_access(ac: AC):
 def is_public_access(ac: AC):
     """Return True if the access control is for public access.
 
+    Note this tests for explicit presence of the public group in the AC. It does not
+    check if the AC's group has members equivalent to, ro subsuming, the set of public
+    group members.
+
     Args:
         ac: The access control to test.
 
@@ -357,6 +364,9 @@ def has_mixed_ownership(acl: list[AC]):
     access controls are managed per study, this indicates possibly conflicting iRODS
     permissions (it isn't possible to open the data to the owners of one study
     while simultaneously denying access to the owners of the other).
+
+    Users with the same name, but in different zones, are not considered to be the same
+    user
 
     Args:
         acl: An access control list.

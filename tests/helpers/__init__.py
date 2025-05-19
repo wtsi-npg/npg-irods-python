@@ -35,6 +35,10 @@ from partisan.icommands import (
 )
 from partisan.irods import AC, AVU, Collection, DataObject, Permission
 
+# The following iRODS groups represent groups not managed by this API e.g. belonging to
+# administrators or other teams
+UNMANAGED_GROUPS = ["unmanaged"]
+
 # The following iRODS groups manage permissions for data belonging to the corresponding
 # study.
 STUDY_GROUPS = ["ss_1000", "ss_2000", "ss_3000", "ss_4000", "ss_5000", "ss_888"]
@@ -44,7 +48,7 @@ STUDY_GROUPS = ["ss_1000", "ss_2000", "ss_3000", "ss_4000", "ss_5000", "ss_888"]
 HUMAN_STUDY_GROUPS = [g + "_human" for g in STUDY_GROUPS]
 
 # The following iRODS groups are created by the iRODS test fixture.
-TEST_GROUPS = STUDY_GROUPS + HUMAN_STUDY_GROUPS
+TEST_GROUPS = UNMANAGED_GROUPS + STUDY_GROUPS + HUMAN_STUDY_GROUPS
 
 # Example dates, useful for fixtures for tests over date ranges.
 CREATED = datetime(year=2019, month=12, day=30, hour=0, minute=0, second=0)
@@ -52,7 +56,6 @@ BEGIN = datetime(year=2020, month=1, day=1, hour=0, minute=0, second=0)
 EARLY = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0)
 LATE = datetime(year=2020, month=6, day=14, hour=0, minute=0, second=0)
 LATEST = datetime(year=2020, month=6, day=30, hour=0, minute=0, second=0)
-
 
 # iRODS aliases for canned SQL statements.
 TEST_SQL_STALE_REPLICATE = "setObjectReplStale"
