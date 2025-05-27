@@ -116,7 +116,7 @@ class TestPublish:
             for avu in avus:
                 assert avu not in mi
 
-    @m.context("When not handing errors and an error occurs")
+    @m.context("When not handling errors and an error occurs")
     @m.it("Raises a PublishingError")
     def test_publish_with_error(self, empty_collection):
         src = Path("./tests/data/simple/collection")

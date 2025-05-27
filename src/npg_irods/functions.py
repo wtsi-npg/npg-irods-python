@@ -16,6 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""This module provides free functions that are general purpose and don't fit in
+other categories (such as the instrument-specific modules or metadata)."""
+
 import re
 from pathlib import Path
 

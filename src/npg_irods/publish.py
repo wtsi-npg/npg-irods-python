@@ -49,7 +49,7 @@ def publish_directory(
     Args:
         src: The local source directory path to publish.
         dest: The remote iRODS collection path to publish into. This collection must
-        exist; the contents of the source directory will be published into it.
+            exist; the contents of the source directory will be published into it.
         avus: A list of AVU objects to add to each of the published root collection. The
             default is None, meaning no AVUs are added.
         acl: A list of AC objects to add to each of the published items. The default is

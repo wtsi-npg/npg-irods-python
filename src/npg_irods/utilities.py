@@ -786,8 +786,8 @@ def check_consent_withdrawn(
                 num_errors += 1
                 if print_fail:
                     _print(p, writer)
-        except RodsError as e:
-            log.error(e.message, item=i, code=e.code)
+        except RodsError as roe:
+            log.error(roe.message, item=i, code=roe.code)
             num_errors += 1
             if print_fail:
                 _print(p, writer)

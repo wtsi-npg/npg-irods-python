@@ -144,7 +144,7 @@ class TestLIMS:
         )
         assert not has_consent_withdrawn_permissions(coll, recurse=True)
 
-    @m.context("When a a data object has an AVU with an NPG consent withdrawn value")
+    @m.context("When a data object has an AVU with an NPG consent withdrawn value")
     @m.it("Has consent withdrawn metadata")
     def test_has_consent_withdrawn_metadata_npg_obj(self, simple_data_object):
         npg_withdrawn = AVU(TrackedSample.CONSENT_WITHDRAWN, 1)

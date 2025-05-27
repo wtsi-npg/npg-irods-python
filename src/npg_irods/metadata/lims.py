@@ -346,7 +346,7 @@ def is_public_access(ac: AC):
     """Return True if the access control is for public access.
 
     Note this tests for explicit presence of the public group in the AC. It does not
-    check if the AC's group has members equivalent to, ro subsuming, the set of public
+    check if the AC's group has members equivalent to, or subsuming, the set of public
     group members.
 
     Args:
@@ -366,7 +366,7 @@ def has_mixed_ownership(acl: list[AC]):
     while simultaneously denying access to the owners of the other).
 
     Users with the same name, but in different zones, are not considered to be the same
-    user
+    user.
 
     Args:
         acl: An access control list.
