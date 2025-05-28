@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023, 2024, 2025 Genome Research Ltd. All rights
+# reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +18,10 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+
+"""This module contains data management utility functions for working with iRODS data
+objects and collections."""
+
 import collections
 import io
 import itertools
@@ -26,7 +31,7 @@ import sys
 import threading
 from importlib import resources
 from multiprocessing.pool import ThreadPool
-from pathlib import PurePath
+from pathlib import Path, PurePath
 
 import partisan
 from partisan.exception import RodsError
@@ -163,8 +168,8 @@ def check_checksums(
                     if print_fail:
                         _print(p, writer)
 
-            except RodsError as re:
-                log.error(re.message, item=i, code=re.code)
+            except RodsError as roe:
+                log.error(roe.message, item=i, code=roe.code)
                 if print_fail:
                     _print(p, writer)
             except ChecksumError as ce:
@@ -254,8 +259,8 @@ def repair_checksums(
                         if print_repair:
                             _print(p, writer)
 
-            except RodsError as re:
-                log.error(re.message, item=i, code=re.code)
+            except RodsError as roe:
+                log.error(roe.message, item=i, code=roe.code)
                 if print_fail:
                     _print(p, writer)
             except ChecksumError as ce:
@@ -345,8 +350,8 @@ def check_replicas(
                     if print_fail:
                         _print(p, writer)
 
-            except RodsError as re:
-                log.error(re.message, item=i, code=re.code)
+            except RodsError as roe:
+                log.error(roe.message, item=i, code=roe.code)
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
@@ -447,8 +452,8 @@ def repair_replicas(
                         has_trim_replicas=trim,
                     )
 
-            except RodsError as re:
-                log.error(re.message, item=i, code=re.code)
+            except RodsError as roe:
+                log.error(roe.message, item=i, code=roe.code)
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
@@ -515,8 +520,8 @@ def check_common_metadata(
                     if print_fail:
                         _print(p, writer)
 
-            except RodsError as re:
-                log.error(re.message, item=i, code=re.code)
+            except RodsError as roe:
+                log.error(roe.message, item=i, code=roe.code)
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
@@ -597,8 +602,8 @@ def repair_common_metadata(
                         if print_repair:
                             _print(p, writer)
                 success = True
-            except RodsError as re:
-                log.error(re.message, item=i, code=re.code)
+            except RodsError as roe:
+                log.error(roe.message, item=i, code=roe.code)
                 if print_fail:
                     _print(p, writer)
             except Exception as e:
@@ -706,9 +711,9 @@ def update_secondary_metadata(
                                 if print_update:
                                     _print(p, writer)
 
-                        except RodsError as re:
+                        except RodsError as roe:
                             num_errors += 1
-                            log.error(re.message, item=i, code=re.code)
+                            log.error(roe.message, item=i, code=roe.code)
                             if print_fail:
                                 _print(path, writer)
                         except SQLAlchemyError as se:
@@ -781,8 +786,8 @@ def check_consent_withdrawn(
                 num_errors += 1
                 if print_fail:
                     _print(p, writer)
-        except RodsError as re:
-            log.error(re.message, item=i, code=re.code)
+        except RodsError as roe:
+            log.error(roe.message, item=i, code=roe.code)
             num_errors += 1
             if print_fail:
                 _print(p, writer)
@@ -838,8 +843,8 @@ def withdraw_consent(
                     if print_withdrawn:
                         _print(p, writer)
 
-        except RodsError as re:
-            log.error(re.message, item=i, code=re.code)
+        except RodsError as roe:
+            log.error(roe.message, item=i, code=roe.code)
             num_errors += 1
             if print_fail:
                 _print(p, writer)
@@ -1071,12 +1076,12 @@ def write_safe_remove_commands(target, writer: io.TextIOBase):
 
     if not isinstance(target, RodsItem):
         target = make_rods_item(target)
-    if isinstance(target, partisan.irods.DataObject):
+    if isinstance(target, DataObject):
         _log_print("irm", target)
     else:
         colls = []
         for item in target.iter_contents(recurse=True):
-            if isinstance(item, partisan.irods.DataObject):
+            if isinstance(item, DataObject):
                 _log_print("irm", item)
             else:
                 colls.append(item)
@@ -1116,3 +1121,33 @@ def write_safe_remove_script(writer, root, stop_on_error=True, verbose=False):
         writer.close()
         os.chmod(writer.name, 0o755)
         log.info(f"Script written to {writer.name}")
+
+
+def read_md5_file(path: Path) -> str:
+    """
+    Read an MD5 checksum for the specified path from a file with the same name and
+    ".md5" suffix. The file must contain a single line with an MD5 checksum
+    (32 characters). Raises an error if the file does not exist or if the checksum is
+    not 32 characters.
+
+    Args:
+        path: The path to the file for which the MD5 checksum is to be read (not
+            the path to the checksum file itself).
+
+    Returns:
+        The MD5 checksum.
+    """
+    if path.is_dir():
+        raise ValueError(
+            f"Path is a directory; cannot read an MD5 "
+            f"checksum from it: '{path.as_posix()}"
+        )
+
+    md5_file = path.resolve().as_posix() + ".md5"
+    log.info(f"Reading md5 file: '{md5_file}'")
+
+    with open(md5_file, "r") as f:
+        md5 = f.read().strip()
+        if len(md5) != 32:
+            raise ValueError(f"MD5 checksum is not 32 characters: '{md5}'")
+        return md5

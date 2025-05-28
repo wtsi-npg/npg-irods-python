@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -232,9 +232,7 @@ class TestReplicaUtilities:
     @m.context("When data object replicas are repaired")
     @m.context("When all of the data objects need invalid replicas repaired")
     @m.it("Counts repairs correctly")
-    def test_repair_invalid_replicas_all(
-        self, annotated_collection_tree, sql_test_utilities
-    ):
+    def test_repair_invalid_replicas_all(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
         for p in obj_paths:
             set_replicate_invalid(DataObject(p), replicate_num=1)
@@ -255,9 +253,7 @@ class TestReplicaUtilities:
     @m.context("When data object replicas are repaired")
     @m.context("When all of the data objects need valid replicas repaired")
     @m.it("Counts repairs correctly")
-    def test_repair_valid_replicas_all(
-        self, annotated_collection_tree, sql_test_utilities
-    ):
+    def test_repair_valid_replicas_all(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
 
         desired_num_replicas = 1  # The test fixture has 2 replicas
@@ -381,8 +377,8 @@ class TestCopyUtilities:
     @m.context("When any path is copied")
     @m.context("When the source and destination paths are the same")
     @m.it("Raises an error")
-    def test_copy_to_self(self, simple_collection, simple_data_object):
-        c = Collection(simple_collection)
+    def test_copy_to_self(self, empty_collection, simple_data_object):
+        c = Collection(empty_collection)
         with pytest.raises(ValueError):
             copy(c, c)
 
@@ -393,41 +389,41 @@ class TestCopyUtilities:
     @m.context("When a collection is copied")
     @m.context("When there is no collection with that name at the destination")
     @m.it("Creates a copy within the destination collection")
-    def test_copy_collection(self, simple_collection):
-        x = Collection(PurePath(simple_collection, "x"))
+    def test_copy_collection(self, empty_collection):
+        x = Collection(PurePath(empty_collection, "x"))
         x.create()
         assert x.exists()
-        y = Collection(PurePath(simple_collection, "y"))
+        y = Collection(PurePath(empty_collection, "y"))
         y.create()
         assert y.exists()
 
         copy(x, y)
-        assert Collection(PurePath(simple_collection, "y", "x")).exists()
+        assert Collection(PurePath(empty_collection, "y", "x")).exists()
 
     @m.context("When a collection is copied recursively")
     @m.context("When there is no collection with that name at the destination")
     @m.context("When the destination's parent collection exists")
     @m.it("Creates a renamed copy within the destination's parent collection")
-    def test_copy_rename_collection(self, simple_collection):
-        x = Collection(PurePath(simple_collection, "x"))
-        z = Collection(PurePath(simple_collection, "x", "y", "z"))
+    def test_copy_rename_collection(self, empty_collection):
+        x = Collection(PurePath(empty_collection, "x"))
+        z = Collection(PurePath(empty_collection, "x", "y", "z"))
         z.create(parents=True)
         assert z.exists()
 
-        a = Collection(PurePath(simple_collection, "a"))
+        a = Collection(PurePath(empty_collection, "a"))
         assert not a.exists()
         assert Collection(a.path.parent).exists()
 
         copy(x, a, recurse=True)
-        assert Collection(PurePath(simple_collection, "a", "y", "z")).exists()
+        assert Collection(PurePath(empty_collection, "a", "y", "z")).exists()
 
     @m.context("When a collection is copied")
     @m.context("When there is already a collection with that name at the destination")
     @m.it("Raises an exception, unless exists_ok is True")
-    def test_copy_collection_error(self, simple_collection):
-        x = Collection(PurePath(simple_collection, "x"))
+    def test_copy_collection_error(self, empty_collection):
+        x = Collection(PurePath(empty_collection, "x"))
         x.create()
-        y = Collection(PurePath(simple_collection, "y"))
+        y = Collection(PurePath(empty_collection, "y"))
         y.create()
         copy(x, y)
 
@@ -442,8 +438,8 @@ class TestCopyUtilities:
     @m.context("When the destination path is an existing collection")
     @m.context("When there is no data object with that name at the destination")
     @m.it("Creates a copy within the destination collection")
-    def test_copy_data_object(self, simple_collection, simple_data_object):
-        c = Collection(simple_collection)
+    def test_copy_data_object(self, empty_collection, simple_data_object):
+        c = Collection(empty_collection)
         d = DataObject(simple_data_object)
         num_processed, num_copied = copy(d, c)
 
@@ -454,8 +450,8 @@ class TestCopyUtilities:
     @m.context("When a data object is copied")
     @m.context("When there is no data object with that name at the destination")
     @m.it("Creates a copy at the destination")
-    def test_copy_data_object_no_dest(self, simple_collection, simple_data_object):
-        c = Collection(simple_collection)
+    def test_copy_data_object_no_dest(self, empty_collection, simple_data_object):
+        c = Collection(empty_collection)
         d = DataObject(simple_data_object)
         dest = PurePath(c.path, "test.txt")
         num_processed, num_copied = copy(d, dest)
@@ -468,8 +464,8 @@ class TestCopyUtilities:
     @m.context("When the destination path is an existing collection")
     @m.context("When there is already a data object with that name at the destination")
     @m.it("Raises an exception, unless exists_ok is True")
-    def test_copy_data_object_error(self, simple_collection, simple_data_object):
-        x = Collection(PurePath(simple_collection, "x"))
+    def test_copy_data_object_error(self, empty_collection, simple_data_object):
+        x = Collection(PurePath(empty_collection, "x"))
         x.create()
         d = DataObject(simple_data_object)
         copy(d, x)
@@ -483,9 +479,9 @@ class TestCopyUtilities:
 
     @m.context("When a tree is copied")
     @m.it("Copies all collections and objects")
-    def test_copy_recurse(self, annotated_collection_tree, simple_collection):
+    def test_copy_recurse(self, annotated_collection_tree, empty_collection):
         src = Collection(annotated_collection_tree)
-        dest = Collection(simple_collection)
+        dest = Collection(empty_collection)
 
         num_processed, num_copied = copy(src, dest, recurse=True)
 
@@ -527,11 +523,9 @@ class TestCopyUtilities:
 
     @m.context("When a tree with annotation is copied")
     @m.it("Copies annotation on collections and data objects")
-    def test_copy_annotation_recurse(
-        self, annotated_collection_tree, simple_collection
-    ):
+    def test_copy_annotation_recurse(self, annotated_collection_tree, empty_collection):
         src = Collection(annotated_collection_tree)
-        dest = Collection(simple_collection)
+        dest = Collection(empty_collection)
 
         copy(src, dest, avu=True, recurse=True)
 
@@ -546,10 +540,10 @@ class TestCopyUtilities:
     @m.context("When a tree with permissions is copied")
     @m.it("Copies permissions on collections and data objects")
     def test_copy_permissions_recurse(
-        self, annotated_collection_tree, simple_collection
+        self, annotated_collection_tree, empty_collection
     ):
         src = Collection(annotated_collection_tree)
-        dest = Collection(simple_collection)
+        dest = Collection(empty_collection)
 
         copy(src, dest, acl=True, recurse=True)
 

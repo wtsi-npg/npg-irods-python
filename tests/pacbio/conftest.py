@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 from pathlib import PurePath
+from typing import Any, Generator
 
 import pytest
 from npg_id_generation.pac_bio import PacBioEntity
@@ -31,9 +32,7 @@ from helpers import (
     EARLY,
     LATE,
     add_rods_path,
-    add_test_groups,
     remove_rods_path,
-    remove_test_groups,
 )
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.pacbio import Instrument, remove_well_padding
@@ -210,14 +209,14 @@ def initialize_mlwh_revio_synthetic(session: Session):
 
 
 @pytest.fixture(scope="function")
-def pacbio_synthetic_mlwh(mlwh_session) -> Session:
+def pacbio_synthetic_mlwh(mlwh_session) -> Generator[Session, Any, None]:
     """An ML warehouse database fixture populated with PacBio-related records."""
     initialize_mlwh_pacbio_synthetic(mlwh_session)
     yield mlwh_session
 
 
 @pytest.fixture(scope="function")
-def revio_synthetic_mlwh(mlwh_session) -> Session:
+def revio_synthetic_mlwh(mlwh_session) -> Generator[Session, Any, None]:
     """An ML warehouse database fixture populated with PacBio Revio-related records."""
     initialize_mlwh_revio_synthetic(mlwh_session)
     yield mlwh_session
@@ -229,7 +228,6 @@ def pacbio_synthetic_irods(tmp_path):
     rods_path = add_rods_path(root_path, tmp_path)
 
     Collection(rods_path).create(parents=True)
-    add_test_groups()
     run = "run1"
     plate = 1
     well = "A01"
@@ -277,7 +275,6 @@ def pacbio_synthetic_irods(tmp_path):
         yield rods_path / "synthetic"
     finally:
         remove_rods_path(rods_path)
-        remove_test_groups()
 
 
 @pytest.fixture(scope="function")

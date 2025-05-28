@@ -19,7 +19,7 @@
 
 """Business logic API, schema-specific API and utilities for SQL databases."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib import parse
 
 
@@ -35,7 +35,7 @@ class Config:
     port: str
     schema: str
     user: str
-    password: str
+    password: str = field(repr=False, default=None)
 
     @property
     def url(self):

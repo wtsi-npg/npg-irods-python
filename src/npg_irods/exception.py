@@ -59,7 +59,7 @@ class NonUniqueError(DataManagementError):
         observed: The observed non-unique objects, if any.
     """
 
-    def __init__(self, *args, path: Any = None, observed: Any = None):
+    def __init__(self, *args, observed: Any = None):
         super().__init__(*args)
         self.message = args[0] if len(args) > 0 else ""
         self.observed = observed
@@ -94,3 +94,31 @@ class DataObjectNotFound(DataManagementError):
         super().__init__(*args)
         self.message = args[0] if len(args) > 0 else ""
         self.path = path
+
+
+class PublishingError(DataManagementError):
+    """Exception raised when an error occurs during publishing.
+
+    Args:
+        args: Optional positional arguments, the first of which should be a message
+        string.
+        src: The local path of the source data.
+        dest: The remote path.
+        num_published: The number of items published.
+        num_errors: The number of errors encountered.
+    """
+
+    def __init__(
+        self,
+        *args,
+        src: Any = None,
+        dest: Any = None,
+        num_processed: int = 0,
+        num_errors: int = 0,
+    ):
+        super().__init__(*args)
+        self.message = args[0] if len(args) > 0 else ""
+        self.src = src
+        self.dest = dest
+        self.num_processed = num_processed
+        self.num_errors = num_errors

@@ -28,6 +28,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import PurePath
+from typing import Any, Generator
 
 import pytest
 import structlog
@@ -71,7 +72,7 @@ INI_SECTION_LOCAL = "docker"
 INI_SECTION_GITHUB = "github"
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session", autouse=True)
 def irods_groups():
     try:
         add_test_groups()
@@ -80,7 +81,7 @@ def irods_groups():
         remove_test_groups()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def sql_test_utilities():
     """Install SQL test utilities for the iRODS backend database."""
     try:
@@ -180,7 +181,7 @@ def initialize_mlwh_study_and_samples(session: Session):
 
 
 @pytest.fixture(scope="function")
-def study_and_samples_mlwh(mlwh_session) -> Session:
+def study_and_samples_mlwh(mlwh_session) -> Generator[Session, Any, None]:
     """An ML warehouse database fixture populated with a single test study and some
     sample records."""
     initialize_mlwh_study_and_samples(mlwh_session)
@@ -188,10 +189,25 @@ def study_and_samples_mlwh(mlwh_session) -> Session:
 
 
 @pytest.fixture(scope="function")
-def simple_collection(tmp_path):
+def empty_collection(tmp_path):
     """A fixture providing an empty collection."""
     root_path = PurePath("/testZone/home/irods/test/simple_collection")
     coll_path = add_rods_path(root_path, tmp_path)
+
+    try:
+        yield coll_path
+    finally:
+        irm(coll_path, force=True, recurse=True)
+
+
+@pytest.fixture(scope="function")
+def populated_collection(tmp_path):
+    """A fixture providing a collection a single  data object and a sub-collection,
+    also containing a single data object."""
+    root_path = PurePath("/testZone/home/irods/test/populated_collection")
+    coll_path = add_rods_path(root_path, tmp_path)
+
+    iput("./tests/data/simple/collection", coll_path, recurse=True)
 
     try:
         yield coll_path
@@ -244,7 +260,7 @@ def annotated_data_object(tmp_path):
 
 
 @pytest.fixture(scope="function")
-def single_study_and_single_sample_data_object(tmp_path, irods_groups):
+def single_study_and_single_sample_data_object(tmp_path):
     """A fixture providing a collection containing a single data object with sample
     and study metadata."""
     root_path = PurePath(
@@ -267,7 +283,7 @@ def single_study_and_single_sample_data_object(tmp_path, irods_groups):
 
 
 @pytest.fixture(scope="function")
-def single_study_and_multi_sample_data_object(tmp_path, irods_groups):
+def single_study_and_multi_sample_data_object(tmp_path):
     """A fixture providing a collection containing a single data object with multiple
     sample and single study metadata."""
     root_path = PurePath(
@@ -326,7 +342,7 @@ def consent_withdrawn_npg_data_object(tmp_path):
 
 
 @pytest.fixture(scope="function")
-def invalid_replica_data_object(tmp_path, sql_test_utilities):
+def invalid_replica_data_object(tmp_path):
     """A fixture providing a data object with one of its two replicas marked invalid."""
     root_path = PurePath("/testZone/home/irods/test/invalid_replica_data_object")
     rods_path = add_rods_path(root_path, tmp_path)
@@ -342,7 +358,7 @@ def invalid_replica_data_object(tmp_path, sql_test_utilities):
 
 
 @pytest.fixture(scope="function")
-def annotated_collection_tree(tmp_path, irods_groups):
+def annotated_collection_tree(tmp_path):
     """A fixture providing a tree of collections and data objects, with both
     collections and data objects having annotation."""
 

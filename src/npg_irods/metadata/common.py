@@ -40,6 +40,10 @@ WSI_CREATOR = "http://www.sanger.ac.uk"
 """The iRODS group that is used to control access to public data."""
 PUBLIC_IRODS_GROUP = "public"
 
+"""A timeout in seconds for short iRODS operations,such as listing single items,
+and non-recursive metadata and ACL operations."""
+SHORT_IRODS_TIMEOUT: float = 10
+
 """A lookup table of the file suffixes which will be recognised for iRODS "type" 
 metadata."""
 RECOGNISED_FILE_SUFFIXES = {
@@ -743,7 +747,7 @@ def ensure_avus_present(item: RodsItem, *avus: AVU) -> bool:
 
     Args:
         item: An item to update.
-        avu: AVUs to ensure are present.
+        avus: AVUs to ensure are present.
 
     Returns:
         True if one or more AVUs required adding.

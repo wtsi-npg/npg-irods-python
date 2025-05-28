@@ -40,7 +40,7 @@ from npg_irods.db.mlwh import (
     Sample,
     Study,
 )
-from npg_irods.exception import CollectionNotFound, DataObjectNotFound, NonUniqueError
+from npg_irods.exception import CollectionNotFound, DataObjectNotFound
 from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.illumina import Instrument
 from npg_irods.metadata.lims import (
