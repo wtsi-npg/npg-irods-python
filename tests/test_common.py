@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2024, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,8 +23,10 @@ from npg_irods.metadata.lims import TrackedSample, TrackedStudy
 
 
 class TestCommonFunctions:
-    @m.context("When an iRODS object has both one study and one sample ID metadata")
-    @m.context("When it wants both study and sample metadata enhanced")
+    @m.context(
+        "When an iRODS object has both one study and one sample ID metadata and "
+        "it wants both study and sample metadata enhanced"
+    )
     @m.it("Updates study and sample metadata from MLWH")
     def test_ensure_secondary_metadata_updated(
         self, single_study_and_single_sample_data_object, study_and_samples_mlwh
@@ -54,8 +56,10 @@ class TestCommonFunctions:
         for avu in expected_avus:
             assert avu in obj.metadata()
 
-    @m.context("When an iRODS object has one study ID and multiple sample ID metadata")
-    @m.context("When it wants both study and sample metadata enhanced")
+    @m.context(
+        "When an iRODS object has one study ID and multiple sample ID metadata and "
+        "it wants both study and sample metadata enhanced"
+    )
     @m.it("Updates study and sample metadata from MLWH")
     def test_ensure_secondary_metadata_updated_multiple_samples(
         self,
@@ -93,8 +97,10 @@ class TestCommonFunctions:
         for avu in expected_avus:
             assert avu in obj.metadata()
 
-    @m.context("When an iRODS object has both study and sample ID metadata")
-    @m.context("When it wants both study and sample metadata enhanced")
+    @m.context(
+        "When an iRODS object has both study and sample ID metadat and "
+        "it wants both study and sample metadata enhanced"
+    )
     @m.it("Updates permissions according to the study")
     def test_ensure_secondary_metadata_permissions_updated(
         self, single_study_and_single_sample_data_object, study_and_samples_mlwh
@@ -109,8 +115,10 @@ class TestCommonFunctions:
             AC("ss_1000", perm=Permission.READ, zone=zone),
         ]
 
-    @m.context("When an iRODS object has one study ID, but no sample ID metadata")
-    @m.context("When it wants study metadata enhanced")
+    @m.context(
+        "When an iRODS object has one study ID, but no sample ID metadata and "
+        "it wants study metadata enhanced"
+    )
     @m.it("Updates permissions according to the study")
     def test_ensure_secondary_metadata_permissions_updated_no_sample(
         self, single_study_and_single_sample_data_object, study_and_samples_mlwh
@@ -127,8 +135,10 @@ class TestCommonFunctions:
             AC("ss_1000", perm=Permission.READ, zone=zone),
         ]
 
-    @m.context("When an iRODS object has no study ID and one sample ID metadata")
-    @m.context("When it wants study metadata enhanced")
+    @m.context(
+        "When an iRODS object has no study ID and one sample ID metadata and "
+        "it wants study metadata enhanced"
+    )
     @m.it("Removes access permissions")
     def test_ensure_secondary_metadata_permissions_updated_no_study(
         self, single_study_and_single_sample_data_object, study_and_samples_mlwh

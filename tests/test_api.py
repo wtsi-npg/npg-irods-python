@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022, 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -182,7 +182,7 @@ class TestChecksumPredicates:
 
     @m.context(
         "When a data object has complete checksums and "
-        "there is a single checksum in the metadata and"
+        "there is a single checksum in the metadata and "
         "the data object checksum does not match the metadata checksum"
     )
     @m.it("Returns False")
