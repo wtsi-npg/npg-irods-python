@@ -29,8 +29,8 @@ import os
 import shlex
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from importlib import resources
-from multiprocessing.pool import ThreadPool
 from pathlib import Path, PurePath
 
 import partisan
@@ -57,6 +57,7 @@ from npg_irods.common import (
 )
 from npg_irods.db.mlwh import session_context
 from npg_irods.exception import ChecksumError
+from npg_irods.functions import backslash_escape
 from npg_irods.metadata.common import (
     DataFile,
     ensure_common_metadata,
@@ -183,10 +184,24 @@ def check_checksums(
 
             return success
 
-        with ThreadPool(num_threads) as tp:
-            results = tp.starmap(fn, enumerate(reader))
+        num_checked, num_correct, num_errors = 0, 0, 0
 
-        return len(results), results.count(True), results.count(False)
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            for batch in itertools.batched(enumerate(reader), 100):
+                futures = [executor.submit(fn, i, path) for i, path in batch]
+
+                for future in as_completed(futures):
+                    try:
+                        num_checked += 1
+                        if future.result():
+                            num_correct += 1
+                        else:
+                            num_errors += 1
+                    except Exception as e:
+                        num_errors += 1
+                        log.error(e)
+
+        return num_checked, num_correct, num_errors
 
 
 def repair_checksums(
@@ -274,10 +289,25 @@ def repair_checksums(
 
             return success, repair
 
-        with ThreadPool(num_threads) as tp:
-            results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
+        num_checked, num_repaired, num_errors = 0, 0, 0
 
-        return len(results), repaired.count(True), results.count(False)
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            for batch in itertools.batched(enumerate(reader), 100):
+                futures = [executor.submit(fn, i, path) for i, path in batch]
+
+                for future in as_completed(futures):
+                    try:
+                        num_checked += 1
+                        success, repair = future.result()
+                        if not success:
+                            num_errors += 1
+                        elif repair:
+                            num_repaired += 1
+                    except Exception as e:
+                        num_errors += 1
+                        log.error(e)
+
+        return num_checked, num_repaired, num_errors
 
 
 def check_replicas(
@@ -361,10 +391,24 @@ def check_replicas(
 
             return success
 
-        with ThreadPool(num_threads) as tp:
-            results = tp.starmap(fn, enumerate(reader))
+        num_checked, num_correct, num_errors = 0, 0, 0
 
-        return len(results), results.count(True), results.count(False)
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            for batch in itertools.batched(enumerate(reader), 100):
+                futures = [executor.submit(fn, i, path) for i, path in batch]
+
+                for future in as_completed(futures):
+                    try:
+                        num_checked += 1
+                        if future.result():
+                            num_correct += 1
+                        else:
+                            num_errors += 1
+                    except Exception as e:
+                        num_errors += 1
+                        log.error(e)
+
+        return num_checked, num_correct, num_errors
 
 
 def repair_replicas(
@@ -463,10 +507,25 @@ def repair_replicas(
 
             return success, repair
 
-        with ThreadPool(num_threads) as tp:
-            results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
+        num_checked, num_repaired, num_errors = 0, 0, 0
 
-        return len(results), repaired.count(True), results.count(False)
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            for batch in itertools.batched(enumerate(reader), 100):
+                futures = [executor.submit(fn, i, path) for i, path in batch]
+
+                for future in as_completed(futures):
+                    try:
+                        num_checked += 1
+                        success, repair = future.result()
+                        if not success:
+                            num_errors += 1
+                        elif repair:
+                            num_repaired += 1
+                    except Exception as e:
+                        num_errors += 1
+                        log.error(e)
+
+        return num_checked, num_repaired, num_errors
 
 
 def check_common_metadata(
@@ -531,10 +590,24 @@ def check_common_metadata(
 
             return success
 
-        with ThreadPool(num_threads) as tp:
-            results = tp.starmap(fn, enumerate(reader))
+        num_checked, num_correct, num_errors = 0, 0, 0
 
-        return len(results), results.count(True), results.count(False)
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            for batch in itertools.batched(enumerate(reader), 100):
+                futures = [executor.submit(fn, i, path) for i, path in batch]
+
+                for future in as_completed(futures):
+                    try:
+                        num_checked += 1
+                        if future.result():
+                            num_correct += 1
+                        else:
+                            num_errors += 1
+                    except Exception as e:
+                        num_errors += 1
+                        log.error(e)
+
+        return num_checked, num_correct, num_errors
 
 
 def repair_common_metadata(
@@ -613,10 +686,25 @@ def repair_common_metadata(
 
             return success, repair
 
-        with ThreadPool(num_threads) as tp:
-            results, repaired = zip(*tp.starmap(fn, enumerate(reader)))
+        num_checked, num_repaired, num_errors = 0, 0, 0
 
-        return len(results), repaired.count(True), results.count(False)
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            for batch in itertools.batched(enumerate(reader), 100):
+                futures = [executor.submit(fn, i, path) for i, path in batch]
+
+                for future in as_completed(futures):
+                    try:
+                        num_checked += 1
+                        success, repair = future.result()
+                        if not success:
+                            num_errors += 1
+                        elif repair:
+                            num_repaired += 1
+                    except Exception as e:
+                        num_errors += 1
+                        log.error(e)
+
+        return num_checked, num_repaired, num_errors
 
 
 def update_secondary_metadata(
@@ -1070,9 +1158,14 @@ def write_safe_remove_commands(target, writer: io.TextIOBase):
     """
 
     def _log_print(cmd, path):
-        quoted_path = shlex.quote(str(path))
-        log.info(f"{cmd} {quoted_path}")
-        print(cmd, quoted_path, file=writer)
+        escaped_path = backslash_escape(str(path))
+        log.info(
+            "Writing command",
+            cmd=cmd,
+            path=path,
+            escaped=escaped_path,
+        )
+        print(cmd, escaped_path, file=writer)
 
     if not isinstance(target, RodsItem):
         target = make_rods_item(target)

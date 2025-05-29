@@ -71,8 +71,10 @@ class TestResourceUtilities:
 
 @m.describe("Checksum utilities")
 class TestChecksumUtilities:
-    @m.context("When data object checksums are checked")
-    @m.context("When all of the data objects have checksum metadata")
+    @m.context(
+        "When data object checksums are checked and "
+        "all of the data objects have checksum metadata"
+    )
     @m.it("Counts successes correctly")
     def test_checked_checksums_passes(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -92,8 +94,10 @@ class TestChecksumUtilities:
                 passed_paths = writer.getvalue().split()
                 assert passed_paths == obj_paths
 
-    @m.context("When data object checksums are checked")
-    @m.context("When none of the data objects have checksum metadata")
+    @m.context(
+        "When data object checksums are checked and "
+        "none of the data objects have checksum metadata"
+    )
     @m.it("Counts failures correctly")
     def test_check_checksums_failures(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -110,8 +114,10 @@ class TestChecksumUtilities:
                 failed_paths = writer.getvalue().split()
                 assert failed_paths == obj_paths
 
-    @m.context("When data object checksums are repaired")
-    @m.context("When all of the data objects have checksum metadata")
+    @m.context(
+        "When data object checksums are repaired and "
+        "all of the data objects have checksum metadata"
+    )
     @m.it("Counts repairs correctly")
     def test_repair_checksums_all(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -130,8 +136,10 @@ class TestChecksumUtilities:
                 repaired_paths = writer.getvalue().split()
                 assert repaired_paths == []
 
-    @m.context("When data object checksums are repaired")
-    @m.context("When none of the data objects have checksum metadata")
+    @m.context(
+        "When data object checksums are repaired and "
+        "none of the data objects have checksum metadata"
+    )
     @m.it("Counts repairs correctly")
     def test_repair_checksums_none(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -151,29 +159,37 @@ class TestChecksumUtilities:
 
 @m.describe("Replica utilities")
 class TestReplicaUtilities:
-    @m.context("Detecting trimmable valid replicas")
-    @m.context("When a data object no trimmable valid replicas")
+    @m.context(
+        "When detecting trimmable valid replicas and "
+        "a data object no trimmable valid replicas"
+    )
     @m.it("Returns false")
     def test_has_trimmable_replicas_valid(self, simple_data_object):
         obj = DataObject(simple_data_object)
         assert not has_trimmable_replicas(obj, num_replicas=2)
 
-    @m.context("Detecting trimmable valid replicas")
-    @m.context("When a data object has trimmable valid replicas")
+    @m.context(
+        "When detecting trimmable valid replica and "
+        "a data object has trimmable valid replicas"
+    )
     @m.it("Returns true")
     def test_has_trimmable_replicas_valid_none(self, simple_data_object):
         obj = DataObject(simple_data_object)
         assert has_trimmable_replicas(obj, num_replicas=1)
 
-    @m.context("Detecting trimmable invalid replicas")
-    @m.context("When a data object has trimmable invalid replicas")
+    @m.context(
+        "When detecting trimmable invalid replicas and "
+        "a data object has trimmable invalid replicas"
+    )
     @m.it("Returns true")
     def test_has_trimmable_replicas_invalid(self, invalid_replica_data_object):
         obj = DataObject(invalid_replica_data_object)
         assert has_trimmable_replicas(obj, num_replicas=2)
 
-    @m.context("When data object replicas are checked")
-    @m.context("When all of the data objects have conforming replicas")
+    @m.context(
+        "When data object replicas are checked and "
+        "all of the data objects have conforming replicas"
+    )
     @m.it("Counts successes correctly")
     def test_checked_replicas_none(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -191,8 +207,10 @@ class TestReplicaUtilities:
                 passed_paths = writer.getvalue().split()
                 assert passed_paths == obj_paths
 
-    @m.context("When data object replicas are checked")
-    @m.context("When none of the data objects have conforming replicas")
+    @m.context(
+        "When data object replicas are checked and "
+        "none of the data objects have conforming replicas"
+    )
     @m.it("Counts failures correctly")
     def test_check_replicas_all(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -210,8 +228,10 @@ class TestReplicaUtilities:
                 failed_paths = writer.getvalue().split()
                 assert failed_paths == obj_paths
 
-    @m.context("When data object replicas are repaired")
-    @m.context("When all of the data objects have conforming replicas")
+    @m.context(
+        "When data object replicas are repaired and "
+        "all of the data objects have conforming replicas"
+    )
     @m.it("Counts repairs correctly")
     def test_repair_replicas_none(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -229,8 +249,10 @@ class TestReplicaUtilities:
                 repaired_paths = writer.getvalue().split()
                 assert repaired_paths == []
 
-    @m.context("When data object replicas are repaired")
-    @m.context("When all of the data objects need invalid replicas repaired")
+    @m.context(
+        "When data object replicas are repaired and "
+        "all of the data objects need invalid replicas repaired"
+    )
     @m.it("Counts repairs correctly")
     def test_repair_invalid_replicas_all(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -250,8 +272,10 @@ class TestReplicaUtilities:
                 repaired_paths = writer.getvalue().split()
                 assert repaired_paths == obj_paths
 
-    @m.context("When data object replicas are repaired")
-    @m.context("When all of the data objects need valid replicas repaired")
+    @m.context(
+        "When data object replicas are repaired and "
+        "all of the data objects need valid replicas repaired"
+    )
     @m.it("Counts repairs correctly")
     def test_repair_valid_replicas_all(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -292,8 +316,10 @@ class TestConsentUtilities:
             assert public_ac not in obj.permissions()
             assert admin_ac in obj.permissions()
 
-    @m.context("When data object consent withdrawn state is checked")
-    @m.context("When all of the data objects have consent withdrawn")
+    @m.context(
+        "When data object consent withdrawn state is checked and "
+        "all of the data objects have consent withdrawn"
+    )
     @m.it("Counts successes correctly")
     def test_checked_consent_withdrawn_passes(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -313,8 +339,10 @@ class TestConsentUtilities:
                 passed_paths = writer.getvalue().split()
                 assert passed_paths == obj_paths
 
-    @m.context("When data object consent withdrawn state is checked")
-    @m.context("When none of the data objects have consent withdrawn")
+    @m.context(
+        "When data object consent withdrawn state is checked and "
+        "none of the data objects have consent withdrawn"
+    )
     @m.it("Counts failures correctly")
     def test_checked_consent_withdrawn_failures(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -331,8 +359,10 @@ class TestConsentUtilities:
                 failed_paths = writer.getvalue().split()
                 assert failed_paths == obj_paths
 
-    @m.context("When data objects have their consent withdrawn")
-    @m.context("When all of the data objects need to have their consent withdrawn")
+    @m.context(
+        "When data objects have their consent withdraw and "
+        "all of the data objects need to have their consent withdrawn"
+    )
     @m.it("Counts repairs correctly")
     def test_withdraw_consent_all(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -349,8 +379,10 @@ class TestConsentUtilities:
                 withdrawn_paths = writer.getvalue().split()
                 assert withdrawn_paths == obj_paths
 
-    @m.context("When data objects have their consent withdrawn")
-    @m.context("When none of the data objects need to have their consent withdrawn")
+    @m.context(
+        "When data objects have their consent withdrawn and "
+        "none of the data objects need to have their consent withdrawn"
+    )
     @m.it("Counts repairs correctly")
     def test_withdraw_consent_none(self, annotated_collection_tree):
         obj_paths = collect_obj_paths(Collection(annotated_collection_tree))
@@ -374,8 +406,9 @@ class TestConsentUtilities:
 
 @m.describe("Copy utilities")
 class TestCopyUtilities:
-    @m.context("When any path is copied")
-    @m.context("When the source and destination paths are the same")
+    @m.context(
+        "When any path is copied and " "the source and destination paths are the same"
+    )
     @m.it("Raises an error")
     def test_copy_to_self(self, empty_collection, simple_data_object):
         c = Collection(empty_collection)
@@ -386,8 +419,10 @@ class TestCopyUtilities:
         with pytest.raises(ValueError):
             copy(d, d)
 
-    @m.context("When a collection is copied")
-    @m.context("When there is no collection with that name at the destination")
+    @m.context(
+        "When a collection is copied and "
+        "there is no collection with that name at the destination"
+    )
     @m.it("Creates a copy within the destination collection")
     def test_copy_collection(self, empty_collection):
         x = Collection(PurePath(empty_collection, "x"))
@@ -400,9 +435,11 @@ class TestCopyUtilities:
         copy(x, y)
         assert Collection(PurePath(empty_collection, "y", "x")).exists()
 
-    @m.context("When a collection is copied recursively")
-    @m.context("When there is no collection with that name at the destination")
-    @m.context("When the destination's parent collection exists")
+    @m.context(
+        "When a collection is copied recursively and "
+        "there is no collection with that name at the destination and "
+        "the destination's parent collection exists"
+    )
     @m.it("Creates a renamed copy within the destination's parent collection")
     def test_copy_rename_collection(self, empty_collection):
         x = Collection(PurePath(empty_collection, "x"))
@@ -417,8 +454,10 @@ class TestCopyUtilities:
         copy(x, a, recurse=True)
         assert Collection(PurePath(empty_collection, "a", "y", "z")).exists()
 
-    @m.context("When a collection is copied")
-    @m.context("When there is already a collection with that name at the destination")
+    @m.context(
+        "When a collection is copied and "
+        "there is already a collection with that name at the destination"
+    )
     @m.it("Raises an exception, unless exists_ok is True")
     def test_copy_collection_error(self, empty_collection):
         x = Collection(PurePath(empty_collection, "x"))
@@ -434,9 +473,11 @@ class TestCopyUtilities:
         assert num_processed == 1
         assert num_copied == 0
 
-    @m.context("When a data object is copied")
-    @m.context("When the destination path is an existing collection")
-    @m.context("When there is no data object with that name at the destination")
+    @m.context(
+        "When a data object is copie and "
+        "the destination path is an existing collection and "
+        "there is no data object with that name at the destination"
+    )
     @m.it("Creates a copy within the destination collection")
     def test_copy_data_object(self, empty_collection, simple_data_object):
         c = Collection(empty_collection)
@@ -447,8 +488,10 @@ class TestCopyUtilities:
         assert num_processed == 1
         assert num_copied == 1
 
-    @m.context("When a data object is copied")
-    @m.context("When there is no data object with that name at the destination")
+    @m.context(
+        "When a data object is copied and "
+        "there is no data object with that name at the destination"
+    )
     @m.it("Creates a copy at the destination")
     def test_copy_data_object_no_dest(self, empty_collection, simple_data_object):
         c = Collection(empty_collection)
@@ -460,9 +503,11 @@ class TestCopyUtilities:
         assert num_processed == 1
         assert num_copied == 1
 
-    @m.context("When a data object is copied")
-    @m.context("When the destination path is an existing collection")
-    @m.context("When there is already a data object with that name at the destination")
+    @m.context(
+        "When a data object is copie and "
+        "the destination path is an existing collection and "
+        "there is already a data object with that name at the destination"
+    )
     @m.it("Raises an exception, unless exists_ok is True")
     def test_copy_data_object_error(self, empty_collection, simple_data_object):
         x = Collection(PurePath(empty_collection, "x"))
@@ -602,38 +647,47 @@ class TestSafeRemoveUtilities:
 
         assert not Collection(annotated_collection_tree).exists()
 
-    @m.context("When passed a hierarchy of collections and data objects")
-    @m.context("When paths contain spaces and/or quotes")
+    @m.context(
+        "When passed a hierarchy of collections and data objects and "
+        "paths contain spaces and/or quotes"
+    )
     @m.it("Writes the expected commands")
     def test_write_safe_remove_commands_special(self, challenging_paths_irods):
         with StringIO() as writer:
             write_safe_remove_commands(challenging_paths_irods, writer)
 
             expected = [
-                ("irm", "x.txt"),
-                ("irm", "y y.txt"),
-                ("irm", 'z".txt'),
-                ("irm", "x.txt"),
-                ("irm", "y y.txt"),
-                ("irm", 'z".txt'),
-                ("irm", "x.txt"),
-                ("irm", "y y.txt"),
-                ("irm", 'z".txt'),
-                ("irmdir", 'b"b'),
-                ("irmdir", "a a"),
-                ("irmdir", "challenging"),
+                ("irm", ("challenging", r"a\ a", r"w\'.txt")),
+                ("irm", ("challenging", r"a\ a", "x.txt")),
+                ("irm", ("challenging", r"a\ a", r"y\ y.txt")),
+                ("irm", ("challenging", r"a\ a", r"z\\\".txt")),
+                ("irm", ("challenging", r"b\\\"b", "x.txt")),
+                ("irm", ("challenging", r"b\\\"b", r"y\ y.txt")),
+                ("irm", ("challenging", r"b\\\"b", r"z\\\".txt")),
+                ("irm", ("challenging", r"w\'.txt")),
+                ("irm", ("challenging", "x.txt")),
+                ("irm", ("challenging", "y\\ y.txt")),
+                ("irm", ("challenging", r"z\\\".txt")),
+                ("irmdir", ("challenging", r"b\\\"b")),
+                ("irmdir", ("challenging", "a\\ a")),
+                ("irmdir", ("challenging",)),
             ]
             observed = []
             for line in writer.getvalue().splitlines():
                 cmd, path = line.split(maxsplit=1)
-                # Remove the outer single quotes added by shlex.quote
+                # Remove the outer single quotes
                 path = path.lstrip("'")
                 path = path.rstrip("'")
-                observed.append((cmd, PurePath(path).name))
+
+                parts = PurePath(path).parts
+                i = parts.index("challenging")
+                observed.append((cmd, parts[i:]))
             assert observed == expected
 
-    @m.context("When a generated safe remove script is run")
-    @m.context("When paths contain spaces and/or quotes")
+    @m.context(
+        "When a generated safe remove script is run and "
+        "paths contain spaces and/or quotes"
+    )
     @m.it("Removes the expected collections and data objects")
     def test_write_safe_remove_script_special(self, tmp_path, challenging_paths_irods):
         script = Path(tmp_path, "safe_rm.sh")
@@ -646,8 +700,10 @@ class TestSafeRemoveUtilities:
 
 @m.describe("Metadata utilities")
 class TestMetadataUtilities:
-    @m.context("When an iRODS object has both study and sample ID metadata")
-    @m.context("When it wants both study and sample metadata enhanced")
+    @m.context(
+        "When an iRODS object has both study and sample ID metadata and "
+        "it wants both study and sample metadata enhanced"
+    )
     @m.it("Counts successes correctly")
     def test_update_secondary_metadata(
         self, single_study_and_single_sample_data_object, study_and_samples_mlwh
@@ -687,8 +743,10 @@ class TestMetadataUtilities:
         for avu in expected_avus:
             assert avu in obj.metadata()
 
-    @m.context("When an iRODS object has study ID, but not sample ID metadata")
-    @m.context("When it wants study metadata enhanced")
+    @m.context(
+        "When an iRODS object has study ID, but not sample ID metadata "
+        "and it wants study metadata enhanced"
+    )
     @m.it("Counts successes correctly")
     def test_update_secondary_metadata_with_just_study(
         self, single_study_and_single_sample_data_object, study_and_samples_mlwh
@@ -721,8 +779,10 @@ class TestMetadataUtilities:
         for avu in expected_avus:
             assert avu in obj.metadata()
 
-    @m.context("When an iRODS object has sample ID, but not study ID metadata")
-    @m.context("When it wants sample metadata enhanced")
+    @m.context(
+        "When an iRODS object has sample ID, but not study ID metadata and "
+        "it wants sample metadata enhanced"
+    )
     @m.it("Counts successes correctly")
     def test_update_general_metadata_with_just_study_err(
         self, single_study_and_single_sample_data_object, study_and_samples_mlwh
