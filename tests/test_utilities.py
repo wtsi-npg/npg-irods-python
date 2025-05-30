@@ -634,6 +634,9 @@ class TestSafeRemoveUtilities:
             observed = []
             for line in writer.getvalue().splitlines():
                 cmd, path = line.split(maxsplit=1)
+                path = path.lstrip("'")
+                path = path.rstrip("'")
+
                 observed.append((cmd, PurePath(path).name))
             assert observed == expected
 
@@ -657,25 +660,24 @@ class TestSafeRemoveUtilities:
             write_safe_remove_commands(challenging_paths_irods, writer)
 
             expected = [
-                ("irm", ("challenging", r"a\ a", r"w\'.txt")),
-                ("irm", ("challenging", r"a\ a", "x.txt")),
-                ("irm", ("challenging", r"a\ a", r"y\ y.txt")),
-                ("irm", ("challenging", r"a\ a", r"z\\\".txt")),
-                ("irm", ("challenging", r"b\\\"b", "x.txt")),
-                ("irm", ("challenging", r"b\\\"b", r"y\ y.txt")),
-                ("irm", ("challenging", r"b\\\"b", r"z\\\".txt")),
-                ("irm", ("challenging", r"w\'.txt")),
+                ("irm", ("challenging", r"a a", r"w'\''.txt")),
+                ("irm", ("challenging", r"a a", "x.txt")),
+                ("irm", ("challenging", r"a a", r"y y.txt")),
+                ("irm", ("challenging", r"a a", r'z".txt')),
+                ("irm", ("challenging", r'b"b', "x.txt")),
+                ("irm", ("challenging", r'b"b', r"y y.txt")),
+                ("irm", ("challenging", r'b"b', r'z".txt')),
+                ("irm", ("challenging", r"w'\''.txt")),
                 ("irm", ("challenging", "x.txt")),
-                ("irm", ("challenging", "y\\ y.txt")),
-                ("irm", ("challenging", r"z\\\".txt")),
-                ("irmdir", ("challenging", r"b\\\"b")),
-                ("irmdir", ("challenging", "a\\ a")),
+                ("irm", ("challenging", "y y.txt")),
+                ("irm", ("challenging", r'z".txt')),
+                ("irmdir", ("challenging", r'b"b')),
+                ("irmdir", ("challenging", "a a")),
                 ("irmdir", ("challenging",)),
             ]
             observed = []
             for line in writer.getvalue().splitlines():
                 cmd, path = line.split(maxsplit=1)
-                # Remove the outer single quotes
                 path = path.lstrip("'")
                 path = path.rstrip("'")
 

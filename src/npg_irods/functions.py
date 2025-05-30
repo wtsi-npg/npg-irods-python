@@ -48,26 +48,3 @@ def make_path_filter(*patterns: str, flags: int | re.RegexFlag = 0):
         return False
 
     return path_filter
-
-
-def backslash_escape(s: str) -> str:
-    """Escape special characters in a string for use in a shell command."""
-    esc = re.sub(
-        r"""
-        (                       # Start of capturing group
-          [\\'`$ &|;<>*?~#()!]  # Match any special shell character
-        )                       # End of capturing group
-        """,
-        r"\\\1",  # Replace with a backslash followed by the matched character
-        s,
-        flags=re.VERBOSE,
-    )
-    # Escape double quotes separately
-    return re.sub(
-        r"""
-        "           # Match a double quote
-        """,
-        r"\\\\\"",  # Replace with two backslashes followed by a double quote
-        esc,
-        flags=re.VERBOSE,
-    )

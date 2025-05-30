@@ -103,7 +103,7 @@ jobs:
         run: |
           # Use -s option for the wrappers to enable re-usable service instances
           # Install is to HOME rather than workspace to avoid clashes with repo e.g. in bin/
-          singularity exec docker://$DOCKER_IMAGE singularity-wrapper -s -p $HOME/.local install
+          singularity exec docker://$DOCKER_IMAGE singularity-wrapper -s -p "$HOME/.local" install
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: "Configure iRODS clients"

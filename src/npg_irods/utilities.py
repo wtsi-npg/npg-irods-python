@@ -26,7 +26,7 @@ import collections
 import io
 import itertools
 import os
-import shlex
+import re
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -57,7 +57,6 @@ from npg_irods.common import (
 )
 from npg_irods.db.mlwh import session_context
 from npg_irods.exception import ChecksumError
-from npg_irods.functions import backslash_escape
 from npg_irods.metadata.common import (
     DataFile,
     ensure_common_metadata,
@@ -1158,14 +1157,15 @@ def write_safe_remove_commands(target, writer: io.TextIOBase):
     """
 
     def _log_print(cmd, path):
-        escaped_path = backslash_escape(str(path))
+        escaped_path = re.sub("'", r"'\''", str(path))
+
         log.info(
             "Writing command",
             cmd=cmd,
             path=path,
             escaped=escaped_path,
         )
-        print(cmd, escaped_path, file=writer)
+        print(cmd, "'" + escaped_path + "'", file=writer)
 
     if not isinstance(target, RodsItem):
         target = make_rods_item(target)
