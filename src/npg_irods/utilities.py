@@ -22,7 +22,6 @@
 """This module contains data management utility functions for working with iRODS data
 objects and collections."""
 
-import collections
 import io
 import itertools
 import os
@@ -47,6 +46,7 @@ from partisan.irods import (
 )
 from sqlalchemy import Engine
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import scoped_session, sessionmaker
 from structlog import get_logger
 
 from npg_irods import common, illumina, ont, pacbio, version
@@ -55,7 +55,6 @@ from npg_irods.common import (
     Platform,
     infer_data_source,
 )
-from npg_irods.db.mlwh import session_context
 from npg_irods.exception import ChecksumError
 from npg_irods.metadata.common import (
     DataFile,
@@ -82,6 +81,8 @@ from npg_irods.metadata.lims import (
 )
 
 log = get_logger(__name__)
+
+BATCH_SIZE = 100
 
 print_lock = threading.Lock()
 
@@ -185,8 +186,10 @@ def check_checksums(
 
         num_checked, num_correct, num_errors = 0, 0, 0
 
-        with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            for batch in itertools.batched(enumerate(reader), 100):
+        with ThreadPoolExecutor(
+            max_workers=num_threads, thread_name_prefix="check-checksum"
+        ) as executor:
+            for batch in itertools.batched(enumerate(reader), BATCH_SIZE):
                 futures = [executor.submit(fn, i, path) for i, path in batch]
 
                 for future in as_completed(futures):
@@ -290,8 +293,10 @@ def repair_checksums(
 
         num_checked, num_repaired, num_errors = 0, 0, 0
 
-        with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            for batch in itertools.batched(enumerate(reader), 100):
+        with ThreadPoolExecutor(
+            max_workers=num_threads, thread_name_prefix="repair-checksums"
+        ) as executor:
+            for batch in itertools.batched(enumerate(reader), BATCH_SIZE):
                 futures = [executor.submit(fn, i, path) for i, path in batch]
 
                 for future in as_completed(futures):
@@ -392,8 +397,10 @@ def check_replicas(
 
         num_checked, num_correct, num_errors = 0, 0, 0
 
-        with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            for batch in itertools.batched(enumerate(reader), 100):
+        with ThreadPoolExecutor(
+            max_workers=num_threads, thread_name_prefix="check-replicas"
+        ) as executor:
+            for batch in itertools.batched(enumerate(reader), BATCH_SIZE):
                 futures = [executor.submit(fn, i, path) for i, path in batch]
 
                 for future in as_completed(futures):
@@ -508,8 +515,10 @@ def repair_replicas(
 
         num_checked, num_repaired, num_errors = 0, 0, 0
 
-        with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            for batch in itertools.batched(enumerate(reader), 100):
+        with ThreadPoolExecutor(
+            max_workers=num_threads, thread_name_prefix="repair-replicas"
+        ) as executor:
+            for batch in itertools.batched(enumerate(reader), BATCH_SIZE):
                 futures = [executor.submit(fn, i, path) for i, path in batch]
 
                 for future in as_completed(futures):
@@ -591,8 +600,10 @@ def check_common_metadata(
 
         num_checked, num_correct, num_errors = 0, 0, 0
 
-        with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            for batch in itertools.batched(enumerate(reader), 100):
+        with ThreadPoolExecutor(
+            max_workers=num_threads, thread_name_prefix="check-common-metadata"
+        ) as executor:
+            for batch in itertools.batched(enumerate(reader), BATCH_SIZE):
                 futures = [executor.submit(fn, i, path) for i, path in batch]
 
                 for future in as_completed(futures):
@@ -638,7 +649,7 @@ def repair_common_metadata(
         num_clients: The number of baton clients to use, Defaults to 1.
         print_repair: Print the paths of objects that required repair and were
             repaired successfully. Defaults to True.
-        print_fail: Print the paths of objects that required repair and the repair
+        print_fail: Print the paths of objects that required repair, and the repair
             failed. Defaults to False.
 
     Returns:
@@ -687,8 +698,10 @@ def repair_common_metadata(
 
         num_checked, num_repaired, num_errors = 0, 0, 0
 
-        with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            for batch in itertools.batched(enumerate(reader), 100):
+        with ThreadPoolExecutor(
+            max_workers=num_threads, thread_name_prefix="repair-common-metadata"
+        ) as executor:
+            for batch in itertools.batched(enumerate(reader), BATCH_SIZE):
                 futures = [executor.submit(fn, i, path) for i, path in batch]
 
                 for future in as_completed(futures):
@@ -707,7 +720,13 @@ def repair_common_metadata(
 
 
 def update_secondary_metadata(
-    reader, writer, engine: Engine, print_update=True, print_fail=False
+    reader,
+    writer,
+    engine: Engine,
+    num_clients=1,
+    num_threads=1,
+    print_update=True,
+    print_fail=False,
 ) -> (int, int, int):
     """Update secondary metadata, including access permissions, on specified iRODS
     paths, according to current information in the ML warehouse.
@@ -733,96 +752,87 @@ def update_secondary_metadata(
        were updated and the number of errors (paths that could not be updated and/or
        failed to be updated because of an exception).
     """
-    num_processed, num_updated, num_errors = 0, 0, 0
-    to_do = collections.deque()
 
-    for batch in itertools.batched(enumerate(reader), 100):
-        # Copy the batch so that if we encounter an exception we can pick up where we
-        # left off.
-        to_do.extend(batch)
+    with client_pool(num_clients) as bp:
+        session_factory = sessionmaker(bind=engine)
 
-        while len(to_do) > 0:
+        # As we can expect a mixture of different platforms in the input, we switch on
+        # the platform to select the appropriate action. This works well for individual
+        # data objects, but for collections e.g. ONT we delegate to a function that
+        # spawns additional threads to process the contents.
+        def fn(i: int, path: str) -> (bool, bool):
+            success = False
+            updated = False
+            p = path.strip()
+
+            sess = scoped_session(session_factory)
             try:
-                with session_context(engine) as mlwh_session:
-                    while len(to_do) > 0:
-                        i, path = to_do.pop()
+                item = make_rods_item(p, pool=bp)
+                match infer_data_source(p):
+                    case (Platform.ILLUMINA, AnalysisType.NUCLEIC_ACID_SEQUENCING):
+                        log.info("Illumina", item=i, path=p)
+                        updated = illumina.ensure_secondary_metadata_updated(
+                            item, sess, include_controls=True
+                        )
+                    case (Platform.PACBIO, AnalysisType.NUCLEIC_ACID_SEQUENCING):
+                        log.info("PacBio", item=i, path=p)
+                        updated = pacbio.ensure_secondary_metadata_updated(item, sess)
+                    case (
+                        Platform.OXFORD_NANOPORE_TECHNOLOGIES,
+                        AnalysisType.NUCLEIC_ACID_SEQUENCING,
+                    ):
+                        log.info("ONT", item=i, path=p)
+                        with client_pool(maxsize=4) as obp:
+                            coll = Collection(item.path, item.local_path, pool=obp)
+                            updated = ont.ensure_secondary_metadata_updated(coll, sess)
+                    case platform, analysis:
+                        log.info(
+                            "Falling back to generic study-sample metadata",
+                            path=p,
+                            platform=platform,
+                            analysis=analysis,
+                        )
+                        updated = common.ensure_secondary_metadata_updated(item, sess)
+
+                if updated and print_update:
+                    _print(p, writer)
+                success = True
+            except RodsError as roe:
+                log.error(roe.message, item=i, code=roe.code)
+                if print_fail:
+                    _print(p, writer)
+            except Exception as e:
+                log.exception(e, item=i)
+                if print_fail:
+                    _print(p, writer)
+            finally:
+                sess.remove()
+
+            return success, updated
+
+        num_processed, num_updated, num_errors = 0, 0, 0
+
+        with ThreadPoolExecutor(
+            max_workers=num_threads, thread_name_prefix="update-secondary-metadata"
+        ) as executor:
+
+            for batch in itertools.batched(enumerate(reader), BATCH_SIZE):
+
+                futures = [executor.submit(fn, i, path) for i, path in batch]
+
+                for future in as_completed(futures):
+                    try:
                         num_processed += 1
-
-                        try:
-                            p = path.strip()
-                            rods_item = make_rods_item(p)
-                            updated = False
-
-                            match infer_data_source(p):
-                                case (
-                                    Platform.ILLUMINA,
-                                    AnalysisType.NUCLEIC_ACID_SEQUENCING,
-                                ):
-                                    log.info("Illumina", item=i, path=p)
-                                    updated = (
-                                        illumina.ensure_secondary_metadata_updated(
-                                            rods_item,
-                                            mlwh_session,
-                                            include_controls=True,
-                                        )
-                                    )
-                                case (
-                                    Platform.PACBIO,
-                                    AnalysisType.NUCLEIC_ACID_SEQUENCING,
-                                ):
-                                    log.info("PacBio", item=i, path=p)
-                                    updated = pacbio.ensure_secondary_metadata_updated(
-                                        rods_item, mlwh_session
-                                    )
-                                case (
-                                    Platform.OXFORD_NANOPORE_TECHNOLOGIES,
-                                    AnalysisType.NUCLEIC_ACID_SEQUENCING,
-                                ):
-                                    log.info("ONT", item=i, path=p)
-                                    updated = ont.ensure_secondary_metadata_updated(
-                                        rods_item, mlwh_session
-                                    )
-                                case platform, analysis:
-                                    log.info(
-                                        "Falling back to generic study-sample metadata",
-                                        path=p,
-                                        platform=platform,
-                                        analysis=analysis,
-                                    )
-                                    updated = common.ensure_secondary_metadata_updated(
-                                        rods_item, mlwh_session
-                                    )
-
-                            if updated:
-                                num_updated += 1
-                                if print_update:
-                                    _print(p, writer)
-
-                        except RodsError as roe:
+                        success, updated = future.result()
+                        if not success:
                             num_errors += 1
-                            log.error(roe.message, item=i, code=roe.code)
-                            if print_fail:
-                                _print(path, writer)
-                        except SQLAlchemyError as se:
-                            # Handle here to record which path failed
-                            num_errors += 1
-                            log.error(se, item=i)
-                            if print_fail:
-                                _print(path, writer)
-                            # Re-raise to discard this session (and rollback if needed)
-                            raise se
-                        except Exception as e:
-                            num_errors += 1
-                            log.error(e, item=i)
-                            if print_fail:
-                                _print(path, writer)
-            except SQLAlchemyError as se:
-                # Log any re-raised SQLAlchemy exception and continue with a new
-                # session. If the to_do queue is not empty, we continue with its
-                # remaining contents.
-                log.exception(se)
+                        elif updated:
+                            num_updated += 1
+                    except Exception as e:
+                        num_errors += 1
+                        log.error(e)
 
-    return num_processed, num_updated, num_errors
+        return num_processed, num_updated, num_errors
 
 
 def check_consent_withdrawn(

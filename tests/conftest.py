@@ -60,12 +60,39 @@ from npg_irods.db import mlwh
 from npg_irods.metadata.common import DataFile
 from npg_irods.metadata.lims import Sample, Study, TrackedSample, TrackedStudy
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.ERROR, encoding="utf-8")
+
+log_processors = [
+    # If log level is too low, abort pipeline and throw away log entry.
+    structlog.stdlib.filter_by_level,
+    # Add the name of the logger to event dict.
+    structlog.stdlib.add_logger_name,
+    # Add log level to event dict.
+    structlog.stdlib.add_log_level,
+    # Perform %-style formatting.
+    structlog.stdlib.PositionalArgumentsFormatter(),
+    # Add a timestamp in ISO 8601 format.
+    structlog.processors.TimeStamper(fmt="iso", utc=True),  # UTC added by kdj
+    # If some value is in bytes, decode it to a Unicode str.
+    structlog.processors.UnicodeDecoder(),
+    # Add call site parameters.
+    structlog.processors.CallsiteParameterAdder(
+        {
+            structlog.processors.CallsiteParameter.FILENAME,
+            structlog.processors.CallsiteParameter.FUNC_NAME,
+            structlog.processors.CallsiteParameter.LINENO,
+            structlog.processors.CallsiteParameter.THREAD_NAME,
+        }
+    ),
+    structlog.processors.JSONRenderer(),
+]
 
 structlog.configure(
+    processors=log_processors,
     logger_factory=structlog.stdlib.LoggerFactory(),
-    processors=[structlog.processors.JSONRenderer()],
+    cache_logger_on_first_use=True,
 )
+
 
 TEST_INI = os.path.join(os.path.dirname(__file__), "testdb.ini")
 INI_SECTION_LOCAL = "docker"
