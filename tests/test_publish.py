@@ -27,8 +27,10 @@ from npg_irods.publish import publish_directory
 
 @m.describe("Publish")
 class TestPublish:
-    @m.context("Publishing a local directory")
-    @m.context("When the local directory does not exist and error handling is enabled")
+    @m.context(
+        "Publishing a local directory and "
+        "the local directory does not exist and error handling is enabled"
+    )
     @m.it("Returns the expected error count")
     def test_publish_non_existent_dir_yield(self, tmpdir, empty_collection):
         num_items, num_processed, num_errors = publish_directory(

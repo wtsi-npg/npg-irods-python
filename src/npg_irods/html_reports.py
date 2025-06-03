@@ -17,13 +17,18 @@
 #
 # @author Keith James <kdj@sanger.ac.uk>
 
+"""This module provides functions to generate static HTML reports using the yattag
+library. To add new reports, create a function that returns a yattag SimpleDoc object.
+These can then be used to generate static HTML files or be published direct to iRODS
+(see `publish-report` in this module)."""
+
 import calendar
 import os.path
 import tempfile
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import StrEnum
-from pathlib import Path, PurePath
+from pathlib import PurePath
 
 from partisan.icommands import iquest
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, RodsItem
