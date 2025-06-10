@@ -1,4 +1,4 @@
-cryptography==45.0.2
+cryptography==45.0.4
 npg_id_generation@https://github.com/wtsi-npg/npg_id_generation/releases/download/5.0.1/npg_id_generation-5.0.1.tar.gz
 npg-python-lib@https://github.com/wtsi-npg/npg-python-lib/releases/download/1.0.0/npg_python_lib-1.0.0.tar.gz
 partisan@https://github.com/wtsi-npg/partisan/releases/download/3.1.3/partisan-3.1.3.tar.gz
