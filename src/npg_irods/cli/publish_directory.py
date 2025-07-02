@@ -38,94 +38,94 @@ structure.
 """
 
 
+parser = argparse.ArgumentParser(
+    description=description, formatter_class=argparse.RawDescriptionHelpFormatter
+)
+add_logging_arguments(parser)
+
+parser.add_argument(
+    "directory",
+    help="The local directory to publish to iRODS.",
+    type=str,
+)
+parser.add_argument(
+    "collection",
+    help="The iRODS collection to publish the local directory to.",
+    type=str,
+)
+parser.add_argument(
+    "--exclude",
+    help="Exclude paths matching the given regular expression. May be used "
+    "multiple times to filter on additional regular expressions. Optional, "
+    "defaults to none.",
+    type=str,
+    action="append",
+    default=[],
+)
+
+ff_group = parser.add_mutually_exclusive_group(required=False)
+ff_group.add_argument(
+    "--fill",
+    help="Fill missing data objects and those with mismatched checksums. "
+    "Incompatible with --force.",
+    action="store_true",
+)
+ff_group.add_argument(
+    "--force",
+    help="Force the update of existing data objects. Incompatible with --fill.",
+    action="store_true",
+)
+
+parser.add_argument(
+    "--group",
+    help="iRODS group to have read access. Optional, defaults to none. "
+    "May be used multiple times to add read permissions for multiple groups.",
+    type=str,
+    action="append",
+    default=[],
+)
+parser.add_argument(
+    "--metadata-file",
+    help="Path to a JSON file containing metadata to add to the published "
+    "root collection. The JSON must describe the metadata in baton syntax "
+    '(an array of AVUs): E.g. [{"attribute": "attr1", "value": "val1"}]. '
+    "Optional, defaults to none.",
+    type=argparse.FileType("r", encoding="UTF-8"),
+    default=None,
+)
+parser.add_argument(
+    "--use-checksum-files",
+    help="Expect checksum files to be present alongside the data files with "
+    "the same name as the data file but with an additional '.md5' extension"
+    "e.g. 'data.txt' and 'data.txt.md5'. Each checksum file should contain only "
+    "the single MD5 checksum of the corresponding data file. This avoids having "
+    "to calculate the checksums during the publish process. If this option is "
+    "enabled and a checksum file cannot be read, an error will be raised for "
+    "that file. Optional, defaults to false.",
+    action="store_true",
+)
+parser.add_argument(
+    "--num-clients",
+    help="Number of iRODS clients to use for the operation, maximum 24. "
+    "Optional, defaults to 4.",
+    type=integer_in_range(1, 24),
+    default=4,
+)
+
+args = parser.parse_args()
+configure_structlog(
+    config_file=args.log_config,
+    debug=args.debug,
+    verbose=args.verbose,
+    colour=args.colour,
+    json=args.log_json,
+)
+add_appinfo_structlog_processor()
+log = structlog.get_logger("main")
+
+
 def main():
-    parser = argparse.ArgumentParser(
-        description=description, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    add_logging_arguments(parser)
-
-    parser.add_argument(
-        "directory",
-        help="The local directory to publish to iRODS.",
-        type=str,
-    )
-    parser.add_argument(
-        "collection",
-        help="The iRODS collection to publish the local directory to.",
-        type=str,
-    )
-    parser.add_argument(
-        "--exclude",
-        help="Exclude paths matching the given regular expression. May be used "
-        "multiple times to filter on additional regular expressions. Optional, "
-        "defaults to none.",
-        type=str,
-        action="append",
-        default=[],
-    )
-
-    ff_group = parser.add_mutually_exclusive_group(required=False)
-    ff_group.add_argument(
-        "--fill",
-        help="Fill missing data objects and those with mismatched checksums. "
-        "Incompatible with --force.",
-        action="store_true",
-    )
-    ff_group.add_argument(
-        "--force",
-        help="Force the update of existing data objects. Incompatible with --fill.",
-        action="store_true",
-    )
-
-    parser.add_argument(
-        "--group",
-        help="iRODS group to have read access. Optional, defaults to none. "
-        "May be used multiple times to add read permissions for multiple groups.",
-        type=str,
-        action="append",
-        default=[],
-    )
-    parser.add_argument(
-        "--metadata-file",
-        help="Path to a JSON file containing metadata to add to the published "
-        "root collection. The JSON must describe the metadata in baton syntax "
-        '(an array of AVUs): E.g. [{"attribute": "attr1", "value": "val1"}]. '
-        "Optional, defaults to none.",
-        type=argparse.FileType("r", encoding="UTF-8"),
-        default=None,
-    )
-    parser.add_argument(
-        "--use-checksum-files",
-        help="Expect checksum files to be present alongside the data files with "
-        "the same name as the data file but with an additional '.md5' extension"
-        "e.g. 'data.txt' and 'data.txt.md5'. Each checksum file should contain only "
-        "the single MD5 checksum of the corresponding data file. This avoids having "
-        "to calculate the checksums during the publish process. If this option is "
-        "enabled and a checksum file cannot be read, an error will be raised for "
-        "that file. Optional, defaults to false.",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--num-clients",
-        help="Number of iRODS clients to use for the operation, maximum 24. "
-        "Optional, defaults to 4.",
-        type=integer_in_range(1, 24),
-        default=4,
-    )
-
-    args = parser.parse_args()
-    configure_structlog(
-        config_file=args.log_config,
-        debug=args.debug,
-        verbose=args.verbose,
-        colour=args.colour,
-        json=args.log_json,
-    )
-    add_appinfo_structlog_processor()
-    log = structlog.get_logger("main")
-
     num_clients = args.num_clients
-
     zone = infer_zone(args.collection)
     acl = [AC(group, Permission.READ, zone=zone) for group in args.group]
 

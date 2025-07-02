@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2024, 2025 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ def add_appinfo_structlog_processor():
     configuration."""
 
     def _add_executable_info(_logger, _method_name, event: dict):
-        """Add executable name and version to all log entries."""
+        """Add the executable name and version to all log entries."""
         event["application"] = "npg-irods-python"
         event["executable"] = sys.argv[0]
         event["version"] = version()

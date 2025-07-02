@@ -91,6 +91,7 @@ configure_structlog(
     json=args.log_json,
 )
 add_appinfo_structlog_processor()
+add_appinfo_structlog_processor()
 log = structlog.get_logger("main")
 
 

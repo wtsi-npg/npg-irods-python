@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 """Helper functions for testing."""
+
 import os
 from datetime import datetime
 from pathlib import PurePath

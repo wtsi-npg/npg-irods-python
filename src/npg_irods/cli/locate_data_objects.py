@@ -46,7 +46,6 @@ from npg_irods import (
     sequenom,
     version,
 )
-
 from npg_irods.db.mlwh import (
     find_consent_withdrawn_samples,
     find_updated_samples,
@@ -624,12 +623,29 @@ def _find_and_print_data_objects(
     return num_processed, num_errors
 
 
+def _print(item: RodsItem, json: bool = False):
+    if json:
+        print(item.to_json(indent=None, sort_keys=True))
+    else:
+        print(item)
+
+
+def _print_batch(items: set[RodsItem], json: bool = False):
+    if json:
+        lines = [item.to_json(indent=None, sort_keys=True) for item in items]
+    else:
+        lines = [str(item) for item in items]
+    lines.sort()
+    print("\n".join(lines))
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=description, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     add_logging_arguments(parser)
     add_db_config_arguments(parser)
+
     parser.add_argument(
         "--zone",
         help="Specify a federated iRODS zone in which to find data objects to check. "
@@ -781,19 +797,3 @@ def main():
     add_appinfo_structlog_processor()
 
     args.func(args)
-
-
-def _print(item: RodsItem, json: bool = False):
-    if json:
-        print(item.to_json(indent=None, sort_keys=True))
-    else:
-        print(item)
-
-
-def _print_batch(items: set[RodsItem], json: bool = False):
-    if json:
-        lines = [item.to_json(indent=None, sort_keys=True) for item in items]
-    else:
-        lines = [str(item) for item in items]
-    lines.sort()
-    print("\n".join(lines))
