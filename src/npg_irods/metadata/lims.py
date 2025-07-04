@@ -20,6 +20,7 @@
 """Support for LIMS platform metadata added to iRODS by NPG."""
 
 import re
+from concurrent.futures.thread import ThreadPoolExecutor
 from enum import unique
 from itertools import starmap
 
@@ -441,7 +442,7 @@ def ensure_consent_withdrawn(item: Collection | DataObject, recurse=False) -> bo
     Args:
         item: The collection or data object to check.
         recurse: Apply to collection contents recursively. Defaults to False. If True
-            and item is a DataObject, raises a ValueError.
+            and the item is a DataObject, raises a ValueError.
 
     Returns:
         True if the metadata and/or permissions were updated.
@@ -502,9 +503,10 @@ def ensure_consent_withdrawn(item: Collection | DataObject, recurse=False) -> bo
     updated_perms_child = False
 
     if item.rods_type == Collection and recurse:
-        for it in item.iter_contents(recurse=True):
-            if withdraw(it):
-                updated_perms_child = True
+        with ThreadPoolExecutor(max_workers=item._pool.maxsize) as executor:
+            updated_perms_child = any(
+                executor.map(withdraw, item.iter_contents(recurse=True))
+            )
 
     return updated_meta or updated_perms_root or updated_perms_child
 

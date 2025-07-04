@@ -27,7 +27,6 @@ from npg.cli import (
     add_db_config_arguments,
     add_logging_arguments,
 )
-
 from npg.conf import IniData
 from npg.log import configure_structlog
 from sqlalchemy.orm import Session
