@@ -91,7 +91,7 @@ inputs.add_argument(
 parser.add_argument(
     "-c",
     "--category",
-    help="Specify a category of report when loading an input html file. Optional",
+    help="Specify a category of report when loading an input html file.",
     type=str,
 )
 parser.add_argument(
