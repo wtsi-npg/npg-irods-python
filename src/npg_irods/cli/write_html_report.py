@@ -29,7 +29,11 @@ from yattag import indent
 
 from npg_irods import add_appinfo_structlog_processor, version
 from npg_irods.common import PlatformNamespace
-from npg_irods.html_reports import ont_runs_html_report_this_year, read_report, publish_report
+from npg_irods.html_reports import (
+    ont_runs_html_report_this_year,
+    read_report,
+    publish_report,
+)
 
 description = """Writes an HTML report summarising data in iRODS.
 
@@ -54,7 +58,7 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
 )
 add_logging_arguments(parser)
-outputs = parser.add_mutually_exclusive_group(required=True)
+outputs = parser.add_mutually_exclusive_group(required=False)
 outputs.add_argument(
     "-o",
     "--output",
@@ -121,13 +125,13 @@ def main():
     try:
         if args.input_file:
             if Path(args.input_file).is_file():
-                doc = read_report(args.input_file)
+                doc = read_report(Path(args.input_file))
                 if args.category:
                     category = args.category
                 else:
                     raise ValueError(f"Input_file defined but no category given")
             else:
-                raise ValueError(f"Input_file does not exist '{input_file}'")
+                raise ValueError(f"Input_file does not exist '{args.input_file}'")
         else:
             report = args.report[0]
             match report:
@@ -136,7 +140,7 @@ def main():
                     category = PlatformNamespace.OXFORD_NANOPORE_TECHNOLOGIES
                 case _:
                     raise ValueError(f"Invalid HTML report type '{report}'")
-            
+
         if args.publish:
             dest = PurePath(args.publish)
             obj = publish_report(doc, dest, category=category)

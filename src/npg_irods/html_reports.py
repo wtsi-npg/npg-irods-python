@@ -349,9 +349,9 @@ def ont_runs_html_report_this_year(
     return doc
 
 
-def read_report(file_path: os.PathLike) -> DataObject:
-    """Read and existing HTML report
- 
+def read_report(file_path: Path) -> DataObject:
+    """Read and existing HTML report.
+
     Args:
         file_path: Path to HTML report file to be read.
 
@@ -359,7 +359,7 @@ def read_report(file_path: os.PathLike) -> DataObject:
         A yattag SimpleDoc object containing the HTML report.
     """
 
-    html = Path(file_path).read_text()
+    html = file_path.read_text()
 
     doc, tag, text, line = Doc().ttl()
     doc.asis(html)
