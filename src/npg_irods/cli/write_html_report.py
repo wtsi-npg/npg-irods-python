@@ -79,7 +79,7 @@ inputs = parser.add_mutually_exclusive_group(required=True)
 inputs.add_argument(
     "-i",
     "--input-file",
-    help="Instead of generating a report just provide an html file. "
+    help="Instead of generating a report just provide an HTML file. "
     "This option is not compatible with the report type argument. "
     "Optional, defaults to none.",
     type=str,
@@ -95,7 +95,7 @@ inputs.add_argument(
 parser.add_argument(
     "-c",
     "--category",
-    help="Specify a category of report when loading an input html file.",
+    help="Specify a category of report when loading an input HTML file.",
     type=str,
 )
 parser.add_argument(
@@ -123,15 +123,18 @@ log = structlog.get_logger("main")
 def main():
 
     try:
+        if args.input_file is None and args.category is not None:
+            parser.error("--category is only valid when using --input-file")
+
         if args.input_file:
             if Path(args.input_file).is_file():
                 doc = read_report(Path(args.input_file))
                 if args.category:
                     category = args.category
                 else:
-                    raise ValueError(f"Input_file defined but no category given")
+                    raise ValueError(f"Input file defined but no category given")
             else:
-                raise ValueError(f"Input_file does not exist '{args.input_file}'")
+                raise ValueError(f"Input file does not exist '{args.input_file}'")
         else:
             report = args.report[0]
             match report:
