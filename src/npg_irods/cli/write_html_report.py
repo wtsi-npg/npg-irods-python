@@ -19,7 +19,7 @@
 
 import argparse
 import sys
-from pathlib import PurePath
+from pathlib import PurePath, Path
 
 import structlog
 from npg.cli import add_logging_arguments
@@ -29,7 +29,11 @@ from yattag import indent
 
 from npg_irods import add_appinfo_structlog_processor, version
 from npg_irods.common import PlatformNamespace
-from npg_irods.html_reports import ont_runs_html_report_this_year, publish_report
+from npg_irods.html_reports import (
+    ont_runs_html_report_this_year,
+    read_report,
+    publish_report,
+)
 
 description = """Writes an HTML report summarising data in iRODS.
 
@@ -54,8 +58,7 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
 )
 add_logging_arguments(parser)
-outputs = parser.add_mutually_exclusive_group(required=True)
-
+outputs = parser.add_mutually_exclusive_group(required=False)
 outputs.add_argument(
     "-o",
     "--output",
@@ -72,12 +75,28 @@ outputs.add_argument(
     "will be overwritten.",
     type=str,
 )
-parser.add_argument(
-    "report",
+inputs = parser.add_mutually_exclusive_group(required=True)
+inputs.add_argument(
+    "-i",
+    "--input-file",
+    help="Instead of generating a report just provide an HTML file. "
+    "This option is not compatible with the report type argument. "
+    "Optional, defaults to none.",
+    type=str,
+)
+inputs.add_argument(
+    "-r",
+    "--report",
     help="Report type.",
     type=str,
     choices=[PlatformNamespace.OXFORD_NANOPORE_TECHNOLOGIES],
     nargs=1,
+)
+parser.add_argument(
+    "-c",
+    "--category",
+    help="Specify a category of report when loading an input HTML file.",
+    type=str,
 )
 parser.add_argument(
     "--zone",
@@ -102,19 +121,31 @@ log = structlog.get_logger("main")
 
 
 def main():
-    report = args.report[0]
 
     try:
-        match report:
-            case PlatformNamespace.OXFORD_NANOPORE_TECHNOLOGIES:
-                doc = ont_runs_html_report_this_year(zone=args.zone)
-            case _:
-                raise ValueError(f"Invalid HTML report type '{report}'")
+        if args.input_file is None and args.category is not None:
+            parser.error("--category is only valid when using --input-file")
+
+        if args.input_file:
+            if Path(args.input_file).is_file():
+                doc = read_report(Path(args.input_file))
+                if args.category:
+                    category = args.category
+                else:
+                    raise ValueError(f"Input file defined but no category given")
+            else:
+                raise ValueError(f"Input file does not exist '{args.input_file}'")
+        else:
+            report = args.report[0]
+            match report:
+                case PlatformNamespace.OXFORD_NANOPORE_TECHNOLOGIES:
+                    doc = ont_runs_html_report_this_year(zone=args.zone)
+                    category = PlatformNamespace.OXFORD_NANOPORE_TECHNOLOGIES
+                case _:
+                    raise ValueError(f"Invalid HTML report type '{report}'")
 
         if args.publish:
             dest = PurePath(args.publish)
-            category = PlatformNamespace.OXFORD_NANOPORE_TECHNOLOGIES
-
             obj = publish_report(doc, dest, category=category)
             log.info("Published report to iRODS", path=obj.path, category=category)
         else:

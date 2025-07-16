@@ -28,7 +28,7 @@ import tempfile
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import StrEnum
-from pathlib import PurePath
+from pathlib import PurePath, Path
 
 from partisan.icommands import iquest
 from partisan.irods import AC, AVU, Collection, DataObject, Permission, RodsItem
@@ -345,6 +345,24 @@ def ont_runs_html_report_this_year(
 
                                     # do_metadata_cell(coll)
                                     do_contents(coll)
+
+    return doc
+
+
+def read_report(file_path: Path) -> DataObject:
+    """Read and existing HTML report.
+
+    Args:
+        file_path: Path to HTML report file to be read.
+
+    Returns:
+        A yattag SimpleDoc object containing the HTML report.
+    """
+
+    html = file_path.read_text()
+
+    doc, tag, text, line = Doc().ttl()
+    doc.asis(html)
 
     return doc
 
