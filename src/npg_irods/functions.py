@@ -27,8 +27,12 @@ from structlog.stdlib import get_logger
 log = get_logger(__name__)
 
 
-def make_path_filter(*patterns: str, flags: int | re.RegexFlag = 0):
+def make_path_filter(
+    exclude: list[str], include: list[str], flags: int | re.RegexFlag = 0
+):
     """Return a function that filters paths based on the given regex patterns.
+
+    TODO
 
     Args:
         patterns: A list of regex patterns to match against the paths.
@@ -38,12 +42,33 @@ def make_path_filter(*patterns: str, flags: int | re.RegexFlag = 0):
         A function that accepts a Path and returns True if the path matches any of
         the patterns, False otherwise.
     """
-    regexes = [re.compile(p, flags=flags) for p in patterns]
+    exclude_regexes = [re.compile(p, flags=flags) for p in exclude]
+    include_regexes = [re.compile(p, flags=flags) for p in include]
 
     def path_filter(path: Path) -> bool:
-        for r in regexes:
-            if r.match(path.as_posix()):
-                log.debug("Filtering path", path=path, matched=r, regexes=regexes)
+        if include_regexes:
+            include = False
+            for r in include_regexes:
+                if r.search(path.as_posix()):
+                    log.debug(
+                        "Filtering path",
+                        path=path,
+                        matched=r,
+                        include_regexes=include_regexes,
+                    )
+                    include = True
+                    break
+            if not include:
+                return False
+
+        for r in exclude_regexes:
+            if r.search(path.as_posix()):
+                log.debug(
+                    "Filtering path",
+                    path=path,
+                    matched=r,
+                    exclude_regexes=exclude_regexes,
+                )
                 return True
         return False
 

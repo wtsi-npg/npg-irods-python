@@ -54,6 +54,13 @@ parser.add_argument(
     type=str,
 )
 parser.add_argument(
+    "--include",
+    help="TODO",
+    type=str,
+    action="append",
+    default=[],
+)
+parser.add_argument(
     "--exclude",
     help="Exclude paths matching the given regular expression. May be used "
     "multiple times to filter on additional regular expressions. Optional, "
@@ -178,9 +185,13 @@ def main():
         num_clients=num_clients,
     )
 
-    filter_fn = make_path_filter(*args.exclude) if args.exclude else None
+    filter_fn = (
+        make_path_filter(exclude=args.exclude, include=args.include)
+        if args.exclude or args.include
+        else None
+    )
 
-    checksum_fn = read_md5_file if args.expect_checksum_files else None
+    checksum_fn = read_md5_file if args.use_checksum_files else None
 
     num_items, num_processed, num_errors = publish_directory(
         args.directory,
