@@ -180,7 +180,7 @@ def main():
 
     filter_fn = make_path_filter(*args.exclude) if args.exclude else None
 
-    checksum_fn = read_md5_file if args.expect_checksum_files else None
+    checksum_fn = read_md5_file if args.use_checksum_files else None
 
     num_items, num_processed, num_errors = publish_directory(
         args.directory,
