@@ -112,19 +112,19 @@ parser.add_argument(
     default=4,
 )
 
-args = parser.parse_args()
-configure_structlog(
-    config_file=args.log_config,
-    debug=args.debug,
-    verbose=args.verbose,
-    colour=args.colour,
-    json=args.log_json,
-)
-add_appinfo_structlog_processor()
-log = structlog.get_logger("main")
-
 
 def main():
+    args = parser.parse_args()
+    configure_structlog(
+        config_file=args.log_config,
+        debug=args.debug,
+        verbose=args.verbose,
+        colour=args.colour,
+        json=args.log_json,
+    )
+    add_appinfo_structlog_processor()
+    log = structlog.get_logger("main")
+
     num_clients = args.num_clients
     zone = infer_zone(args.collection)
     acl = [AC(group, Permission.READ, zone=zone) for group in args.group]
