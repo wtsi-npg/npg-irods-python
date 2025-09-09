@@ -112,19 +112,19 @@ parser.add_argument(
     default=4,
 )
 
-args = parser.parse_args()
-configure_structlog(
-    config_file=args.log_config,
-    debug=args.debug,
-    verbose=args.verbose,
-    colour=args.colour,
-    json=args.log_json,
-)
-add_appinfo_structlog_processor()
-log = structlog.get_logger("main")
-
 
 def main():
+    args = parser.parse_args()
+    configure_structlog(
+        config_file=args.log_config,
+        debug=args.debug,
+        verbose=args.verbose,
+        colour=args.colour,
+        json=args.log_json,
+    )
+    add_appinfo_structlog_processor()
+    log = structlog.get_logger("main")
+
     num_clients = args.num_clients
     zone = infer_zone(args.collection)
     acl = [AC(group, Permission.READ, zone=zone) for group in args.group]
@@ -180,7 +180,7 @@ def main():
 
     filter_fn = make_path_filter(*args.exclude) if args.exclude else None
 
-    checksum_fn = read_md5_file if args.expect_checksum_files else None
+    checksum_fn = read_md5_file if args.use_checksum_files else None
 
     num_items, num_processed, num_errors = publish_directory(
         args.directory,
