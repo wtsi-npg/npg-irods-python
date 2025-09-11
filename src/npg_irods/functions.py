@@ -59,7 +59,7 @@ def make_path_filter(
                     include = True
                     break
             if not include:
-                return False
+                return True
 
         for r in exclude_regexes:
             if r.search(path.as_posix()):
@@ -70,6 +70,7 @@ def make_path_filter(
                     exclude_regexes=exclude_regexes,
                 )
                 return True
+
         return False
 
     return path_filter
