@@ -27,23 +27,23 @@ from structlog.stdlib import get_logger
 log = get_logger(__name__)
 
 
-def make_path_filter(
-    exclude: list[str], include: list[str], flags: int | re.RegexFlag = 0
-):
+def make_path_filter(include_patterns: list[str], exclude_patterns: list[str],
+                     flags: int | re.RegexFlag = 0):
     """Return a function that filters paths based on the given regex patterns.
 
-    TODO
-
     Args:
-        patterns: A list of regex patterns to match against the paths.
+        include_patterns: Include paths matching the given regular expressions.
+        exclude_patterns: Exclude paths matching the given regular expressions.
+            Exclude applied after include.
         flags: Optional regex flags to use when compiling the patterns.
 
     Returns:
-        A function that accepts a Path and returns True if the path matches any of
-        the patterns, False otherwise.
+        A function that accepts a Path and returns True if the path doesn't
+        match any of the include patterns or matches any of the exclude
+        patterns, False otherwise.
     """
-    exclude_regexes = [re.compile(p, flags=flags) for p in exclude]
-    include_regexes = [re.compile(p, flags=flags) for p in include]
+    include_regexes = [re.compile(p, flags=flags) for p in include_patterns]
+    exclude_regexes = [re.compile(p, flags=flags) for p in exclude_patterns]
 
     def path_filter(path: Path) -> bool:
         if include_regexes:

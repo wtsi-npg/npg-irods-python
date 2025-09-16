@@ -54,17 +54,21 @@ parser.add_argument(
     type=str,
 )
 parser.add_argument(
-    "--include",
-    help="TODO",
+    "--exclude",
+    help="Exclude paths matching the given regular expression. May be used "
+    "multiple times to filter on additional regular expressions. Exclude "
+    "regular expressions are applied after any include regular expressions. "
+    "Optional, defaults to none.",
     type=str,
     action="append",
     default=[],
 )
 parser.add_argument(
-    "--exclude",
-    help="Exclude paths matching the given regular expression. May be used "
-    "multiple times to filter on additional regular expressions. Optional, "
-    "defaults to none.",
+    "--include",
+    help="Include paths matching the given regular expression. Only matching "
+    "paths will be published, all others will be ignored. If more than one "
+    "regex is supplied, the matches for all of them are aggregated. "
+    "Optional, defaults to all.",
     type=str,
     action="append",
     default=[],
@@ -186,7 +190,8 @@ def main():
     )
 
     filter_fn = (
-        make_path_filter(exclude=args.exclude, include=args.include)
+        make_path_filter(include_patterns=args.include,
+                         exclude_patterns=args.exclude)
         if args.exclude or args.include
         else None
     )
