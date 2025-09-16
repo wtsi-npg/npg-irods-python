@@ -16,10 +16,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from pathlib import Path
+from os import getcwd
+from os.path import relpath
 
 import pytest
 from partisan.irods import AC, AVU, Collection, Permission
-from pytest import mark as m
+from pytest import mark as m, MonkeyPatch
 
 from npg_irods.exception import PublishingError
 from npg_irods.publish import publish_directory
@@ -132,3 +134,65 @@ class TestPublish:
         assert exc_info.value.dest == dest
         assert exc_info.value.num_processed == 4
         assert exc_info.value.num_errors == 1  # One error from the root collection
+
+    @m.context("When src inside working directory and specified with relative path")
+    @m.it("Passes relative paths to filter_fn")
+    def test_publish_inside_working_directory_relative_src(self, empty_collection):
+        src = Path("./tests/data/simple/collection")
+        dest = empty_collection
+
+        paths = []
+        publish_directory(src, dest, filter_fn=lambda x: paths.append(x))
+
+        children = ["sub", "a.txt", "sub/b.txt"]
+        parent = Path("tests/data/simple/collection")
+        expected_paths = [ parent / x for x in children ]
+        assert paths == expected_paths, "Expected relative paths"
+
+    @m.context("When src inside working directory and specified with absolute path")
+    @m.it("Passes absolute paths to filter_fn")
+    def test_publish_inside_working_directory_absolute_src(self, empty_collection):
+        src = Path("./tests/data/simple/collection").absolute()
+        dest = empty_collection
+
+        paths = []
+        publish_directory(src, dest, filter_fn=lambda x: paths.append(x))
+
+        children = ["sub", "a.txt", "sub/b.txt"]
+        parent = src
+        expected_paths = [ parent / x for x in children ]
+        assert paths == expected_paths, f"Expected absolute paths"
+
+    @m.context("When src outside working directory and specified with relative path")
+    @m.it("Passes relative paths to filter_fn")
+    def test_publish_outside_working_directory(self, tmpdir, empty_collection, monkeypatch: MonkeyPatch):
+        absolute_path = Path("./tests/data/simple/collection").absolute()
+        monkeypatch.chdir(tmpdir)
+        relative_path = Path(relpath(absolute_path, getcwd()))
+        src = relative_path
+        dest = empty_collection
+
+        paths = []
+        publish_directory(src, dest, filter_fn=lambda x: paths.append(x))
+
+        children = ["sub", "a.txt", "sub/b.txt"]
+        parent = relative_path
+        expected_paths = [parent / x for x in children]
+        breakpoint()
+        assert paths == expected_paths, "Expected relative paths"
+
+    @m.context("When src outside working directory and specified with absolute path")
+    @m.it("Passes absolute paths to filter_fn")
+    def test_publish_outside_working_directory_absolute_src(self, tmpdir, empty_collection, monkeypatch: MonkeyPatch):
+        absolute_path = Path("./tests/data/simple/collection").absolute()
+        monkeypatch.chdir(tmpdir)
+        src = absolute_path
+        dest = empty_collection
+
+        paths = []
+        publish_directory(src, dest, filter_fn=lambda x: paths.append(x))
+
+        children = ["sub", "a.txt", "sub/b.txt"]
+        parent = absolute_path
+        expected_paths = [parent / x for x in children]
+        assert paths == expected_paths, "Expected absolute paths"

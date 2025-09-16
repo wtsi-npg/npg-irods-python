@@ -58,6 +58,8 @@ parser.add_argument(
     help="Exclude paths matching the given regular expression. May be used "
     "multiple times to filter on additional regular expressions. Exclude "
     "regular expressions are applied after any include regular expressions. "
+    "Paths will be absolute or relative depending on whether directory is an "
+    "absolute or relative path."
     "Optional, defaults to none.",
     type=str,
     action="append",
@@ -68,6 +70,8 @@ parser.add_argument(
     help="Include paths matching the given regular expression. Only matching "
     "paths will be published, all others will be ignored. If more than one "
     "regex is supplied, the matches for all of them are aggregated. "
+    "Paths will be absolute or relative depending on whether directory is an "
+    "absolute or relative path."
     "Optional, defaults to all.",
     type=str,
     action="append",
