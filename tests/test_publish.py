@@ -178,7 +178,6 @@ class TestPublish:
         children = ["sub", "a.txt", "sub/b.txt"]
         parent = relative_path
         expected_paths = [parent / x for x in children]
-        breakpoint()
         assert paths == expected_paths, "Expected relative paths"
 
     @m.context("When src outside working directory and specified with absolute path")
