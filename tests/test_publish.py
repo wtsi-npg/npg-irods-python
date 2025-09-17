@@ -20,7 +20,7 @@ from os import getcwd
 from os.path import relpath
 
 import pytest
-from partisan.irods import AC, AVU, Collection, Permission
+from partisan.irods import AC, AVU, Collection, Permission, DataObject
 from pytest import mark as m, MonkeyPatch
 
 from npg_irods.exception import PublishingError
@@ -79,6 +79,12 @@ class TestPublish:
         assert num_items == 4
         assert num_processed == 4
         assert num_errors == 0
+
+        assert Collection(dest).contents(recurse=True) == [
+            Collection(dest / "sub"),
+            DataObject(dest / "a.txt"),
+            DataObject(dest / "sub/b.txt")
+        ]
 
     @m.context("When an ACL is provided")
     @m.it("Adds it to the published collections and data objects")
