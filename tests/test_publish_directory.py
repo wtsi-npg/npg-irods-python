@@ -14,12 +14,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from pathlib import Path
+from pathlib import Path, PurePath
 from unittest.mock import MagicMock, patch
+
 from npg_irods.cli import publish_directory
-from pytest import LogCaptureFixture
+from pytest import LogCaptureFixture, MonkeyPatch
 from pytest import mark as m
 
+from partisan.irods import Collection, DataObject
 
 @m.describe("Publish directory utility")
 class TestPublishDirectory:
@@ -102,6 +104,27 @@ class TestPublishDirectory:
 
         # Assert
         assert filtered == [Path("a1Zb"), Path("a2Zb")]
+
+    # Test compatibility with npg_publish_tree.pl
+    # Use Ultima as test case, follow rnd_platforms SOP
+    def test_npg_publish_tree_compatibility_ultima(self, tmpdir, empty_collection: PurePath, monkeypatch: MonkeyPatch):
+        # Arrange
+        src = Path("./tests/data/ultima").absolute()
+        # empty_collection stands in for $ZONE/ultimagen/runs
+        # SOP: Destination collection doesn't exist
+        dest = empty_collection / "run_id_prefix" / "run_id"
+        # SOP: Perform wr jobs from /tmp
+        monkeypatch.chdir(tmpdir)
+
+        # Act
+        # TODO: Metadata
+        self._main([str(src), str(dest), "--group", "public", "--exclude", f"'{src}/000001-'", "--exclude", "'.md5'"])
+
+        # Assert
+        assert Collection(dest).contents(recurse=True) == [
+            DataObject(dest / "000001_a.txt"),
+            DataObject(dest / "b.txt"),
+        ]
 
     def _main(self, args: list[str]):
         with patch("sys.argv", ["publish-directory"] + args):
