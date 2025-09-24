@@ -98,11 +98,34 @@ class TestPublishDirectory:
     @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
     def test_include_exclude(self, mock_publish_directory: MagicMock):
         # Arrange
-        paths = [Path("a1Xb"), Path("a1Yb"), Path("a1Zb"), Path("a2Xb"), Path("a2Yb"), Path("a2Zb"), Path("a3Xb"), Path("a3Yb"), Path("a3Zb")]
+        paths = [
+            Path("a1Xb"),
+            Path("a1Yb"),
+            Path("a1Zb"),
+            Path("a2Xb"),
+            Path("a2Yb"),
+            Path("a2Zb"),
+            Path("a3Xb"),
+            Path("a3Yb"),
+            Path("a3Zb"),
+        ]
         mock_publish_directory.return_value = (2, 1, 0)
 
         # Act
-        self._main(["directory", "/collection", "--include", "1", "--include", "2", "--exclude", "X", "--exclude", "Y"])
+        self._main(
+            [
+                "directory",
+                "/collection",
+                "--include",
+                "1",
+                "--include",
+                "2",
+                "--exclude",
+                "X",
+                "--exclude",
+                "Y",
+            ]
+        )
         mock_publish_directory.assert_called_once()
         filter_fn = mock_publish_directory.call_args.kwargs["filter_fn"]
         filtered = [x for x in paths if filter_fn is None or not filter_fn(x)]
@@ -110,9 +133,13 @@ class TestPublishDirectory:
         # Assert
         assert filtered == [Path("a1Zb"), Path("a2Zb")]
 
-    @m.context("When run in place of npg_publish_tree.pl in \"Uploading Ultima run to iRODS\" SOP from rnd_platforms")
+    @m.context(
+        'When run in place of npg_publish_tree.pl in "Uploading Ultima run to iRODS" SOP from rnd_platforms'
+    )
     @m.it("Should be compatible with npg_publish_tree.pl")
-    def test_npg_publish_tree_compatibility_ultima(self, tmp_path, empty_collection: PurePath, monkeypatch: MonkeyPatch):
+    def test_npg_publish_tree_compatibility_ultima(
+        self, tmp_path, empty_collection: PurePath, monkeypatch: MonkeyPatch
+    ):
         # Arrange
         src = Path("./tests/data/ultima/minimal").absolute()
         # empty_collection stands in for $ZONE/ultimagen/runs
@@ -124,7 +151,20 @@ class TestPublishDirectory:
         # Act
         root_metadata = tmp_path / "root_metadata.json"
         root_metadata.write_text(json.dumps([{"attribute": "a1", "value": "v1"}]))
-        self._main([str(src), str(dest), "--group", "public", "--exclude", f"{src}/000001-", "--exclude", ".md5", "--metadata-file", str(root_metadata)])
+        self._main(
+            [
+                str(src),
+                str(dest),
+                "--group",
+                "public",
+                "--exclude",
+                f"{src}/000001-",
+                "--exclude",
+                ".md5",
+                "--metadata-file",
+                str(root_metadata),
+            ]
+        )
 
         # Assert
         assert Collection(dest).contents(recurse=True) == [
@@ -135,7 +175,18 @@ class TestPublishDirectory:
         # Act
         sample_metadata = tmp_path / "sample_metadata.json"
         sample_metadata.write_text(json.dumps([{"attribute": "a2", "value": "v2"}]))
-        self._main([str(src / "000001-a"), str(dest / "000001-a"), "--group", "ss_1000", "--exclude", ".md5", "--metadata-file", str(sample_metadata)])
+        self._main(
+            [
+                str(src / "000001-a"),
+                str(dest / "000001-a"),
+                "--group",
+                "ss_1000",
+                "--exclude",
+                ".md5",
+                "--metadata-file",
+                str(sample_metadata),
+            ]
+        )
 
         # Assert
         assert Collection(dest).contents(recurse=True) == [
@@ -149,9 +200,9 @@ class TestPublishDirectory:
         ss_1000_read = AC("ss_1000", Permission.READ, "testZone")
         assert Collection(empty_collection / "run_id_prefix").acl() == [irods_own]
         assert Collection(empty_collection / "run_id_prefix").metadata() == []
-        assert Collection(dest).acl() == [irods_own,public_read]
+        assert Collection(dest).acl() == [irods_own, public_read]
         assert Collection(dest).metadata() == [AVU("a1", "v1")]
-        assert Collection(dest / "000001-a").acl() == [irods_own,ss_1000_read]
+        assert Collection(dest / "000001-a").acl() == [irods_own, ss_1000_read]
         assert Collection(dest / "000001-a").metadata() == [AVU("a2", "v2")]
 
     def _main(self, args: list[str]):

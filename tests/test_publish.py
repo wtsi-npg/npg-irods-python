@@ -84,7 +84,7 @@ class TestPublish:
         assert Collection(dest).contents(recurse=True) == [
             Collection(dest / "sub"),
             DataObject(dest / "a.txt"),
-            DataObject(dest / "sub/b.txt")
+            DataObject(dest / "sub/b.txt"),
         ]
 
     @m.context("When an ACL is provided")
@@ -153,7 +153,7 @@ class TestPublish:
 
         children = ["sub", "a.txt", "sub/b.txt"]
         parent = Path("tests/data/simple/collection")
-        expected_paths = [ parent / x for x in children ]
+        expected_paths = [parent / x for x in children]
         assert paths == expected_paths, "Expected relative paths"
 
     @m.context("When src inside working directory and specified with absolute path")
@@ -167,12 +167,14 @@ class TestPublish:
 
         children = ["sub", "a.txt", "sub/b.txt"]
         parent = src
-        expected_paths = [ parent / x for x in children ]
+        expected_paths = [parent / x for x in children]
         assert paths == expected_paths, f"Expected absolute paths"
 
     @m.context("When src outside working directory and specified with relative path")
     @m.it("Passes relative paths to filter_fn")
-    def test_publish_outside_working_directory(self, tmpdir, empty_collection, monkeypatch: MonkeyPatch):
+    def test_publish_outside_working_directory(
+        self, tmpdir, empty_collection, monkeypatch: MonkeyPatch
+    ):
         absolute_path = Path("./tests/data/simple/collection").absolute()
         monkeypatch.chdir(tmpdir)
         relative_path = Path(relpath(absolute_path, getcwd()))
@@ -189,7 +191,9 @@ class TestPublish:
 
     @m.context("When src outside working directory and specified with absolute path")
     @m.it("Passes absolute paths to filter_fn")
-    def test_publish_outside_working_directory_absolute_src(self, tmpdir, empty_collection, monkeypatch: MonkeyPatch):
+    def test_publish_outside_working_directory_absolute_src(
+        self, tmpdir, empty_collection, monkeypatch: MonkeyPatch
+    ):
         absolute_path = Path("./tests/data/simple/collection").absolute()
         monkeypatch.chdir(tmpdir)
         src = absolute_path
@@ -214,7 +218,9 @@ class TestPublish:
         avus = [AVU("a1", "v1")]
         zone = "testZone"
         acl = [AC("ss_1000", Permission.READ, zone=zone)]
-        num_items, num_processed, num_errors = publish_directory(src, dest, avus=avus, acl=acl)
+        num_items, num_processed, num_errors = publish_directory(
+            src, dest, avus=avus, acl=acl
+        )
 
         # Assert
         assert num_items == 4, "Missing parents not included"
@@ -224,7 +230,7 @@ class TestPublish:
         assert Collection(dest).contents(recurse=True) == [
             Collection(dest / "sub"),
             DataObject(dest / "a.txt"),
-            DataObject(dest / "sub/b.txt")
+            DataObject(dest / "sub/b.txt"),
         ], "Missing parents not included"
 
         default_acl = [AC("irods", Permission.OWN, "testZone")]
@@ -241,7 +247,9 @@ class TestPublish:
     @m.context("and error handling is enabled")
     @m.it("Returns the expected error count")
     @patch("partisan.irods.Baton.create_collection", autospec=True)
-    def test_publish_missing_parent_collection_error_yield(self, mock_create_collection: Mock, tmpdir, empty_collection):
+    def test_publish_missing_parent_collection_error_yield(
+        self, mock_create_collection: Mock, tmpdir, empty_collection
+    ):
         # Arrange
         src = tmpdir
         dest = empty_collection / "missing1" / "sub"
@@ -261,7 +269,9 @@ class TestPublish:
     @m.context("and error handling is not enabled")
     @m.it("Raises a PublishingError")
     @patch("partisan.irods.Baton.create_collection", autospec=True)
-    def test_publish_missing_parent_collection_error_err(self, mock_create_collection: Mock, tmpdir, empty_collection):
+    def test_publish_missing_parent_collection_error_err(
+        self, mock_create_collection: Mock, tmpdir, empty_collection
+    ):
         # Arrange
         src = tmpdir
         dest = empty_collection / "missing1" / "sub"

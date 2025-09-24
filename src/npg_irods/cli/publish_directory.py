@@ -194,8 +194,7 @@ def main():
     )
 
     filter_fn = (
-        make_path_filter(include_patterns=args.include,
-                         exclude_patterns=args.exclude)
+        make_path_filter(include_patterns=args.include, exclude_patterns=args.exclude)
         if args.exclude or args.include
         else None
     )

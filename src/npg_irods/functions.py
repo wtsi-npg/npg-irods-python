@@ -27,8 +27,11 @@ from structlog.stdlib import get_logger
 log = get_logger(__name__)
 
 
-def make_path_filter(include_patterns: list[str], exclude_patterns: list[str],
-                     flags: int | re.RegexFlag = 0):
+def make_path_filter(
+    include_patterns: list[str],
+    exclude_patterns: list[str],
+    flags: int | re.RegexFlag = 0,
+):
     """Return a function that filters paths based on the given regex patterns.
 
     Args:
