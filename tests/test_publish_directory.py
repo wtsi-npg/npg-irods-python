@@ -14,6 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+import json
 from pathlib import Path, PurePath
 from unittest.mock import MagicMock, patch
 
@@ -21,7 +22,8 @@ from npg_irods.cli import publish_directory
 from pytest import LogCaptureFixture, MonkeyPatch
 from pytest import mark as m
 
-from partisan.irods import Collection, DataObject
+from partisan.irods import Collection, DataObject, AC, Permission, AVU
+
 
 @m.describe("Publish directory utility")
 class TestPublishDirectory:
@@ -57,6 +59,8 @@ class TestPublishDirectory:
         assert "num_processed=1" in caplog.text
         assert "num_errors=0" in caplog.text
 
+    @m.context("When run with --exclude")
+    @m.it("Only publish items that do match filter anywhere in path")
     @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
     def test_exclude(self, mock_publish_directory: MagicMock):
         # Arrange
@@ -64,7 +68,6 @@ class TestPublishDirectory:
         mock_publish_directory.return_value = (2, 1, 0)
 
         # Act
-        # TODO: Just test make_path_filter?
         self._main(["directory", "/collection", "--exclude", "1", "--exclude", "2"])
         mock_publish_directory.assert_called_once()
         filter_fn = mock_publish_directory.call_args.kwargs["filter_fn"]
@@ -73,6 +76,8 @@ class TestPublishDirectory:
         # Assert
         assert filtered == [Path("a3b")]
 
+    @m.context("When run with --include")
+    @m.it("Only publish items that match filter anywhere in path")
     @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
     def test_include(self, mock_publish_directory: MagicMock):
         # Arrange
@@ -80,7 +85,6 @@ class TestPublishDirectory:
         mock_publish_directory.return_value = (2, 1, 0)
 
         # Act
-        # TODO: Just test make_path_filter?
         self._main(["directory", "/collection", "--include", "1", "--include", "2"])
         mock_publish_directory.assert_called_once()
         filter_fn = mock_publish_directory.call_args.kwargs["filter_fn"]
@@ -89,6 +93,8 @@ class TestPublishDirectory:
         # Assert
         assert filtered == [Path("a1b"), Path("a2b")]
 
+    @m.context("When run with --exclude and --include")
+    @m.it("Should compose filters")
     @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
     def test_include_exclude(self, mock_publish_directory: MagicMock):
         # Arrange
@@ -96,7 +102,6 @@ class TestPublishDirectory:
         mock_publish_directory.return_value = (2, 1, 0)
 
         # Act
-        # TODO: Just test make_path_filter?
         self._main(["directory", "/collection", "--include", "1", "--include", "2", "--exclude", "X", "--exclude", "Y"])
         mock_publish_directory.assert_called_once()
         filter_fn = mock_publish_directory.call_args.kwargs["filter_fn"]
@@ -105,26 +110,49 @@ class TestPublishDirectory:
         # Assert
         assert filtered == [Path("a1Zb"), Path("a2Zb")]
 
-    # Test compatibility with npg_publish_tree.pl
-    # Use Ultima as test case, follow rnd_platforms SOP
-    def test_npg_publish_tree_compatibility_ultima(self, tmpdir, empty_collection: PurePath, monkeypatch: MonkeyPatch):
+    @m.context("When run in place of npg_publish_tree.pl in \"Uploading Ultima run to iRODS\" SOP from rnd_platforms")
+    @m.it("Should be compatible with npg_publish_tree.pl")
+    def test_npg_publish_tree_compatibility_ultima(self, tmp_path, empty_collection: PurePath, monkeypatch: MonkeyPatch):
         # Arrange
-        src = Path("./tests/data/ultima").absolute()
+        src = Path("./tests/data/ultima/minimal").absolute()
         # empty_collection stands in for $ZONE/ultimagen/runs
         # SOP: Destination collection doesn't exist
         dest = empty_collection / "run_id_prefix" / "run_id"
         # SOP: Perform wr jobs from /tmp
-        monkeypatch.chdir(tmpdir)
+        monkeypatch.chdir(tmp_path)
 
         # Act
-        # TODO: Metadata
-        self._main([str(src), str(dest), "--group", "public", "--exclude", f"'{src}/000001-'", "--exclude", "'.md5'"])
+        root_metadata = tmp_path / "root_metadata.json"
+        root_metadata.write_text(json.dumps([{"attribute": "a1", "value": "v1"}]))
+        self._main([str(src), str(dest), "--group", "public", "--exclude", f"{src}/000001-", "--exclude", ".md5", "--metadata-file", str(root_metadata)])
 
         # Assert
         assert Collection(dest).contents(recurse=True) == [
             DataObject(dest / "000001_a.txt"),
             DataObject(dest / "b.txt"),
         ]
+
+        # Act
+        sample_metadata = tmp_path / "sample_metadata.json"
+        sample_metadata.write_text(json.dumps([{"attribute": "a2", "value": "v2"}]))
+        self._main([str(src / "000001-a"), str(dest / "000001-a"), "--group", "ss_1000", "--exclude", ".md5", "--metadata-file", str(sample_metadata)])
+
+        # Assert
+        assert Collection(dest).contents(recurse=True) == [
+            Collection(dest / "000001-a"),
+            DataObject(dest / "000001_a.txt"),
+            DataObject(dest / "b.txt"),
+            DataObject(dest / "000001-a" / "000002-c.txt"),
+        ]
+        irods_own = AC("irods", Permission.OWN, "testZone")
+        public_read = AC("public", Permission.READ, "testZone")
+        ss_1000_read = AC("ss_1000", Permission.READ, "testZone")
+        assert Collection(empty_collection / "run_id_prefix").acl() == [irods_own]
+        assert Collection(empty_collection / "run_id_prefix").metadata() == []
+        assert Collection(dest).acl() == [irods_own,public_read]
+        assert Collection(dest).metadata() == [AVU("a1", "v1")]
+        assert Collection(dest / "000001-a").acl() == [irods_own,ss_1000_read]
+        assert Collection(dest / "000001-a").metadata() == [AVU("a2", "v2")]
 
     def _main(self, args: list[str]):
         with patch("sys.argv", ["publish-directory"] + args):

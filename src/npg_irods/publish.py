@@ -100,7 +100,6 @@ def publish_directory(
 
         try:
             # Follow npg_publish_tree.pl behavior
-            # TODO: Test error handling
             coll.create(parents=True, exist_ok=True, timeout=timeout, tries=tries)
         except Exception as e:
             if not handle_exceptions:
@@ -113,7 +112,7 @@ def publish_directory(
                 )
                 raise publishing_error from e
 
-            return num_items, num_processed, num_errors
+            return 0, 0, 1
 
         with ThreadPoolExecutor(
             thread_name_prefix="npg-irods-python.publish", max_workers=num_threads

@@ -18,6 +18,7 @@
 from pathlib import Path
 from os import getcwd
 from os.path import relpath
+from unittest.mock import patch, Mock
 
 import pytest
 from partisan.irods import AC, AVU, Collection, Permission, DataObject
@@ -201,3 +202,79 @@ class TestPublish:
         parent = absolute_path
         expected_paths = [parent / x for x in children]
         assert paths == expected_paths, "Expected absolute paths"
+
+    @m.context("When parent collections do not exist")
+    @m.it("Creates without applying groups or metadata")
+    def test_publish_collection_missing_parent_collection(self, empty_collection):
+        # Arrange
+        src = Path("./tests/data/simple/collection")
+        dest = empty_collection / "missing1" / "missing2" / "sub"
+
+        # Act
+        avus = [AVU("a1", "v1")]
+        zone = "testZone"
+        acl = [AC("ss_1000", Permission.READ, zone=zone)]
+        num_items, num_processed, num_errors = publish_directory(src, dest, avus=avus, acl=acl)
+
+        # Assert
+        assert num_items == 4, "Missing parents not included"
+        assert num_processed == 4, "Missing parents not included"
+        assert num_errors == 0
+
+        assert Collection(dest).contents(recurse=True) == [
+            Collection(dest / "sub"),
+            DataObject(dest / "a.txt"),
+            DataObject(dest / "sub/b.txt")
+        ], "Missing parents not included"
+
+        default_acl = [AC("irods", Permission.OWN, "testZone")]
+
+        missing1 = Collection(empty_collection / "missing1")
+        assert missing1.acl() == default_acl
+        assert missing1.metadata() == []
+
+        missing2 = Collection(empty_collection / "missing1" / "missing2")
+        assert missing2.acl() == default_acl
+        assert missing2.metadata() == []
+
+    @m.context("Cannot create missing parent collection")
+    @m.context("and error handling is enabled")
+    @m.it("Returns the expected error count")
+    @patch("partisan.irods.Baton.create_collection", autospec=True)
+    def test_publish_missing_parent_collection_error_yield(self, mock_create_collection: Mock, tmpdir, empty_collection):
+        # Arrange
+        src = tmpdir
+        dest = empty_collection / "missing1" / "sub"
+        mock_create_collection.side_effect = Exception("e1")
+
+        # Act
+        num_items, num_processed, num_errors = publish_directory(src, dest)
+
+        # Assert
+        assert num_items == 0
+        assert num_processed == 0
+        assert num_errors == 1
+
+        assert not Collection(dest).exists()
+
+    @m.context("Cannot create missing parent collection")
+    @m.context("and error handling is not enabled")
+    @m.it("Raises a PublishingError")
+    @patch("partisan.irods.Baton.create_collection", autospec=True)
+    def test_publish_missing_parent_collection_error_err(self, mock_create_collection: Mock, tmpdir, empty_collection):
+        # Arrange
+        src = tmpdir
+        dest = empty_collection / "missing1" / "sub"
+        mock_create_collection.side_effect = Exception("e1")
+
+        # Act
+        with pytest.raises(PublishingError, match="Error while publishing") as exc_info:
+            publish_directory(src, dest, handle_exceptions=False)
+
+        # Assert
+        assert exc_info.value.src == src
+        assert exc_info.value.dest == dest
+        assert exc_info.value.num_processed == 0
+        assert exc_info.value.num_errors == 1
+
+        assert not Collection(dest).exists()
