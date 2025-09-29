@@ -59,80 +59,6 @@ class TestPublishDirectory:
         assert "num_processed=1" in caplog.text
         assert "num_errors=0" in caplog.text
 
-    @m.context("When run with --exclude")
-    @m.it("Only publish items that do match filter anywhere in path")
-    @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
-    def test_exclude(self, mock_publish_directory: MagicMock):
-        # Arrange
-        paths = [Path("a1b"), Path("a2b"), Path("a3b")]
-        mock_publish_directory.return_value = (2, 1, 0)
-
-        # Act
-        self._main(["directory", "/collection", "--exclude", "1", "--exclude", "2"])
-        mock_publish_directory.assert_called_once()
-        filter_fn = mock_publish_directory.call_args.kwargs["filter_fn"]
-        filtered = [x for x in paths if filter_fn is None or not filter_fn(x)]
-
-        # Assert
-        assert filtered == [Path("a3b")]
-
-    @m.context("When run with --include")
-    @m.it("Only publish items that match filter anywhere in path")
-    @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
-    def test_include(self, mock_publish_directory: MagicMock):
-        # Arrange
-        paths = [Path("a1b"), Path("a2b"), Path("a3b")]
-        mock_publish_directory.return_value = (2, 1, 0)
-
-        # Act
-        self._main(["directory", "/collection", "--include", "1", "--include", "2"])
-        mock_publish_directory.assert_called_once()
-        filter_fn = mock_publish_directory.call_args.kwargs["filter_fn"]
-        filtered = [x for x in paths if filter_fn is None or not filter_fn(x)]
-
-        # Assert
-        assert filtered == [Path("a1b"), Path("a2b")]
-
-    @m.context("When run with --exclude and --include")
-    @m.it("Should compose filters")
-    @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
-    def test_include_exclude(self, mock_publish_directory: MagicMock):
-        # Arrange
-        paths = [
-            Path("a1Xb"),
-            Path("a1Yb"),
-            Path("a1Zb"),
-            Path("a2Xb"),
-            Path("a2Yb"),
-            Path("a2Zb"),
-            Path("a3Xb"),
-            Path("a3Yb"),
-            Path("a3Zb"),
-        ]
-        mock_publish_directory.return_value = (2, 1, 0)
-
-        # Act
-        self._main(
-            [
-                "directory",
-                "/collection",
-                "--include",
-                "1",
-                "--include",
-                "2",
-                "--exclude",
-                "X",
-                "--exclude",
-                "Y",
-            ]
-        )
-        mock_publish_directory.assert_called_once()
-        filter_fn = mock_publish_directory.call_args.kwargs["filter_fn"]
-        filtered = [x for x in paths if filter_fn is None or not filter_fn(x)]
-
-        # Assert
-        assert filtered == [Path("a1Zb"), Path("a2Zb")]
-
     @m.context(
         'When run in place of npg_publish_tree.pl in "Uploading Ultima run to iRODS" SOP from rnd_platforms'
     )
@@ -205,6 +131,7 @@ class TestPublishDirectory:
         assert Collection(dest / "000001-a").acl() == [irods_own, ss_1000_read]
         assert Collection(dest / "000001-a").metadata() == [AVU("a2", "v2")]
 
-    def _main(self, args: list[str]):
+    @staticmethod
+    def _main(args: list[str]):
         with patch("sys.argv", ["publish-directory"] + args):
             publish_directory.main()

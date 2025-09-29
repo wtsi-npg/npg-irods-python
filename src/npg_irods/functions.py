@@ -28,8 +28,8 @@ log = get_logger(__name__)
 
 
 def make_path_filter(
-    include_patterns: list[str],
-    exclude_patterns: list[str],
+    include_patterns: list[str] = None,
+    exclude_patterns: list[str] = None,
     flags: int | re.RegexFlag = 0,
 ):
     """Return a function that filters paths based on the given regex patterns.
@@ -45,6 +45,9 @@ def make_path_filter(
         match any of the include patterns or matches any of the exclude
         patterns, False otherwise.
     """
+    include_patterns = include_patterns or []
+    exclude_patterns = exclude_patterns or []
+
     include_regexes = [re.compile(p, flags=flags) for p in include_patterns]
     exclude_regexes = [re.compile(p, flags=flags) for p in exclude_patterns]
 
