@@ -28,7 +28,6 @@ class TestMakePathFilter:
 
     @m.context("With exclude pattern")
     @m.it("Exclude items that match filter anywhere in path")
-    @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
     def test_exclude(self):
         # Arrange
         paths = [Path("a1b"), Path("a2b"), Path("a3b")]
@@ -42,7 +41,6 @@ class TestMakePathFilter:
 
     @m.context("With include pattern")
     @m.it("Include items that match filter anywhere in path")
-    @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
     def test_include(self):
         # Arrange
         paths = [Path("a1b"), Path("a2b"), Path("a3b")]
@@ -56,7 +54,6 @@ class TestMakePathFilter:
 
     @m.context("When include and exclude patterns provided")
     @m.it("Should compose filters")
-    @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
     def test_include_exclude(self):
         # Arrange
         paths = [
