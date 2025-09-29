@@ -26,7 +26,7 @@ from npg_irods.functions import make_path_filter
 @m.describe("make_path_filter")
 class TestMakePathFilter:
 
-    @m.context("When run with --exclude")
+    @m.context("With exclude pattern")
     @m.it("Exclude items that match filter anywhere in path")
     @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
     def test_exclude(self, mock_publish_directory: MagicMock):
