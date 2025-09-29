@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from pytest import mark as m
 
@@ -29,10 +29,9 @@ class TestMakePathFilter:
     @m.context("With exclude pattern")
     @m.it("Exclude items that match filter anywhere in path")
     @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
-    def test_exclude(self, mock_publish_directory: MagicMock):
+    def test_exclude(self):
         # Arrange
         paths = [Path("a1b"), Path("a2b"), Path("a3b")]
-        mock_publish_directory.return_value = (2, 1, 0)
 
         # Act
         filter_fn = make_path_filter(exclude_patterns=["1", "2"])
@@ -44,10 +43,9 @@ class TestMakePathFilter:
     @m.context("With include pattern")
     @m.it("Include items that match filter anywhere in path")
     @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
-    def test_include(self, mock_publish_directory: MagicMock):
+    def test_include(self):
         # Arrange
         paths = [Path("a1b"), Path("a2b"), Path("a3b")]
-        mock_publish_directory.return_value = (2, 1, 0)
 
         # Act
         filter_fn = make_path_filter(include_patterns=["1", "2"])
@@ -59,7 +57,7 @@ class TestMakePathFilter:
     @m.context("When include and exclude patterns provided")
     @m.it("Should compose filters")
     @patch("npg_irods.cli.publish_directory.publish_directory", autospec=True)
-    def test_include_exclude(self, mock_publish_directory: MagicMock):
+    def test_include_exclude(self):
         # Arrange
         paths = [
             Path("a1Xb"),
@@ -72,7 +70,6 @@ class TestMakePathFilter:
             Path("a3Yb"),
             Path("a3Zb"),
         ]
-        mock_publish_directory.return_value = (2, 1, 0)
 
         # Act
         filter_fn = make_path_filter(
