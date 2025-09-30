@@ -27,24 +27,56 @@ from structlog.stdlib import get_logger
 log = get_logger(__name__)
 
 
-def make_path_filter(*patterns: str, flags: int | re.RegexFlag = 0):
+def make_path_filter(
+    include_patterns: list[str] = None,
+    exclude_patterns: list[str] = None,
+    flags: int | re.RegexFlag = 0,
+):
     """Return a function that filters paths based on the given regex patterns.
 
     Args:
-        patterns: A list of regex patterns to match against the paths.
+        include_patterns: Include paths matching the given regular expressions.
+        exclude_patterns: Exclude paths matching the given regular expressions.
+            Exclude applied after include.
         flags: Optional regex flags to use when compiling the patterns.
 
     Returns:
-        A function that accepts a Path and returns True if the path matches any of
-        the patterns, False otherwise.
+        A function that accepts a Path and returns True if the path doesn't
+        match any of the include patterns or matches any of the exclude
+        patterns, False otherwise.
     """
-    regexes = [re.compile(p, flags=flags) for p in patterns]
+    include_patterns = include_patterns or []
+    exclude_patterns = exclude_patterns or []
+
+    include_regexes = [re.compile(p, flags=flags) for p in include_patterns]
+    exclude_regexes = [re.compile(p, flags=flags) for p in exclude_patterns]
 
     def path_filter(path: Path) -> bool:
-        for r in regexes:
-            if r.match(path.as_posix()):
-                log.debug("Filtering path", path=path, matched=r, regexes=regexes)
+        if include_regexes:
+            include = False
+            for r in include_regexes:
+                if r.search(path.as_posix()):
+                    log.debug(
+                        "Filtering path",
+                        path=path,
+                        matched=r,
+                        include_regexes=include_regexes,
+                    )
+                    include = True
+                    break
+            if not include:
                 return True
+
+        for r in exclude_regexes:
+            if r.search(path.as_posix()):
+                log.debug(
+                    "Filtering path",
+                    path=path,
+                    matched=r,
+                    exclude_regexes=exclude_regexes,
+                )
+                return True
+
         return False
 
     return path_filter

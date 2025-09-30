@@ -98,6 +98,22 @@ def publish_directory(
     with client_pool(maxsize=num_clients) as bp:
         coll = Collection(dest, pool=bp)
 
+        try:
+            # Follow npg_publish_tree.pl behavior
+            coll.create(parents=True, exist_ok=True, timeout=timeout, tries=tries)
+        except Exception as e:
+            if not handle_exceptions:
+                publishing_error = PublishingError(
+                    "Error while publishing",
+                    src=src,
+                    dest=dest,
+                    num_processed=0,
+                    num_errors=1,
+                )
+                raise publishing_error from e
+
+            return 0, 0, 1
+
         with ThreadPoolExecutor(
             thread_name_prefix="npg-irods-python.publish", max_workers=num_threads
         ) as executor:
