@@ -20,6 +20,7 @@
 import argparse
 import json
 import sys
+from pathlib import Path
 
 import structlog
 from npg.cli import add_logging_arguments, integer_in_range
@@ -65,6 +66,7 @@ parser.add_argument(
     action="append",
     default=[],
 )
+
 parser.add_argument(
     "--include",
     help="Include paths matching the given regular expression. Only matching "
@@ -76,6 +78,26 @@ parser.add_argument(
     type=str,
     action="append",
     default=[],
+)
+
+
+# Provide convenience method for common use case of --exclude.
+# We often need to apply permissions and metadata to the files in root of a run
+# differently from sample folders.
+# We had several bugs in ultimagen_publish_to_irods.py from rnd_platforms
+# due to issues filtering to just top level files using approach of excluding
+# sample folders with a regular expression.
+parser.add_argument(
+    "--include-top-level-files",
+    help="Include top level files. Composes with other filters.",
+    action="store_true",
+)
+
+# Provide convenience method for common use case of --exclude.
+parser.add_argument(
+    "--exclude-md5",
+    help="Exclude md5 files. Composes with other filters.",
+    action="store_true",
 )
 
 ff_group = parser.add_mutually_exclusive_group(required=False)
@@ -194,8 +216,17 @@ def main():
     )
 
     filter_fn = (
-        make_path_filter(include_patterns=args.include, exclude_patterns=args.exclude)
-        if args.exclude or args.include
+        make_path_filter(
+            include_patterns=args.include,
+            exclude_patterns=args.exclude,
+            include_top_level_files=args.include_top_level_files,
+            exclude_md5=args.exclude_md5,
+            src=Path(args.directory),
+        )
+        if args.exclude
+        or args.include
+        or args.include_top_level_files
+        or args.exclude_md5
         else None
     )
 
