@@ -132,6 +132,7 @@ def publish_directory(
                 yield_exceptions=True,
                 timeout=timeout,
                 tries=tries,
+                redirect=True,
             ):
                 num_items += 1
 
