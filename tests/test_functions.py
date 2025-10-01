@@ -19,6 +19,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from pytest import mark as m
+from pytest import MonkeyPatch
 
 from npg_irods.functions import make_path_filter
 
@@ -34,10 +35,10 @@ class TestMakePathFilter:
 
         # Act
         filter_fn = make_path_filter(exclude_patterns=["1", "2"])
-        filtered = [x for x in paths if filter_fn is None or not filter_fn(x)]
+        filtered = set(x for x in paths if filter_fn is None or not filter_fn(x))
 
         # Assert
-        assert filtered == [Path("a3b")]
+        assert filtered == {Path("a3b")}
 
     @m.context("With include pattern")
     @m.it("Include items that match filter anywhere in path")
@@ -47,10 +48,10 @@ class TestMakePathFilter:
 
         # Act
         filter_fn = make_path_filter(include_patterns=["1", "2"])
-        filtered = [x for x in paths if filter_fn is None or not filter_fn(x)]
+        filtered = set(x for x in paths if filter_fn is None or not filter_fn(x))
 
         # Assert
-        assert filtered == [Path("a1b"), Path("a2b")]
+        assert filtered == {Path("a1b"), Path("a2b")}
 
     @m.context("When include and exclude patterns provided")
     @m.it("Should compose filters")
@@ -72,7 +73,46 @@ class TestMakePathFilter:
         filter_fn = make_path_filter(
             include_patterns=["1", "2"], exclude_patterns=["X", "Y"]
         )
-        filtered = [x for x in paths if filter_fn is None or not filter_fn(x)]
+        filtered = set(x for x in paths if filter_fn is None or not filter_fn(x))
 
         # Assert
-        assert filtered == [Path("a1Zb"), Path("a2Zb")]
+        assert filtered == {Path("a1Zb"), Path("a2Zb")}
+
+    @m.context("With include top level files option")
+    @m.it("Includes top level files")
+    def test_include_top_level_files(self, monkeypatch: MonkeyPatch):
+        # Arrange
+        monkeypatch.chdir(Path("./tests/data/ultima/minimal"))
+        paths = list(Path(".").rglob("*"))
+
+        # Act
+        filter_fn = make_path_filter(include_top_level_files=True, src=Path("."))
+        filtered = set(x for x in paths if filter_fn is None or not filter_fn(x))
+
+        # Assert
+        assert filtered == {
+            Path("000001_a.txt"),
+            Path("000001_a.txt.md5"),
+            Path("b.txt"),
+            Path("b.txt.md5"),
+        }
+
+    @m.context("With exclude MD5 option")
+    @m.it("Excludes md5 files")
+    def test_exclude_md5(self, monkeypatch: MonkeyPatch):
+        # Arrange
+        monkeypatch.chdir(Path("./tests/data/ultima/minimal"))
+        paths = list(Path(".").rglob("*"))
+
+        # Act
+        filter_fn = make_path_filter(exclude_md5=True)
+        filtered = set(x for x in paths if filter_fn is None or not filter_fn(x))
+
+        # Assert
+        assert filtered == {
+            Path("000001_a.txt"),
+            Path("b.txt"),
+            Path("000001-a"),
+            Path("000001-a/000002-c.txt"),
+        }
+        filtered = [x for x in paths if filter_fn is None or not filter_fn(x)]
