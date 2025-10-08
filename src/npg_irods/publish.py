@@ -102,6 +102,8 @@ def publish_directory(
             # Follow npg_publish_tree.pl behavior
             coll.create(parents=True, exist_ok=True, timeout=timeout, tries=tries)
         except Exception as e:
+            log.error("Error creating collection", path=coll, error=str(e))
+
             if not handle_exceptions:
                 publishing_error = PublishingError(
                     "Error while publishing",
