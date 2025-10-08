@@ -40,7 +40,7 @@ RUN pyenv global "$PYTHON_VERSION"
 # available for anything more recent than Ubuntu bionic, so that's what we use for
 # the builder (above) and for the clients. This is also the reason we resort to
 # pyenv to get a recent Python, rather than using a python-slim base image.
-FROM --platform=linux/amd64 ghcr.io/wtsi-npg/ub-18.04-baton-irods-4.2.11:5.0.0
+FROM --platform=linux/amd64 ghcr.io/wtsi-npg/ub-18.04-baton-irods-4.2.11:6.0.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 
