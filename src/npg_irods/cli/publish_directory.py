@@ -116,7 +116,8 @@ ff_group.add_argument(
 parser.add_argument(
     "--group",
     help="iRODS group to have read access. Optional, defaults to none. "
-    "May be used multiple times to add read permissions for multiple groups.",
+    "May be used multiple times to add read permissions for multiple groups."
+    "Zone may be specified with #zone suffix, otherwise inferred from collection.",
     type=str,
     action="append",
     default=[],
@@ -150,6 +151,11 @@ parser.add_argument(
 )
 
 
+def _parse_group(group: str) -> (str, str | None):
+    name, zone = (group.split("#", maxsplit=1) + [None])[:2]
+    return name, zone
+
+
 def main():
     args = parser.parse_args()
     configure_structlog(
@@ -163,8 +169,12 @@ def main():
     log = structlog.get_logger("main")
 
     num_clients = args.num_clients
-    zone = infer_zone(args.collection)
-    acl = [AC(group, Permission.READ, zone=zone) for group in args.group]
+    inferred_zone = infer_zone(args.collection)
+    groups = [_parse_group(group) for group in args.group]
+    acl = [
+        AC(name, Permission.READ, zone=zone if zone else inferred_zone)
+        for name, zone in groups
+    ]
 
     avus = []
     if args.metadata_file is not None:

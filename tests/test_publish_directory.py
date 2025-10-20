@@ -106,7 +106,7 @@ class TestPublishDirectory:
                 str(src / "000001-a"),
                 str(dest / "000001-a"),
                 "--group",
-                "ss_1000",
+                "ss_1000#testZone",
                 "--exclude",
                 ".md5",
                 "--metadata-file",
