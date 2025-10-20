@@ -116,7 +116,8 @@ ff_group.add_argument(
 parser.add_argument(
     "--group",
     help="iRODS group to have read access. Optional, defaults to none. "
-    "May be used multiple times to add read permissions for multiple groups.",
+    "May be used multiple times to add read permissions for multiple groups. "
+    "Don't include zone suffix i.e. `#seq`",
     type=str,
     action="append",
     default=[],
