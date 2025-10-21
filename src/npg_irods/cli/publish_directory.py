@@ -21,7 +21,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Tuple
 
 import structlog
 from npg.cli import add_logging_arguments, integer_in_range
@@ -152,7 +151,7 @@ parser.add_argument(
 )
 
 
-def _parse_group(group: str) -> Tuple[str, str | None]:
+def _parse_group(group: str) -> tuple[str, str | None]:
     name, zone = (group.split("#", maxsplit=1) + [None])[:2]
     return name, zone
 
