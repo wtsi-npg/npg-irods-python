@@ -24,6 +24,7 @@ import pytest
 from partisan.irods import AC, AVU, Collection, Permission, DataObject
 from pytest import mark as m, MonkeyPatch
 
+from helpers import is_inheritance_enabled, PUBLIC_AC, ADMIN_AC, STUDY_AC, UNMANAGED_AC
 from npg_irods.exception import PublishingError
 from npg_irods.publish import publish_directory
 
@@ -90,10 +91,9 @@ class TestPublish:
     @m.context("When an ACL is provided")
     @m.it("Adds it to the published collections and data objects")
     def test_publish_with_acl(self, empty_collection):
-        zone = "testZone"
         src = Path("./tests/data/simple/collection")
         dest = empty_collection
-        acl = [AC("ss_1000", Permission.READ, zone=zone)]
+        acl = [STUDY_AC]
 
         num_items, num_processed, num_errors = publish_directory(src, dest, acl=acl)
         assert num_items == 4
@@ -108,7 +108,6 @@ class TestPublish:
     @m.context("When metadata are provided")
     @m.it("Adds it to the published root collection, but not to its contents")
     def test_publish_with_metadata(self, empty_collection):
-        zone = "testZone"
         src = Path("./tests/data/simple/collection")
         dest = empty_collection / "sub"
         avus = [AVU("attr1", "val1"), AVU("attr2", "val2")]
@@ -216,8 +215,7 @@ class TestPublish:
 
         # Act
         avus = [AVU("a1", "v1")]
-        zone = "testZone"
-        acl = [AC("ss_1000", Permission.READ, zone=zone)]
+        acl = [STUDY_AC]
         num_items, num_processed, num_errors = publish_directory(
             src, dest, avus=avus, acl=acl
         )
@@ -288,3 +286,221 @@ class TestPublish:
         assert exc_info.value.num_errors == 1
 
         assert not Collection(dest).exists()
+
+    @m.context("When publishing with public acl")
+    @m.context("and parent collection has public and unmanaged read permissions")
+    @m.context("and parent collection has inheritance disabled")
+    @m.it("publishes with public read permission and without unmanaged read permission")
+    def test_publish_with_public_acl_inheritance_disabled(
+        self, public_unmanaged_inheritance_disabled_collection
+    ):
+        # Arrange
+        src = Path("./tests/data/simple/collection")
+        dest = public_unmanaged_inheritance_disabled_collection / "missing" / "sub"
+
+        # Act
+        num_items, num_processed, num_errors = publish_directory(
+            src, dest, acl=[PUBLIC_AC]
+        )
+
+        # Assert
+        assert num_items == 4
+        assert num_processed == 4
+        assert num_errors == 0
+
+        assert not is_inheritance_enabled(
+            public_unmanaged_inheritance_disabled_collection / "missing"
+        )
+        assert Collection(
+            public_unmanaged_inheritance_disabled_collection / "missing"
+        ).acl() == [ADMIN_AC]
+
+        assert not is_inheritance_enabled(dest)
+        assert Collection(dest).acl() == [ADMIN_AC, PUBLIC_AC]
+
+        for item in Collection(dest).iter_contents():
+            if isinstance(item, Collection):
+                assert not is_inheritance_enabled(item)
+            assert item.acl() == [ADMIN_AC, PUBLIC_AC]
+
+    @m.context("When publishing with study acl")
+    @m.context("and parent collection has public and unmanaged read permissions")
+    @m.context("and parent collection has inheritance disabled")
+    @m.it(
+        "publishes with study and unmanaged read permissions and without public permission"
+    )
+    def test_publish_with_study_acl_inheritance_disabled(
+        self, public_unmanaged_inheritance_disabled_collection
+    ):
+        # Arrange
+        src = Path("./tests/data/simple/collection")
+        dest = public_unmanaged_inheritance_disabled_collection / "missing" / "sub"
+
+        # Act
+        num_items, num_processed, num_errors = publish_directory(
+            src, dest, acl=[STUDY_AC]
+        )
+
+        # Assert
+        assert num_items == 4
+        assert num_processed == 4
+        assert num_errors == 0
+
+        assert not is_inheritance_enabled(
+            public_unmanaged_inheritance_disabled_collection / "missing"
+        )
+        assert Collection(
+            public_unmanaged_inheritance_disabled_collection / "missing"
+        ).acl() == [ADMIN_AC]
+
+        assert not is_inheritance_enabled(dest)
+        assert Collection(dest).acl() == [ADMIN_AC, STUDY_AC]
+
+        for item in Collection(dest).iter_contents():
+            if isinstance(item, Collection):
+                assert not is_inheritance_enabled(item)
+            assert item.acl() == [ADMIN_AC, STUDY_AC]
+
+    @m.context('When publishing with no specified acls ("private" case)')
+    @m.context("and parent collection has public and unmanaged read permissions")
+    @m.context("and parent collection has inheritance disabled")
+    @m.it("publishes without public and unmanaged read permissions")
+    def test_publish_with_private_acl_inheritance_disabled(
+        self, public_unmanaged_inheritance_disabled_collection
+    ):
+        # Arrange
+        src = Path("./tests/data/simple/collection")
+        dest = public_unmanaged_inheritance_disabled_collection / "missing" / "sub"
+
+        # Act
+        num_items, num_processed, num_errors = publish_directory(src, dest, acl=[])
+
+        # Assert
+        assert num_items == 4
+        assert num_processed == 4
+        assert num_errors == 0
+
+        assert not is_inheritance_enabled(
+            public_unmanaged_inheritance_disabled_collection / "missing"
+        )
+        assert Collection(
+            public_unmanaged_inheritance_disabled_collection / "missing"
+        ).acl() == [ADMIN_AC]
+
+        assert not is_inheritance_enabled(dest)
+        assert Collection(dest).acl() == [ADMIN_AC]
+
+        for item in Collection(dest).iter_contents():
+            if isinstance(item, Collection):
+                assert not is_inheritance_enabled(item)
+            assert item.acl() == [ADMIN_AC]
+
+    @m.context("When publishing with public acl")
+    @m.context("and parent collection has public and unmanaged read permissions")
+    @m.context("and parent collection has inheritance enabled")
+    @m.it(
+        "publishes with public and unmanaged read permissions and inheritance enabled"
+    )
+    def test_publish_with_public_acl_inheritance_enabled(
+        self, public_unmanaged_inheritance_enabled_collection
+    ):
+        # Arrange
+        src = Path("./tests/data/simple/collection")
+        dest = public_unmanaged_inheritance_enabled_collection / "missing" / "sub"
+
+        # Act
+        num_items, num_processed, num_errors = publish_directory(
+            src, dest, acl=[PUBLIC_AC]
+        )
+
+        # Assert
+        assert num_items == 4
+        assert num_processed == 4
+        assert num_errors == 0
+
+        assert is_inheritance_enabled(
+            public_unmanaged_inheritance_enabled_collection / "missing"
+        )
+        assert Collection(
+            public_unmanaged_inheritance_enabled_collection / "missing"
+        ).acl() == [ADMIN_AC, PUBLIC_AC, UNMANAGED_AC]
+
+        assert is_inheritance_enabled(dest)
+        assert Collection(dest).acl() == [ADMIN_AC, PUBLIC_AC, UNMANAGED_AC]
+
+        for item in Collection(dest).iter_contents():
+            if isinstance(item, Collection):
+                assert is_inheritance_enabled(item)
+            assert item.acl() == [ADMIN_AC, PUBLIC_AC, UNMANAGED_AC]
+
+    @m.context("When publishing with study acl")
+    @m.context("and parent collection has public and unmanaged read permissions")
+    @m.context("and parent collection has inheritance enabled")
+    @m.it(
+        "publishes with study and unmanaged read permissions, without public read permission and inheritance enabled"
+    )
+    def test_publish_with_study_acl_inheritance_enabled(
+        self, public_unmanaged_inheritance_enabled_collection
+    ):
+        # Arrange
+        src = Path("./tests/data/simple/collection")
+        dest = public_unmanaged_inheritance_enabled_collection / "missing" / "sub"
+
+        # Act
+        num_items, num_processed, num_errors = publish_directory(
+            src, dest, acl=[STUDY_AC]
+        )
+
+        # Assert
+        assert num_items == 4
+        assert num_processed == 4
+        assert num_errors == 0
+
+        assert is_inheritance_enabled(
+            public_unmanaged_inheritance_enabled_collection / "missing"
+        )
+        assert Collection(
+            public_unmanaged_inheritance_enabled_collection / "missing"
+        ).acl() == [ADMIN_AC, PUBLIC_AC, UNMANAGED_AC]
+
+        assert is_inheritance_enabled(dest)
+        assert Collection(dest).acl() == [ADMIN_AC, STUDY_AC, UNMANAGED_AC]
+
+        for item in Collection(dest).iter_contents():
+            if isinstance(item, Collection):
+                assert is_inheritance_enabled(item)
+            assert item.acl() == [ADMIN_AC, STUDY_AC, UNMANAGED_AC]
+
+    @m.context('When publishing with no specified acls ("private" case)')
+    @m.context("and parent collection has public and unmanaged read permissions")
+    @m.context("and parent collection has inheritance enabled")
+    @m.it("publishes with unmanaged read permissions and inheritance enabled")
+    def test_publish_with_private_acl_inheritance_enabled(
+        self, public_unmanaged_inheritance_enabled_collection
+    ):
+        # Arrange
+        src = Path("./tests/data/simple/collection")
+        dest = public_unmanaged_inheritance_enabled_collection / "missing" / "sub"
+
+        # Act
+        num_items, num_processed, num_errors = publish_directory(src, dest, acl=[])
+
+        # Assert
+        assert num_items == 4
+        assert num_processed == 4
+        assert num_errors == 0
+
+        assert is_inheritance_enabled(
+            public_unmanaged_inheritance_enabled_collection / "missing"
+        )
+        assert Collection(
+            public_unmanaged_inheritance_enabled_collection / "missing"
+        ).acl() == [ADMIN_AC, PUBLIC_AC, UNMANAGED_AC]
+
+        assert is_inheritance_enabled(dest)
+        assert Collection(dest).acl() == [ADMIN_AC, UNMANAGED_AC]
+
+        for item in Collection(dest).iter_contents():
+            if isinstance(item, Collection):
+                assert is_inheritance_enabled(item)
+            assert item.acl() == [ADMIN_AC, UNMANAGED_AC]

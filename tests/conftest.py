@@ -54,6 +54,9 @@ from helpers import (
     remove_sql_test_utilities,
     remove_test_groups,
     set_replicate_invalid,
+    enable_inheritance,
+    PUBLIC_AC,
+    UNMANAGED_AC,
 )
 from npg_irods import db
 from npg_irods.db import mlwh
@@ -433,3 +436,39 @@ def challenging_paths_irods(tmp_path):
         yield expt_root
     finally:
         remove_rods_path(rods_path)
+
+
+@pytest.fixture(scope="function")
+def public_unmanaged_inheritance_enabled_collection(tmp_path):
+    """A fixture providing a collection with public and unmanaged read permissions and inheritance enabled.
+
+    Simplified version of how top level runs folder are configured for many instruments, e.g. `/seq/illumina/runs`.
+    """
+    yield from _collection_with_permissions_inheritance(
+        tmp_path, [PUBLIC_AC, UNMANAGED_AC], True
+    )
+
+
+@pytest.fixture(scope="function")
+def public_unmanaged_inheritance_disabled_collection(tmp_path):
+    """A fixture providing a collection with public and unmanaged read permissions and inheritance disabled."""
+    yield from _collection_with_permissions_inheritance(
+        tmp_path, [PUBLIC_AC, UNMANAGED_AC], False
+    )
+
+
+def _collection_with_permissions_inheritance(tmp_path, permissions: list[AC], inherit):
+    root_path = PurePath(
+        f"/testZone/home/irods/test/{"_".join(ac.user for ac in permissions)}_inherit_{inherit}_collection"
+    )
+    coll_path = add_rods_path(root_path, tmp_path)
+
+    Collection(coll_path).add_permissions(*permissions)
+
+    if inherit:
+        enable_inheritance(coll_path)
+
+    try:
+        yield coll_path
+    finally:
+        irm(coll_path, force=True, recurse=True)

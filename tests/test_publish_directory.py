@@ -18,11 +18,12 @@ import json
 from pathlib import Path, PurePath
 from unittest.mock import MagicMock, patch
 
+from helpers import is_inheritance_enabled, ADMIN_AC, PUBLIC_AC, STUDY_AC, UNMANAGED_AC
 from npg_irods.cli import publish_directory
 from pytest import LogCaptureFixture, MonkeyPatch
 from pytest import mark as m
 
-from partisan.irods import Collection, DataObject, AC, Permission, AVU
+from partisan.irods import Collection, DataObject, AVU
 
 
 @m.describe("Publish directory utility")
@@ -64,17 +65,24 @@ class TestPublishDirectory:
     )
     @m.it("Should be compatible with npg_publish_tree.pl")
     def test_npg_publish_tree_compatibility_ultima(
-        self, tmp_path, empty_collection: PurePath, monkeypatch: MonkeyPatch
+        self,
+        tmp_path,
+        public_unmanaged_inheritance_enabled_collection: PurePath,
+        monkeypatch: MonkeyPatch,
     ):
         # Arrange
         src = Path("./tests/data/ultima/minimal").absolute()
         # empty_collection stands in for $ZONE/ultimagen/runs
         # SOP: Destination collection doesn't exist
-        dest = empty_collection / "run_id_prefix" / "run_id"
+        dest = (
+            public_unmanaged_inheritance_enabled_collection / "run_id_prefix" / "run_id"
+        )
         # SOP: Perform wr jobs from /tmp
         monkeypatch.chdir(tmp_path)
 
         # Act
+
+        # Public
         root_metadata = tmp_path / "root_metadata.json"
         root_metadata.write_text(json.dumps([{"attribute": "a1", "value": "v1"}]))
         self._main(
@@ -92,13 +100,7 @@ class TestPublishDirectory:
             ]
         )
 
-        # Assert
-        assert Collection(dest).contents(recurse=True) == [
-            DataObject(dest / "000001_a.txt"),
-            DataObject(dest / "b.txt"),
-        ]
-
-        # Act
+        # Study
         sample_metadata = tmp_path / "sample_metadata.json"
         sample_metadata.write_text(json.dumps([{"attribute": "a2", "value": "v2"}]))
         self._main(
@@ -114,22 +116,65 @@ class TestPublishDirectory:
             ]
         )
 
+        # Private
+        self._main([str(src / "000001-d"), str(dest / "000001-d")])
+
         # Assert
+        assert is_inheritance_enabled(
+            public_unmanaged_inheritance_enabled_collection / "run_id_prefix"
+        )
+        assert Collection(
+            public_unmanaged_inheritance_enabled_collection / "run_id_prefix"
+        ).acl() == [ADMIN_AC, PUBLIC_AC, UNMANAGED_AC]
+        assert (
+            Collection(
+                public_unmanaged_inheritance_enabled_collection / "run_id_prefix"
+            ).metadata()
+            == []
+        )
+
+        assert is_inheritance_enabled(dest)
+        assert Collection(dest).acl() == [ADMIN_AC, PUBLIC_AC, UNMANAGED_AC]
+        assert Collection(dest).metadata() == [AVU("a1", "v1")]
+
         assert Collection(dest).contents(recurse=True) == [
             Collection(dest / "000001-a"),
+            Collection(dest / "000001-d"),
             DataObject(dest / "000001_a.txt"),
             DataObject(dest / "b.txt"),
             DataObject(dest / "000001-a" / "000002-c.txt"),
+            DataObject(dest / "000001-d" / "000001-d.txt"),
         ]
-        irods_own = AC("irods", Permission.OWN, "testZone")
-        public_read = AC("public", Permission.READ, "testZone")
-        ss_1000_read = AC("ss_1000", Permission.READ, "testZone")
-        assert Collection(empty_collection / "run_id_prefix").acl() == [irods_own]
-        assert Collection(empty_collection / "run_id_prefix").metadata() == []
-        assert Collection(dest).acl() == [irods_own, public_read]
-        assert Collection(dest).metadata() == [AVU("a1", "v1")]
-        assert Collection(dest / "000001-a").acl() == [irods_own, ss_1000_read]
+
+        assert DataObject(dest / "000001_a.txt").acl() == [
+            ADMIN_AC,
+            PUBLIC_AC,
+            UNMANAGED_AC,
+        ]
+        assert DataObject(dest / "b.txt").acl() == [
+            ADMIN_AC,
+            PUBLIC_AC,
+            UNMANAGED_AC,
+        ]
+
+        assert is_inheritance_enabled(dest / "000001-a")
+        assert Collection(dest / "000001-a").acl() == [ADMIN_AC, STUDY_AC, UNMANAGED_AC]
         assert Collection(dest / "000001-a").metadata() == [AVU("a2", "v2")]
+        assert DataObject(dest / "000001-a" / "000002-c.txt").acl() == [
+            ADMIN_AC,
+            STUDY_AC,
+            UNMANAGED_AC,
+        ]
+
+        assert is_inheritance_enabled(dest / "000001-d")
+        assert Collection(dest / "000001-d").acl() == [
+            ADMIN_AC,
+            UNMANAGED_AC,
+        ]
+        assert DataObject(dest / "000001-d" / "000001-d.txt").acl() == [
+            ADMIN_AC,
+            UNMANAGED_AC,
+        ]
 
     @staticmethod
     def _main(args: list[str]):
