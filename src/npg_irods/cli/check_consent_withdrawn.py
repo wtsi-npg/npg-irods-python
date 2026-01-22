@@ -29,7 +29,6 @@ from npg_irods.utilities import (
     check_consent_withdrawn,
 )
 
-
 description = """
 Reads iRODS data object paths from a file or STDIN, one per line and checks that each
 one is in a state consistent with sample consent being withdrawn.
