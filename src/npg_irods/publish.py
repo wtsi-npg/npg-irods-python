@@ -26,7 +26,6 @@ from npg_irods.common import update_metadata, update_permissions
 from npg_irods.exception import PublishingError
 from npg_irods.metadata.common import ensure_common_metadata
 
-
 log = get_logger(__name__)
 
 
