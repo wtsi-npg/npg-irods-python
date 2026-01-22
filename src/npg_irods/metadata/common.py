@@ -360,7 +360,7 @@ def has_complete_replicas(obj: DataObject, num_replicas=2) -> bool:
 
 def trimmable_replicas(
     obj: DataObject, num_replicas=2
-) -> (List[Replica], List[Replica]):
+) -> tuple[list[Replica], list[Replica]]:
     """Return tuple of lists of valid and invalid replicas that are trimmable.
 
     Trimmable replicas are any valid replicas in excess of the expected number

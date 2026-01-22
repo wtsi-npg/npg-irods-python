@@ -89,7 +89,7 @@ def apply_metadata(
     since: datetime = None,
     until: datetime = None,
     zone=None,
-) -> (int, int, int):
+) -> tuple[int, int, int]:
     """Apply iRODS metadata on ONT run collections whose corresponding ML warehouse
     records have been updated within a specified time range. This function detects
     runs that are multiplexed and adds relevant tag identifier and tag index primary
