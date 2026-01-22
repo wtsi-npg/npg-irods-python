@@ -145,3 +145,7 @@ FATAL to the syslog.
 A formatter can be specified for each handler with different variable. However, as we
 rely on `structlog` to pre-format the messages, we simply forward the pre-formatted
 string.
+
+## Architecture
+
+- `publish-directory` removes public permissions unless explicitly specified by `--group public` to be able to publish privately whilst having iRODS inheritance enabled on sequencing runs collections ([ADR 1](/docs/decisions/adr-01-publish-directory-removes-public-permissions-by-default.md))
