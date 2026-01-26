@@ -188,7 +188,7 @@ def illumina_updates(
     skip_absent_runs: int = None,
     json: bool = False,
     zone: str = None,
-) -> (int, int):
+) -> tuple[int, int]:
     """Find recently updated Illumina data in the ML warehouse, locate corresponding
     data objects in iRODS and print their paths.
 
@@ -302,7 +302,7 @@ def ont_updates(
     report_tags: bool = False,
     json: bool = False,
     zone: str = None,
-) -> (int, int):
+) -> tuple[int, int]:
     num_processed = num_errors = 0
 
     for i, c in enumerate(
@@ -361,7 +361,7 @@ def ont_run_collections_created_cli(cli_args: argparse.ArgumentParser):
 
 def ont_run_collections_created(
     since: datetime, until: datetime, json: bool = False, zone: str = None
-) -> (int, int):
+) -> tuple[int, int]:
     num_processed = num_errors = 0
 
     log.info(
@@ -505,7 +505,7 @@ def infinium_microarray_updates(
     until: datetime,
     json: bool = False,
     zone: str = None,
-) -> (int, int):
+) -> tuple[int, int]:
     query = [AVU(infinium.Instrument.BEADCHIP, "%", operator="like")]
     num_processed, num_errors = _print_data_objects_updated_in_mlwh(
         sess, query, since=since, until=until, json=json, zone=zone
@@ -536,7 +536,7 @@ def sequenom_updates_cli(cli_args: argparse.ArgumentParser):
 
 def sequenom_genotype_updates(
     sess: Session, since: datetime, until: datetime, zone: str = None
-) -> (int, int):
+) -> tuple[int, int]:
     query = [AVU(sequenom.Instrument.SEQUENOM_PLATE, "%", operator="like")]
     num_processed, num_errors = _print_data_objects_updated_in_mlwh(
         sess, query, since=since, until=until, zone=zone
@@ -554,7 +554,7 @@ def _print_data_objects_updated_in_mlwh(
     until: datetime,
     json: bool = False,
     zone: str = None,
-) -> (int, int):
+) -> tuple[int, int]:
     num_processed = num_errors = 0
 
     studies = find_updated_studies(sess, since=since, until=until)
@@ -582,7 +582,7 @@ def _find_and_print_data_objects(
     until: datetime,
     json: bool = False,
     zone: str = None,
-) -> (int, int):
+) -> tuple[int, int]:
     """Print data object paths identified by their metadata e.g. sample ID or study ID.
 
     Args:

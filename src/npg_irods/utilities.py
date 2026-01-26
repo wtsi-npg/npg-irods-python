@@ -45,7 +45,6 @@ from partisan.irods import (
     rods_path_type,
 )
 from sqlalchemy import Engine
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker
 from structlog import get_logger
 
@@ -113,7 +112,7 @@ def load_resource(filename: str) -> str:
 
 def check_checksums(
     reader, writer, num_threads=1, num_clients=1, print_pass=True, print_fail=False
-) -> (int, int, int):
+) -> tuple[int, int, int]:
     """Read iRODS data object paths from a file and check that each one has correct
     checksums and checksum metadata, printing the results to a writer.
 
@@ -213,7 +212,7 @@ def repair_checksums(
     num_clients=1,
     print_repair=True,
     print_fail=False,
-) -> (int, int, int):
+) -> tuple[int, int, int]:
     """Read iRODS data object paths from a file and ensure that each one has correct
     checksums and checksum metadata by making any necessary repairs, printing the
     results to a writer.
@@ -252,7 +251,7 @@ def repair_checksums(
     """
     with client_pool(num_clients) as bp:
 
-        def fn(i: int, path: str) -> (bool, bool):
+        def fn(i: int, path: str) -> tuple[bool, bool]:
             success = False
             repair = False
 
@@ -322,7 +321,7 @@ def check_replicas(
     num_clients=1,
     print_pass=True,
     print_fail=False,
-) -> (int, int, int):
+) -> tuple[int, int, int]:
     """Read iRODS data objects paths from a file and check that each one has correct
       replicas, printing the results to a writer.
 
@@ -425,7 +424,7 @@ def repair_replicas(
     num_clients=1,
     print_repair=True,
     print_fail=False,
-) -> (int, int, int):
+) -> tuple[int, int, int]:
     """Read iRODS data object paths from a file and ensure that each one has correct
     replicas by making any necessary repairs, printing the results to a writer.
 
@@ -455,7 +454,7 @@ def repair_replicas(
     """
     with client_pool(num_clients) as bp:
 
-        def fn(i: int, path: str) -> (bool, bool):
+        def fn(i: int, path: str) -> tuple[bool, bool]:
             success = False
             repair = False
 
@@ -538,7 +537,7 @@ def repair_replicas(
 
 def check_common_metadata(
     reader, writer, num_threads=1, num_clients=1, print_pass=True, print_fail=False
-) -> (int, int, int):
+) -> tuple[int, int, int]:
     """Read iRODS data object paths from a file and check that each one has correct
     common metadata, printing the results to a writer.
 
@@ -628,7 +627,7 @@ def repair_common_metadata(
     num_clients=1,
     print_repair=True,
     print_fail=False,
-) -> (int, int, int):
+) -> tuple[int, int, int]:
     """Read iRODS data object paths from a file and ensure that each one has correct
     common metadata by making any necessary repairs, printing the results to a writer.
 
@@ -659,7 +658,7 @@ def repair_common_metadata(
     """
     with client_pool(num_clients) as bp:
 
-        def fn(i: int, path: str) -> (bool, bool):
+        def fn(i: int, path: str) -> tuple[bool, bool]:
             success = False
             repair = False
 
@@ -727,7 +726,7 @@ def update_secondary_metadata(
     num_threads=1,
     print_update=True,
     print_fail=False,
-) -> (int, int, int):
+) -> tuple[int, int, int]:
     """Update secondary metadata, including access permissions, on specified iRODS
     paths, according to current information in the ML warehouse.
 
@@ -760,7 +759,7 @@ def update_secondary_metadata(
         # the platform to select the appropriate action. This works well for individual
         # data objects, but for collections e.g. ONT we delegate to a function that
         # spawns additional threads to process the contents.
-        def fn(i: int, path: str) -> (bool, bool):
+        def fn(i: int, path: str) -> tuple[bool, bool]:
             success = False
             updated = False
             p = path.strip()
@@ -837,7 +836,7 @@ def update_secondary_metadata(
 
 def check_consent_withdrawn(
     reader, writer, print_pass=True, print_fail=False
-) -> (int, int, int):
+) -> tuple[int, int, int]:
     """Read iRODS data objects paths from a file and check that each one has a state
     consistent with consent having been withdrawn, printing the results to a writer.
 
@@ -901,7 +900,7 @@ def check_consent_withdrawn(
 
 def withdraw_consent(
     reader, writer, print_withdrawn=True, print_fail=False
-) -> (int, int, int):
+) -> tuple[int, int, int]:
     """Read iRODS data objects paths from a file and update each to a state consistent
     with consent having been withdrawn, printing the results to a writer.
 
@@ -956,7 +955,9 @@ def withdraw_consent(
     return num_processed, num_withdrawn, num_errors
 
 
-def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int, int):
+def copy(
+    src, dest, acl=False, avu=False, exist_ok=False, recurse=False
+) -> tuple[int, int]:
     """Copy a collection or data object from one location to another, optionally
     including metadata and permissions.
 
@@ -1027,7 +1028,7 @@ def copy(src, dest, acl=False, avu=False, exist_ok=False, recurse=False) -> (int
 
 def _copy(
     src, dest, acl=False, avu=False, into=True, exist_ok=False, recurse=False
-) -> (int, int):
+) -> tuple[int, int]:
     """Implement copy for the public copy function.
 
     Args:

@@ -32,6 +32,8 @@ COPY . /app
 
 RUN /app/docker/install_pyenv.sh
 
+ENV MAKE_OPTS="-j 8"
+
 RUN pyenv install "$PYTHON_VERSION"
 RUN pyenv global "$PYTHON_VERSION"
 
