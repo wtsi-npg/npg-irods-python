@@ -67,7 +67,7 @@ def publish_directory(
             exists, the operation is skipped for that path. See DataObject.put() for
             more information. The default is False.
         force: If a data object is written, overwrite any data object already present
-            in iRODS. The default is True.
+            in iRODS. The default is False.
         handle_exceptions: Report a count of any errors encountered during publishing,
             rather than raising an exception. The default is True. If False and one or
             more errors are encountered, a PublishingError is raised from the first
