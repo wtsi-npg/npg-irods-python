@@ -19,12 +19,13 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path, PurePath
 
-from partisan.irods import AC, AVU, Collection, DataObject, client_pool
+from partisan.irods import AC, AVU, Collection, DataObject, client_pool, Permission
 from structlog import get_logger
 
 from npg_irods.common import update_metadata, update_permissions
 from npg_irods.exception import PublishingError
-from npg_irods.metadata.common import ensure_common_metadata
+from npg_irods.metadata.common import ensure_common_metadata, PUBLIC_IRODS_GROUP
+from npg_irods.metadata.lims import is_public_access
 
 log = get_logger(__name__)
 
@@ -155,6 +156,14 @@ def publish_directory(
                         num_errors += 1
                         log.error("Unknown item type", path=item)
                         continue
+
+                public_acl = [ac for ac in item.permissions() if is_public_access(ac)]
+                if public_acl and not any(is_public_access(ac) for ac in (acl or [])):
+                    to_null = [
+                        AC(PUBLIC_IRODS_GROUP, Permission.NULL, zone=ac.zone)
+                        for ac in public_acl
+                    ]
+                    acl = (acl or []) + to_null
 
                 if acl is not None:
                     perm_updates.append(

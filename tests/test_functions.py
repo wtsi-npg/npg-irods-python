@@ -114,5 +114,7 @@ class TestMakePathFilter:
             Path("b.txt"),
             Path("000001-a"),
             Path("000001-a/000002-c.txt"),
+            Path("000001-d"),
+            Path("000001-d/000001-d.txt"),
         }
         filtered = [x for x in paths if filter_fn is None or not filter_fn(x)]

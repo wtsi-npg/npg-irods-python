@@ -20,10 +20,13 @@
 """Helper functions for testing."""
 
 import os
+import subprocess
 from datetime import datetime
 from pathlib import PurePath
+from os import PathLike
 
 import pytest
+from partisan.exception import RodsError
 from partisan.icommands import (
     add_specific_sql,
     have_admin,
@@ -61,6 +64,14 @@ LATEST = datetime(year=2020, month=6, day=30, hour=0, minute=0, second=0)
 # iRODS aliases for canned SQL statements.
 TEST_SQL_STALE_REPLICATE = "setObjectReplStale"
 TEST_SQL_INVALID_CHECKSUM = "setObjectChecksumInvalid"
+
+ZONE = "testZone"
+
+ADMIN_AC = AC("irods", Permission.OWN, ZONE)
+PUBLIC_AC = AC("public", Permission.READ, ZONE)
+STUDY_AC = AC("ss_1000", Permission.READ, ZONE)
+UNMANAGED_AC = AC("unmanaged", Permission.READ, ZONE)
+"""e.g. dnap-ro"""
 
 
 def is_running_in_github_ci():
@@ -185,3 +196,48 @@ def history_in_meta(history: AVU, metadata: list[AVU]):
 tests_have_admin = pytest.mark.skipif(
     not have_admin(), reason="tests do not have iRODS admin access"
 )
+
+
+def enable_inheritance(rods_path: PurePath):
+    ichmod("inherit", str(rods_path))
+
+
+def is_inheritance_enabled(rods_path: PathLike):
+    output = ils("-A", str(rods_path))
+    inheritance_line = output.splitlines()[2].strip()
+    if "Inheritance" not in inheritance_line:
+        raise Exception("Expected inheritance line", output, inheritance_line)
+    inheritance_status = inheritance_line.split("-")[1].strip()
+    match inheritance_status:
+        case "Enabled":
+            return True
+        case "Disabled":
+            return False
+        case _:
+            raise ValueError(f"Unexpected inheritance status: {inheritance_status}")
+
+
+# Based on partisan.icommands
+def ichmod(*args):
+    cmd = ["ichmod"] + list(args)
+    _run(cmd)
+
+
+# Based on partisan.icommands
+def ils(*args):
+    cmd = ["ils"] + list(args)
+
+    completed = subprocess.run(cmd, capture_output=True)
+    if completed.returncode == 0:
+        return completed.stdout.decode("utf-8").strip()
+
+    raise RodsError(completed.stderr.decode("utf-8").strip())
+
+
+# Copied from partisan.icommands
+def _run(cmd: list[str]):
+    completed = subprocess.run(cmd, capture_output=True)
+    if completed.returncode == 0:
+        return
+
+    raise RodsError(completed.stderr.decode("utf-8").strip())
