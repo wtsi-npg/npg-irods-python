@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import json
+import shutil
 from pathlib import Path, PurePath
 from unittest.mock import MagicMock, patch
 
@@ -71,7 +72,8 @@ class TestPublishDirectory:
         monkeypatch: MonkeyPatch,
     ):
         # Arrange
-        src = Path("./tests/data/ultima/minimal").absolute()
+        src = tmp_path / "minimal"
+        shutil.copytree("./tests/data/ultima/minimal", src)
         # empty_collection stands in for $ZONE/ultimagen/runs
         # SOP: Destination collection doesn't exist
         dest = (
@@ -85,39 +87,53 @@ class TestPublishDirectory:
         # Public
         root_metadata = tmp_path / "root_metadata.json"
         root_metadata.write_text(json.dumps([{"attribute": "a1", "value": "v1"}]))
-        self._main(
-            [
-                str(src),
-                str(dest),
-                "--group",
-                "public",
-                "--exclude",
-                f"{src}/000001-",
-                "--exclude",
-                ".md5",
-                "--metadata-file",
-                str(root_metadata),
-            ]
-        )
+        root_args = [
+            str(src),
+            str(dest),
+            "--group",
+            "public",
+            "--exclude",
+            f"{src}/000001-",
+            "--exclude",
+            ".md5",
+            "--metadata-file",
+            str(root_metadata),
+            "--force"
+        ]
+        self._main(root_args)
 
         # Study
         sample_metadata = tmp_path / "sample_metadata.json"
         sample_metadata.write_text(json.dumps([{"attribute": "a2", "value": "v2"}]))
-        self._main(
-            [
-                str(src / "000001-a"),
-                str(dest / "000001-a"),
-                "--group",
-                "ss_1000#testZone",
-                "--exclude",
-                ".md5",
-                "--metadata-file",
-                str(sample_metadata),
-            ]
-        )
+        sample_dir_args = [
+            str(src / "000001-a"),
+            str(dest / "000001-a"),
+            "--group",
+            "ss_1000#testZone",
+            "--exclude",
+            ".md5",
+            "--metadata-file",
+            str(sample_metadata),
+            "--force"
+        ]
+        self._main(sample_dir_args)
 
         # Private
-        self._main([str(src / "000001-d"), str(dest / "000001-d")])
+        private_dir_args = [str(src / "000001-d"), str(dest / "000001-d"), "--force"]
+        self._main(private_dir_args)
+
+        # Repeated publish
+        self._main(root_args)
+        self._main(sample_dir_args)
+        self._main(private_dir_args)
+
+        # Repeated publish: New file
+        (src / "c.txt").write_text("new")
+        self._main(root_args)
+
+        # Repeated publish: Modified file
+        (src / "c.txt").write_text("modified")
+        self._main(root_args)
 
         # Assert
         assert is_inheritance_enabled(
@@ -142,9 +158,11 @@ class TestPublishDirectory:
             Collection(dest / "000001-d"),
             DataObject(dest / "000001_a.txt"),
             DataObject(dest / "b.txt"),
+            DataObject(dest / "c.txt"),
             DataObject(dest / "000001-a" / "000002-c.txt"),
             DataObject(dest / "000001-d" / "000001-d.txt"),
         ]
+        assert DataObject(dest / "c.txt").read() == "modified"
 
         assert DataObject(dest / "000001_a.txt").acl() == [
             ADMIN_AC,
@@ -152,6 +170,11 @@ class TestPublishDirectory:
             UNMANAGED_AC,
         ]
         assert DataObject(dest / "b.txt").acl() == [
+            ADMIN_AC,
+            PUBLIC_AC,
+            UNMANAGED_AC,
+        ]
+        assert DataObject(dest / "c.txt").acl() == [
             ADMIN_AC,
             PUBLIC_AC,
             UNMANAGED_AC,
