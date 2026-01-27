@@ -267,7 +267,10 @@ class TestPublishDirectory:
             STUDY2_AC,
             UNMANAGED_AC,
         ]
-        assert [x.attribute for x in DataObject(dest / "000001-a" / "000002-c.txt").metadata()] == [
+        assert [
+            x.attribute
+            for x in DataObject(dest / "000001-a" / "000002-c.txt").metadata()
+        ] == [
             "dcterms:created",
             "dcterms:creator",
             "md5",
