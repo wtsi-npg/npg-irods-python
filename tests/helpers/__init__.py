@@ -18,6 +18,7 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 """Helper functions for testing."""
+
 import hashlib
 import os
 import subprocess
