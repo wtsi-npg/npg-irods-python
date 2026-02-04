@@ -18,11 +18,11 @@
 # @author Keith James <kdj@sanger.ac.uk>
 
 """Helper functions for testing."""
-
+import hashlib
 import os
 import subprocess
 from datetime import datetime
-from pathlib import PurePath
+from pathlib import PurePath, Path
 from os import PathLike
 
 import pytest
@@ -242,3 +242,7 @@ def _run(cmd: list[str]):
         return
 
     raise RodsError(completed.stderr.decode("utf-8").strip())
+
+
+def get_md5(path: Path):
+    return hashlib.md5(path.read_bytes()).hexdigest()

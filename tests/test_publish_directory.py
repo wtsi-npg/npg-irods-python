@@ -26,6 +26,7 @@ from helpers import (
     UNMANAGED_AC,
     STUDY2_AC,
     history_in_meta,
+    get_md5,
 )
 from npg_irods.cli import publish_directory
 from pytest import LogCaptureFixture, MonkeyPatch
@@ -140,6 +141,7 @@ class TestPublishDirectory:
 
         # Repeated publish: New file
         (src / "c.txt").write_text("new")
+        c_txt_original_md5 = get_md5(src / "c.txt")
         self._main(root_args)
         created_values = [
             x
@@ -147,10 +149,11 @@ class TestPublishDirectory:
             if x.attribute == "dcterms:created"
         ]
         assert len(created_values) == 1
-        c_created = created_values[0]
+        c_txt_original_dcterms_created = created_values[0]
 
         # Repeated publish: Modified file
         (src / "c.txt").write_text("modified")
+        c_txt_modified_md5 = get_md5(src / "c.txt")
         self._main(root_args)
         created_values = [
             x
@@ -158,7 +161,10 @@ class TestPublishDirectory:
             if x.attribute == "dcterms:created"
         ]
         assert len(created_values) == 1
-        c_created_updated = created_values[0]
+        c_txt_modified_dcterms_created = created_values[0]
+        assert (
+            c_txt_modified_dcterms_created == c_txt_original_dcterms_created
+        ), "Original file creation date should not change when we update contents of the file"
 
         # Repeated publish: Different group, different metadata, no file changes
         sample_metadata_updated = tmp_path / "sample_metadata_updated.json"
@@ -215,6 +221,7 @@ class TestPublishDirectory:
             "md5",
             "type",
         ]
+
         assert [x.attribute for x in DataObject(dest / "c.txt").metadata()] == [
             "dcterms:created",
             "dcterms:creator",
@@ -222,9 +229,20 @@ class TestPublishDirectory:
             "md5",
             "type",
         ]
-        assert c_created_updated == c_created
-
-        assert DataObject(dest / "c.txt").read() == "modified"
+        assert [
+            x.value
+            for x in DataObject(dest / "c.txt").metadata()
+            if x.attribute == "md5"
+        ] == [
+            c_txt_original_md5,
+            c_txt_modified_md5,
+        ], "New md5 attribute should be added, previous preserved to provide history"
+        assert (
+            DataObject(dest / "c.txt").read() == "modified"
+        ), "Contents of data object in iRODS should have updated"
+        assert (
+            DataObject(dest / "c.txt").checksum() == c_txt_modified_md5
+        ), "Checksum should have updated"
 
         assert DataObject(dest / "000001_a.txt").acl() == [
             ADMIN_AC,
