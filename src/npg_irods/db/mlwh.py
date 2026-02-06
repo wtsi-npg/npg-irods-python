@@ -363,6 +363,61 @@ class SeqProductIrodsLocations(Base):
     irods_secondary_data_relative_path = mapped_column(String(255))
 
 
+class StanXenium(Base):
+    __tablename__ = "stan_xenium"
+
+    id_tmp = mapped_column(Integer, primary_key=True, autoincrement=True)
+    xenium_analyser_op_id = mapped_column(Integer, nullable=False)
+    xenium_analyser_performed = mapped_column(DateTime, nullable=False)
+    run = mapped_column(String(255), nullable=False)
+    cassette_position = mapped_column(String(255))
+    decoding_reagent_A_lot = mapped_column(String(255))
+    decoding_reagent_B_lot = mapped_column(String(255))
+    decoding_consumables_lot = mapped_column(String(255))
+    sample_id = mapped_column(Integer, nullable=False)
+    section = mapped_column(Integer)
+    slot_address = mapped_column(String(8), nullable=False)
+    roi = mapped_column(String(64))
+    barcode = mapped_column(String(32), nullable=False)
+    work_number = mapped_column(String(10))
+    xenium_analyser_user = mapped_column(String(32), nullable=False)
+    qc_op_id = mapped_column(Integer)
+    qc_perfomed = mapped_column(DateTime)
+    qc_comments = mapped_column(Text)
+    qc_user = mapped_column(String(32))
+    equipment = mapped_column(String(64))
+
+
+class StanSampleLabware(Base):
+    __tablename__ = "stan_sample_labware"
+
+    id_tmp = mapped_column(Integer, primary_key=True, autoincrement=True)
+    barcode = mapped_column(String(32), nullable=False)
+    external_barcode = mapped_column(String(32))
+    lw_type = mapped_column(String(64), nullable=False)
+    lw_created = mapped_column(DateTime, nullable=False)
+    state = mapped_column(String(9), nullable=False)
+    costing = mapped_column(Text)
+    slot_address = mapped_column(String(8), nullable=False)
+    bio_state = mapped_column(String(64), nullable=False)
+    sample_id = mapped_column(Integer, nullable=False)
+    section = mapped_column(Integer)
+    work_number = mapped_column(Text)
+    highest_section = mapped_column(Integer)
+    external_name = mapped_column(String(64))
+    replicate = mapped_column(String(8))
+    medium = mapped_column(String(64))
+    fixative = mapped_column(String(64))
+    tissue_type = mapped_column(String(64), nullable=False)
+    spatial_location = mapped_column(Integer, nullable=False)
+    humfre = mapped_column(String(16))
+    donor_name = mapped_column(String(64), nullable=False)
+    life_stage = mapped_column(String(10))
+    species = mapped_column(String(64), nullable=False)
+    thickness = mapped_column(Text)
+    bio_risk = mapped_column(String(32))
+
+
 @contextmanager
 def session_context(engine: Engine) -> Generator[Session, Any, None]:
     """Yield a session and close, or rollback on error. This context manager does
@@ -391,6 +446,7 @@ def find_consent_withdrawn_samples(sess: Session) -> list[Type[Sample]]:
     Returns:
         All samples marked as having their consent withdrawn.
     """
+
     return sess.query(Sample).filter(Sample.consent_withdrawn == 1).all()
 
 
@@ -404,6 +460,7 @@ def find_study_by_study_id(sess: Session, study_id: str) -> Study:
     Returns:
         An ML warehouse schema Study.
     """
+
     return sess.execute(
         select(Study).where(Study.id_study_lims == study_id)
     ).scalar_one()
@@ -419,6 +476,7 @@ def find_sample_by_sample_id(sess: Session, sample_id: str) -> Sample:
     Returns:
         An ML warehouse schema Sample.
     """
+
     return sess.execute(
         select(Sample).where(Sample.id_sample_lims == sample_id)
     ).scalar_one()
@@ -437,6 +495,7 @@ def find_updated_samples(
     Returns:
         Iterator of Sample IDs.
     """
+
     recent_creation = since - timedelta(days=1)
 
     query = (
@@ -465,6 +524,7 @@ def find_updated_studies(
     Returns:
         Iterator of Study IDs.
     """
+
     recent_creation = since - timedelta(days=1)
 
     query = (
