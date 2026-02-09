@@ -43,6 +43,7 @@ def initialize_mlwh_illumina_synthetic(session: Session):
 
     This is represented by the files in ./tests/data/illumina/synthetic
     """
+
     default_timestamps = {
         "created": CREATED,
         "last_updated": BEGIN,
@@ -196,6 +197,7 @@ def initialize_mlwh_illumina_synthetic(session: Session):
 
 def initialize_mlwh_illumina_backfill(sess: Session):
     """Insert ML warehouse test data for Illumina product iRODS paths."""
+
     changed_study = Study(
         id_lims="LIMS_05",
         id_study_lims="4000",
@@ -383,6 +385,7 @@ def initialize_mlwh_illumina_backfill(sess: Session):
 @pytest.fixture(scope="function")
 def illumina_synthetic_mlwh(mlwh_session) -> Generator[Session, Any, None]:
     """An ML warehouse database fixture populated with Illumina-related records."""
+
     initialize_mlwh_illumina_synthetic(mlwh_session)
     yield mlwh_session
 
@@ -391,6 +394,7 @@ def illumina_synthetic_mlwh(mlwh_session) -> Generator[Session, Any, None]:
 def illumina_backfill_mlwh(mlwh_session) -> Generator[Session, Any, None]:
     """An ML warehouse database fixture populated with Illumina iRODS path backfill
     records."""
+
     initialize_mlwh_illumina_backfill(mlwh_session)
     yield mlwh_session
 

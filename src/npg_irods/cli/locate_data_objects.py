@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2024, 2026 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 import argparse
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Iterator
 
 import sqlalchemy
@@ -51,6 +52,7 @@ from npg_irods.db.mlwh import (
     find_updated_samples,
     find_updated_studies,
 )
+from npg_irods.db.mlwh_cache import MlwhChangeCache
 from npg_irods.exception import CollectionNotFound
 from npg_irods.illumina import find_qc_collection
 from npg_irods.metadata import infinium
@@ -162,6 +164,7 @@ def consent_withdrawn(cli_args: argparse.ArgumentParser):
 def illumina_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Illumina data objects and execute
     the command."""
+
     dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
@@ -171,10 +174,19 @@ def illumina_updates_cli(cli_args: argparse.ArgumentParser):
     skip_absent_runs = cli_args.skip_absent_runs
     json = cli_args.report_json
     zone = cli_args.zone
+    cache_path = cli_args.mlwh_cache
+    prime_cache = cli_args.prime_mlwh_cache
 
     with Session(engine) as sess:
         num_proc, num_errors = illumina_updates(
-            sess, since, until, skip_absent_runs=skip_absent_runs, json=json, zone=zone
+            sess,
+            since,
+            until,
+            skip_absent_runs=skip_absent_runs,
+            json=json,
+            zone=zone,
+            cache_path=Path(cache_path),
+            prime_cache=prime_cache,
         )
 
         if num_errors:
@@ -188,6 +200,8 @@ def illumina_updates(
     skip_absent_runs: int = None,
     json: bool = False,
     zone: str = None,
+    cache_path: Path | None = None,
+    prime_cache: bool = False,
 ) -> tuple[int, int]:
     """Find recently updated Illumina data in the ML warehouse, locate corresponding
     data objects in iRODS and print their paths.
@@ -200,10 +214,13 @@ def illumina_updates(
             this number of attempts.
         json: Print output in JSON format.
         zone: iRODS zone to query.
+        cache_path: Path to local content-hash cache for MLWH change detection.
+        prime_cache: Prime the cache with all samples and studies in the MLWH.
 
     Returns:
         The number of ML warehouse records processed, the number of errors encountered.
     """
+
     num_processed = num_errors = 0
     attempts = successes = 0
     to_print = set()
@@ -211,8 +228,18 @@ def illumina_updates(
     if skip_absent_runs is not None:
         log.info("Skipping absent runs after n attempts", n=skip_absent_runs)
 
+    changed_sample_ids, changed_study_ids = _load_mlwh_change_ids(
+        sess, since, until, cache_path, prime_cache=prime_cache
+    )
+
     for prev, curr in with_previous(
-        illumina.find_updated_components(sess, since=since, until=until)
+        illumina.find_updated_components(
+            sess,
+            since=since,
+            until=until,
+            changed_sample_ids=changed_sample_ids,
+            changed_study_ids=changed_study_ids,
+        )
     ):
         if curr is None:  # Last item when this is reached
             continue
@@ -276,6 +303,7 @@ def illumina_updates(
 def ont_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding ONT data objects and execute the
     command."""
+
     dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
@@ -285,10 +313,19 @@ def ont_updates_cli(cli_args: argparse.ArgumentParser):
     report_tags = cli_args.report_tags
     json = cli_args.report_json
     zone = cli_args.zone
+    cache_path = cli_args.mlwh_cache
+    prime_cache = cli_args.prime_mlwh_cache
 
     with Session(engine) as sess:
         num_proc, num_errors = ont_updates(
-            sess, since, until, report_tags=report_tags, json=json, zone=zone
+            sess,
+            since,
+            until,
+            report_tags=report_tags,
+            json=json,
+            zone=zone,
+            cache_path=Path(cache_path),
+            prime_cache=prime_cache,
         )
 
         if num_errors:
@@ -302,12 +339,23 @@ def ont_updates(
     report_tags: bool = False,
     json: bool = False,
     zone: str = None,
+    cache_path: Path | None = None,
+    prime_cache: bool = False,
 ) -> tuple[int, int]:
     num_processed = num_errors = 0
 
+    changed_sample_ids, changed_study_ids = _load_mlwh_change_ids(
+        sess, since, until, cache_path, prime_cache=prime_cache
+    )
+
     for i, c in enumerate(
         ont.find_updated_components(
-            sess, since=since, until=until, include_tags=report_tags
+            sess,
+            since=since,
+            until=until,
+            include_tags=report_tags,
+            changed_sample_ids=changed_sample_ids,
+            changed_study_ids=changed_study_ids,
         )
     ):
         num_processed += 1
@@ -346,6 +394,7 @@ def ont_updates(
 def ont_run_collections_created_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding ONT runfolder collections
     selected on the time they were created in iRODS, and execute the command."""
+
     since = cli_args.begin_date
     until = cli_args.end_date
     json = cli_args.report_json
@@ -387,6 +436,7 @@ def ont_run_collections_created(
 def pacbio_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding PacBio data objects and execute
     the command."""
+
     dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
@@ -396,10 +446,19 @@ def pacbio_updates_cli(cli_args: argparse.ArgumentParser):
     skip_absent_runs = cli_args.skip_absent_runs
     json = cli_args.report_json
     zone = cli_args.zone
+    cache_path = cli_args.mlwh_cache
+    prime_cache = cli_args.prime_mlwh_cache
 
     with Session(engine) as sess:
         num_proc, num_errors = pacbio_updates(
-            sess, since, until, skip_absent_runs=skip_absent_runs, json=json, zone=zone
+            sess,
+            since,
+            until,
+            skip_absent_runs=skip_absent_runs,
+            json=json,
+            zone=zone,
+            cache_path=Path(cache_path),
+            prime_cache=prime_cache,
         )
 
         if num_errors:
@@ -413,7 +472,9 @@ def pacbio_updates(
     skip_absent_runs: int = None,
     json: bool = False,
     zone: str = None,
-) -> (int, int):
+    cache_path: Path | None = None,
+    prime_cache: bool = False,
+) -> tuple[int, int]:
     num_processed = num_errors = 0
     attempts = successes = 0
     to_print = set()
@@ -421,8 +482,18 @@ def pacbio_updates(
     if skip_absent_runs is not None:
         log.info("Skipping absent runs after n attempts", n=skip_absent_runs)
 
+    changed_sample_ids, changed_study_ids = _load_mlwh_change_ids(
+        sess, since, until, cache_path, prime_cache=prime_cache
+    )
+
     for prev, curr in with_previous(
-        pacbio.find_updated_components(sess, since=since, until=until)
+        pacbio.find_updated_components(
+            sess,
+            since=since,
+            until=until,
+            changed_sample_ids=changed_sample_ids,
+            changed_study_ids=changed_study_ids,
+        )
     ):
         if curr is None:  # Last item when this is reached
             continue
@@ -481,6 +552,7 @@ def pacbio_updates(
 def infinium_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Infinium microarray data objects
     and execute the command."""
+
     dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
@@ -519,6 +591,7 @@ def infinium_microarray_updates(
 def sequenom_updates_cli(cli_args: argparse.ArgumentParser):
     """Process the command line arguments for finding Sequenom genotype data objects
     and execute the command."""
+
     dbconfig = IniData(db.Config).from_file(cli_args.db_config.name, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
@@ -545,6 +618,33 @@ def sequenom_genotype_updates(
     log.info(f"Processed {num_processed} with {num_errors} errors")
 
     return num_processed, num_errors
+
+
+def _load_mlwh_change_ids(
+    sess: Session,
+    since: datetime,
+    until: datetime,
+    cache_path: Path | None,
+    prime_cache: bool = False,
+) -> tuple[set[str] | None, set[str] | None]:
+    if cache_path is None:
+        if prime_cache:
+            log.warning("MLWH cache priming requested without cache path")
+
+        return None, None
+
+    with MlwhChangeCache(cache_path, prime_cache=prime_cache) as cache:
+        sample_ids = cache.changed_sample_ids(sess, since, until)
+        study_ids = cache.changed_study_ids(sess, since, until)
+
+    log.info(
+        "Filtering MLWH updates using cache",
+        cache=str(cache_path),
+        samples=len(sample_ids),
+        studies=len(study_ids),
+    )
+
+    return sample_ids, study_ids
 
 
 def _print_data_objects_updated_in_mlwh(
@@ -576,7 +676,7 @@ def _print_data_objects_updated_in_mlwh(
 
 def _find_and_print_data_objects(
     attr: Any,
-    values: Iterator[int],
+    values: Iterator[str],
     query: list[AVU],
     since: datetime,
     until: datetime,
@@ -697,6 +797,18 @@ def main():
         help="Print output in JSON format.",
         action="store_true",
     )
+    ilup_parser.add_argument(
+        "--mlwh-cache",
+        "--mlwh_cache",
+        help="Path to a SQLite cache used to filter Sample/Study updates by content.",
+        type=str,
+    )
+    ilup_parser.add_argument(
+        "--prime-mlwh-cache",
+        "--prime_mlwh_cache",
+        help="Prime the MLWH cache with all Sample/Study rows before filtering.",
+        action="store_true",
+    )
     ilup_parser.set_defaults(func=illumina_updates_cli)
 
     ontcre_parser = subparsers.add_parser(
@@ -731,6 +843,18 @@ def main():
         help="Print output in JSON format.",
         action="store_true",
     )
+    ontup_parser.add_argument(
+        "--mlwh-cache",
+        "--mlwh_cache",
+        help="Path to a SQLite cache used to filter Sample/Study updates by content.",
+        type=str,
+    )
+    ontup_parser.add_argument(
+        "--prime-mlwh-cache",
+        "--prime_mlwh_cache",
+        help="Prime the MLWH cache with all Sample/Study rows before filtering.",
+        action="store_true",
+    )
     ontup_parser.set_defaults(func=ont_updates_cli)
 
     pbup_parser = subparsers.add_parser(
@@ -754,6 +878,20 @@ def main():
         "--report-json",
         "--report_json",
         help="Print output in JSON format.",
+        action="store_true",
+    )
+    pbup_parser.add_argument(
+        "--mlwh-cache",
+        "--mlwh_cache",
+        help="Path to a SQLite cache used to filter Sample/Study updates by content.",
+        type=str,
+    )
+    pbup_parser.add_argument(
+        "--prime-mlwh-cache",
+        "--prime_mlwh_cache",
+        help="Prime the MLWH cache with all Sample/Study rows before filtering. This "
+        "is only useful when the cache is stale or empty. Do not use this option when "
+        "you want to detect updates.",
         action="store_true",
     )
     pbup_parser.set_defaults(func=pacbio_updates_cli)

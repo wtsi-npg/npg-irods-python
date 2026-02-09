@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2026 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,3 +59,30 @@ class TestLocateDataObjects:
         assert np == 7, "Number of MLWH records processed"
         assert ne == 0, "Number of errors"
         assert stdout_lines == expected
+
+    @m.context("When MLWH updates are timestamp-only for samples and studies")
+    @m.it("Should return fewer updates after priming the MLWH cache")
+    def test_illumina_updates_cache_reduces_updates(
+        self, capsys, tmp_path, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        np_uncached, ne_uncached = illumina_updates(
+            illumina_synthetic_mlwh, BEGIN, LATEST
+        )
+
+        assert np_uncached == 7, "Number of MLWH records processed without cache"
+        assert ne_uncached == 0, "Number of errors without cache"
+        capsys.readouterr()  # Clear output from the uncached run
+
+        cache_path = tmp_path / "mlwh_cache.sqlite"
+        np_cached, ne_cached = illumina_updates(
+            illumina_synthetic_mlwh,
+            BEGIN,
+            LATEST,
+            cache_path=cache_path,
+            prime_cache=True,
+        )
+        stdout_lines = [line for line in capsys.readouterr().out.split("\n") if line]
+
+        assert np_cached == 0, "Number of MLWH records processed with cache"
+        assert ne_cached == 0, "Number of errors with cache"
+        assert stdout_lines == []
