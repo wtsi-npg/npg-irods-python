@@ -4,7 +4,7 @@ npg-python-lib@https://github.com/wtsi-npg/npg-python-lib/releases/download/1.1.
 partisan@https://github.com/wtsi-npg/partisan/releases/download/4.1.2/partisan-4.1.2.tar.gz
 pymysql==1.1.2
 python-dateutil==2.9.0.post0
-rich==14.0.0
+rich==14.3.2
 setuptools-git-versioning==3.0.1
 setuptools==82.0.0
 sqlalchemy==2.0.45
