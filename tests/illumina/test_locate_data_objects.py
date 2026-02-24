@@ -19,7 +19,7 @@
 
 from pytest import mark as m
 
-from conftest import BEGIN, LATE, LATEST
+from helpers import BEGIN, LATE, LATEST
 from npg_irods.cli.locate_data_objects import illumina_updates
 from npg_irods.db.mlwh import Sample
 
