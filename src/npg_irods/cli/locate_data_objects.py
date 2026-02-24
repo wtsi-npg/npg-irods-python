@@ -622,17 +622,18 @@ def sequenom_genotype_updates(
 
 def _add_mlwh_cache_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
-            "--mlwh-cache",
-            "--mlwh_cache",
-            help="Path to a SQLite cache used to filter Sample/Study updates by content.",
-            type=str,
+        "--mlwh-cache",
+        "--mlwh_cache",
+        help="Path to a SQLite cache used to filter Sample/Study updates by content.",
+        type=str,
     )
     parser.add_argument(
-            "--prime-mlwh-cache",
-            "--prime_mlwh_cache",
-            help="Prime the MLWH cache with all Sample/Study rows before filtering.",
-            action="store_true",
+        "--prime-mlwh-cache",
+        "--prime_mlwh_cache",
+        help="Prime the MLWH cache with all Sample/Study rows before filtering.",
+        action="store_true",
     )
+
 
 def _load_mlwh_change_ids(
     sess: Session,
