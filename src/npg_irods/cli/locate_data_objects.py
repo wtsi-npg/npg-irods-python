@@ -620,6 +620,20 @@ def sequenom_genotype_updates(
     return num_processed, num_errors
 
 
+def _add_mlwh_cache_arguments(parser: argparse.ArgumentParser):
+    parser.add_argument(
+            "--mlwh-cache",
+            "--mlwh_cache",
+            help="Path to a SQLite cache used to filter Sample/Study updates by content.",
+            type=str,
+    )
+    parser.add_argument(
+            "--prime-mlwh-cache",
+            "--prime_mlwh_cache",
+            help="Prime the MLWH cache with all Sample/Study rows before filtering.",
+            action="store_true",
+    )
+
 def _load_mlwh_change_ids(
     sess: Session,
     since: datetime,
@@ -740,27 +754,28 @@ def _print_batch(items: set[RodsItem], json: bool = False):
 
 
 def main():
-    parser = argparse.ArgumentParser(
+    root_parser = argparse.ArgumentParser(
         description=description, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    add_logging_arguments(parser)
-    add_db_config_arguments(parser)
+    add_logging_arguments(root_parser)
+    add_db_config_arguments(root_parser)
 
-    parser.add_argument(
+    root_parser.add_argument(
         "--zone",
         help="Specify a federated iRODS zone in which to find data objects to check. "
         "This is not required if the target collections are in the local zone.",
         type=str,
     )
-    parser.add_argument(
+    root_parser.add_argument(
         "--version",
         help="Print the version and exit.",
         action="version",
         version=version(),
     )
 
-    subparsers = parser.add_subparsers(title="Sub-commands", required=True)
+    subparsers = root_parser.add_subparsers(title="Sub-commands", required=True)
 
+    # CLI to locate data with consent withdrawn metadata updates
     cwdr_parser = subparsers.add_parser(
         "consent-withdrawn",
         help="Find data objects related to samples whose consent for data use has "
@@ -774,12 +789,15 @@ def main():
     )
     cwdr_parser.set_defaults(func=consent_withdrawn)
 
+    # CLI to find Illumina run metadata updates
     ilup_parser = subparsers.add_parser(
         "illumina-updates",
         help="Find data objects, which are components of Illumina runs, whose tracking "
         "metadata in the ML warehouse have changed since a specified time.",
     )
     add_date_range_arguments(ilup_parser)
+    _add_mlwh_cache_arguments(ilup_parser)
+
     ilup_parser.add_argument(
         "--skip-absent-runs",
         "--skip_absent_runs",
@@ -797,26 +815,16 @@ def main():
         help="Print output in JSON format.",
         action="store_true",
     )
-    ilup_parser.add_argument(
-        "--mlwh-cache",
-        "--mlwh_cache",
-        help="Path to a SQLite cache used to filter Sample/Study updates by content.",
-        type=str,
-    )
-    ilup_parser.add_argument(
-        "--prime-mlwh-cache",
-        "--prime_mlwh_cache",
-        help="Prime the MLWH cache with all Sample/Study rows before filtering.",
-        action="store_true",
-    )
     ilup_parser.set_defaults(func=illumina_updates_cli)
 
+    # CLI to find ONT runfolder collections created within a specified time range
     ontcre_parser = subparsers.add_parser(
         "ont-run-creation",
         help="Find ONT runfolder collections created in iRODS within a specified time "
         "range.",
     )
     add_date_range_arguments(ontcre_parser)
+
     ontcre_parser.add_argument(
         "--report-json",
         "--report_json",
@@ -825,12 +833,15 @@ def main():
     )
     ontcre_parser.set_defaults(func=ont_run_collections_created_cli)
 
+    # CLI to find ONT run metadata updates
     ontup_parser = subparsers.add_parser(
         "ont-updates",
         help="Find collections, containing data objects for ONT runs, whose tracking"
         "metadata in the ML warehouse have changed since a specified time.",
     )
     add_date_range_arguments(ontup_parser)
+    _add_mlwh_cache_arguments(ontup_parser)
+
     ontup_parser.add_argument(
         "--report-tags",
         "--report_tags",
@@ -843,26 +854,17 @@ def main():
         help="Print output in JSON format.",
         action="store_true",
     )
-    ontup_parser.add_argument(
-        "--mlwh-cache",
-        "--mlwh_cache",
-        help="Path to a SQLite cache used to filter Sample/Study updates by content.",
-        type=str,
-    )
-    ontup_parser.add_argument(
-        "--prime-mlwh-cache",
-        "--prime_mlwh_cache",
-        help="Prime the MLWH cache with all Sample/Study rows before filtering.",
-        action="store_true",
-    )
     ontup_parser.set_defaults(func=ont_updates_cli)
 
+    # CLI to find PacBio run metadata updates
     pbup_parser = subparsers.add_parser(
         "pacbio-updates",
         help="Find data objects, which are components of PacBio runs, whose tracking "
         "metadata in the ML warehouse have changed since a specified time.",
     )
     add_date_range_arguments(pbup_parser)
+    _add_mlwh_cache_arguments(pbup_parser)
+
     pbup_parser.add_argument(
         "--skip-absent-runs",
         "--skip_absent_runs",
@@ -880,28 +882,16 @@ def main():
         help="Print output in JSON format.",
         action="store_true",
     )
-    pbup_parser.add_argument(
-        "--mlwh-cache",
-        "--mlwh_cache",
-        help="Path to a SQLite cache used to filter Sample/Study updates by content.",
-        type=str,
-    )
-    pbup_parser.add_argument(
-        "--prime-mlwh-cache",
-        "--prime_mlwh_cache",
-        help="Prime the MLWH cache with all Sample/Study rows before filtering. This "
-        "is only useful when the cache is stale or empty. Do not use this option when "
-        "you want to detect updates.",
-        action="store_true",
-    )
     pbup_parser.set_defaults(func=pacbio_updates_cli)
 
+    # CLI to find Infinium microarray run metadata updates
     imup_parser = subparsers.add_parser(
         "infinium-updates",
         help="Find data objects related to Infinium microarray samples whose tracking "
         "metadata in the ML warehouse have changed since a specified time.",
     )
     add_date_range_arguments(imup_parser)
+
     imup_parser.add_argument(
         "--report-json",
         "--report_json",
@@ -910,12 +900,14 @@ def main():
     )
     imup_parser.set_defaults(func=infinium_updates_cli)
 
+    # CLI to find Sequenom genotype run metadata updates
     squp_parser = subparsers.add_parser(
         "sequenom-updates",
         help="Find data objects related to Sequenom genotype samples whose tracking "
         "metadata in the ML warehouse have changed since a specified time.",
     )
     add_date_range_arguments(squp_parser)
+
     squp_parser.add_argument(
         "--report-json",
         "--report_json",
@@ -924,7 +916,7 @@ def main():
     )
     squp_parser.set_defaults(func=sequenom_updates_cli)
 
-    args = parser.parse_args()
+    args = root_parser.parse_args()
     configure_structlog(
         config_file=args.log_config,
         debug=args.debug,
