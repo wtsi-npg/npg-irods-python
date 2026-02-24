@@ -62,12 +62,12 @@ To run the tests in a container, you will need to have Docker installed.
 
 With this in place, you can run the tests with the following command:
 
-    docker-compose run app pytest --it
+    docker compose run app pytest --it
 
 There will be a delay the first time this is run because the Docker image will be built.
 To pre-build the image, you can run:
 
-    docker-compose build
+    docker compose build
 
 ## Creating a release
 
