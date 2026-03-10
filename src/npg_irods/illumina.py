@@ -24,11 +24,11 @@ from datetime import datetime, timedelta
 from enum import Enum, unique
 from functools import lru_cache
 from pathlib import PurePath
-from typing import Iterator, Optional, Type
+from typing import Any, Generator, Iterable, Iterator, Optional, Type
 
 from partisan.irods import AVU, Collection, DataObject
 from partisan.metadata import AsValueEnum
-from sqlalchemy import asc, not_
+from sqlalchemy import and_, asc, not_, or_
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
@@ -488,8 +488,12 @@ def find_flowcells_by_component(
 
 
 def find_updated_components(
-    sess: Session, since: datetime, until: datetime
-) -> Iterator[Component]:
+    sess: Session,
+    since: datetime,
+    until: datetime,
+    changed_sample_ids: Optional[Iterable[str]] = None,
+    changed_study_ids: Optional[Iterable[str]] = None,
+) -> Generator[Component, Any, None]:
     """Find in the ML warehouse any Illumina sequence components whose tracking
     metadata has been changed within the given time range.
 
@@ -504,18 +508,57 @@ def find_updated_components(
     the number of rows returned by the query by a factor of 10.
 
     Args:
-        sess: An open ML warehouse  session.
+        sess: An open ML warehouse session.
         since: The start of the time range.
         until: The end of the time range.
+        changed_sample_ids: Optional set of Sample IDs whose content has changed
+            within the time range. If provided, Sample updates are filtered to
+            these IDs rather than using recorded_at.
+        changed_study_ids: Optional set of Study IDs whose content has changed
+            within the time range. If provided, Study updates are filtered to
+            these IDs rather than using recorded_at.
 
     Returns:
-        An iterator over Components whose tracking metadata have changed.
+        A generator over Components whose tracking metadata have changed.
     """
 
     # Test that the created date is at least 1 day before the recorded date because we
     # want to avoid rows that have had their recorded_at timestamp changed simply
     # because they were recently created.
+
     recent_creation = since - timedelta(days=1)
+
+    # When cache-based filtering is enabled, an empty set means “no content changes”.
+    # In that case, do not fall back to time-window-based filtering.
+    if (
+        changed_sample_ids is not None
+        and changed_study_ids is not None
+        and not changed_sample_ids
+        and not changed_study_ids
+    ):
+        return
+
+    filters = [IseqFlowcell.recorded_at.between(since, until)]
+
+    if changed_sample_ids is None:
+        filters.append(
+            and_(
+                Sample.recorded_at.between(since, until),
+                not_(Sample.created.between(recent_creation, since)),
+            )
+        )
+    elif changed_sample_ids:
+        filters.append(Sample.id_sample_lims.in_(changed_sample_ids))
+
+    if changed_study_ids is None:
+        filters.append(
+            and_(
+                Study.recorded_at.between(since, until),
+                not_(Study.created.between(recent_creation, since)),
+            )
+        )
+    elif changed_study_ids:
+        filters.append(Study.id_study_lims.in_(changed_study_ids))
 
     query = (
         sess.query(
@@ -525,13 +568,7 @@ def find_updated_components(
         .join(IseqFlowcell.sample)
         .join(IseqFlowcell.study)
         .join(IseqFlowcell.iseq_product_metrics)
-        .filter(
-            Sample.recorded_at.between(since, until)
-            & not_(Sample.created.between(recent_creation, since))
-            | Study.recorded_at.between(since, until)
-            & not_(Study.created.between(recent_creation, since))
-            | IseqFlowcell.recorded_at.between(since, until)
-        )
+        .filter(or_(*filters))
         .order_by(
             asc(IseqProductMetrics.id_run),
             asc(IseqFlowcell.position),

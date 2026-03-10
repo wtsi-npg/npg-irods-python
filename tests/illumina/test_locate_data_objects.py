@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2026 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,8 +19,9 @@
 
 from pytest import mark as m
 
-from conftest import BEGIN, LATEST
+from helpers import BEGIN, LATE, LATEST
 from npg_irods.cli.locate_data_objects import illumina_updates
+from npg_irods.db.mlwh import Sample
 
 
 @m.describe("Locating data objects in iRODS")
@@ -59,3 +60,64 @@ class TestLocateDataObjects:
         assert np == 7, "Number of MLWH records processed"
         assert ne == 0, "Number of errors"
         assert stdout_lines == expected
+
+    @m.context("When MLWH updates are timestamp-only for samples and studies")
+    @m.it("Should return fewer updates after priming the MLWH cache")
+    def test_illumina_updates_cache_reduces_updates(
+        self, capsys, tmp_path, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        np_uncached, ne_uncached = illumina_updates(
+            illumina_synthetic_mlwh, BEGIN, LATEST
+        )
+
+        assert np_uncached == 7, "Number of MLWH records processed without cache"
+        assert ne_uncached == 0, "Number of errors without cache"
+        capsys.readouterr()  # Clear output from the uncached run
+
+        cache_path = tmp_path / "mlwh_cache.sqlite"
+        np_cached, ne_cached = illumina_updates(
+            illumina_synthetic_mlwh,
+            BEGIN,
+            LATEST,
+            cache_path=cache_path,
+            prime_cache=True,
+        )
+        stdout_lines = [line for line in capsys.readouterr().out.split("\n") if line]
+
+        assert np_cached == 0, "Number of MLWH records processed with cache"
+        assert ne_cached == 0, "Number of errors with cache"
+        assert stdout_lines == []
+
+    @m.context("When a cached MLWH sample has content changes in the time window")
+    @m.it("Should process only the affected components")
+    def test_illumina_updates_cache_processes_changed_samples(
+        self, capsys, tmp_path, illumina_synthetic_irods, illumina_synthetic_mlwh
+    ):
+        cache_path = tmp_path / "mlwh_cache.sqlite"
+        illumina_updates(
+            illumina_synthetic_mlwh,
+            BEGIN,
+            LATEST,
+            cache_path=cache_path,
+            prime_cache=True,
+        )
+        capsys.readouterr()  # Clear output from the priming run
+
+        sample = (
+            illumina_synthetic_mlwh.query(Sample)
+            .filter_by(id_sample_lims="id_sample_lims2")
+            .one()
+        )
+        sample.supplier_name = "supplier_name2_updated"
+        sample.recorded_at = LATEST
+        illumina_synthetic_mlwh.commit()
+
+        np_cached, ne_cached = illumina_updates(
+            illumina_synthetic_mlwh,
+            LATE,
+            LATEST,
+            cache_path=cache_path,
+        )
+
+        assert np_cached == 2, "Number of MLWH records processed with cache"
+        assert ne_cached == 0, "Number of errors with cache"

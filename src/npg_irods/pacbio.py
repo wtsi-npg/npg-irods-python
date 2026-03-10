@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2024, 2026 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,9 +22,10 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import PurePath
-from typing import Iterator, Optional, Type
+from typing import Any, Generator, Iterable, Iterator, Optional, Type
 
 from partisan.irods import AVU, Collection, DataObject
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from structlog import get_logger
 
@@ -248,8 +249,12 @@ def find_runs_by_component(
 
 
 def find_updated_components(
-    sess: Session, since: datetime, until: datetime
-) -> Iterator[Component]:
+    sess: Session,
+    since: datetime,
+    until: datetime,
+    changed_sample_ids: Optional[Iterable[str]] = None,
+    changed_study_ids: Optional[Iterable[str]] = None,
+) -> Generator[Component, Any, None]:
     """Find in the ML warehouse any PacBio sequence components whose tracking
     metadata has been changed within the given time range.
 
@@ -260,10 +265,36 @@ def find_updated_components(
         sess: An open ML warehouse session.
         since: The start of the time range.
         until: The end of the time range.
+        changed_sample_ids: Optional set of Sample IDs whose content has changed
+            within the time range. If provided, Sample updates are filtered to
+            these IDs rather than using recorded_at.
+        changed_study_ids: Optional set of Study IDs whose content has changed
+            within the time range. If provided, Study updates are filtered to
+            these IDs rather than using recorded_at.
 
     Returns:
-        An iterator over Components whose tracking metadata have changed.
+        A generator over Components whose tracking metadata have changed.
     """
+
+    if (
+        changed_sample_ids is not None
+        and changed_study_ids is not None
+        and not changed_sample_ids
+        and not changed_study_ids
+    ):
+        return
+
+    filters = [PacBioRun.recorded_at.between(since, until)]
+
+    if changed_sample_ids is None:
+        filters.append(Sample.recorded_at.between(since, until))
+    elif changed_sample_ids:
+        filters.append(Sample.id_sample_lims.in_(changed_sample_ids))
+
+    if changed_study_ids is None:
+        filters.append(Study.recorded_at.between(since, until))
+    elif changed_study_ids:
+        filters.append(Study.id_study_lims.in_(changed_study_ids))
 
     query = (
         sess.query(
@@ -275,11 +306,7 @@ def find_updated_components(
         .distinct()
         .join(PacBioRun.sample)
         .join(PacBioRun.study)
-        .filter(
-            Sample.recorded_at.between(since, until)
-            | Study.recorded_at.between(since, until)
-            | PacBioRun.recorded_at.between(since, until)
-        )
+        .filter(or_(*filters))
         .order_by(
             PacBioRun.pac_bio_run_name,
             PacBioRun.well_label,

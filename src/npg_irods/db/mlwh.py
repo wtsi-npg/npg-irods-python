@@ -22,7 +22,7 @@
 import enum
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Iterator, Type
+from typing import Any, Generator, Iterator, Type
 
 import structlog
 from sqlalchemy import (
@@ -364,7 +364,7 @@ class SeqProductIrodsLocations(Base):
 
 
 @contextmanager
-def session_context(engine: Engine) -> Session:
+def session_context(engine: Engine) -> Generator[Session, Any, None]:
     """Yield a session and close, or rollback on error. This context manager does
     not handle exceptions and will raise them to the caller."""
 
@@ -426,7 +426,7 @@ def find_sample_by_sample_id(sess: Session, sample_id: str) -> Sample:
 
 def find_updated_samples(
     sess: Session, since: datetime, until: datetime
-) -> Iterator[int]:
+) -> Iterator[str]:
     """Return IDs of Samples that have been updated in the ML warehouse.
 
     Args:
@@ -454,7 +454,7 @@ def find_updated_samples(
 
 def find_updated_studies(
     sess: Session, since: datetime, until: datetime
-) -> Iterator[int]:
+) -> Iterator[str]:
     """Return IDs of Studies that have been updated in the ML warehouse.
 
     Args:
