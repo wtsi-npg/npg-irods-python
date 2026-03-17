@@ -46,7 +46,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "md5sums_path",
+    "md5sums-path",
     help="The file to write checksums to.",
     type=str,
 )

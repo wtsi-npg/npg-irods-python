@@ -26,8 +26,8 @@ from npg_irods.checksum import checksum_directory
 @m.describe("Checksum")
 class TestChecksum:
 
-    @m.context("When checksumming a directory without existing checksum file")
-    @m.it("Create checksum file")
+    @m.context("When checksumming a directory without an existing checksum file")
+    @m.it("Creates a checksum file")
     def test_checksum_directory_no_existing(self, tmp_path):
         # Arrange
         path = Path("./tests/data/simple/collection").absolute()
@@ -46,8 +46,8 @@ class TestChecksum:
 """
         )
 
-    @m.context("When checksumming a directory with existing checksum file")
-    @m.it("Create checksum file")
+    @m.context("When checksumming a directory with an existing checksum file")
+    @m.it("Creates a checksum file")
     def test_checksum_directory_no_existing(self, tmp_path):
         # Arrange
         path = Path("./tests/data/simple/collection").absolute()
