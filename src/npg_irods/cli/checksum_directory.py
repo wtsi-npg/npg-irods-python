@@ -40,13 +40,13 @@ parser = argparse.ArgumentParser(
 add_logging_arguments(parser)
 
 parser.add_argument(
-    "directory",
+    "--directory",
     help="The directory to checksum.",
     type=str,
 )
 
 parser.add_argument(
-    "md5sums-path",
+    "--md5sums-path",
     help="The file to write checksums to.",
     type=str,
 )

@@ -16,11 +16,45 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Calum Eadie <ce10@sanger.ac.uk>
-from pathlib import Path
+from pathlib import Path, PosixPath
+from unittest.mock import patch, MagicMock
 
 from pytest import mark as m
+from pytest import LogCaptureFixture
 
 from npg_irods.checksum import checksum_directory
+from npg_irods.cli import checksum_directory as checksum_directory_script
+
+
+@m.describe("Checksum Script")
+class TestChecksumScript:
+
+    @m.context("When run with default parameters only")
+    @m.it("Checksums the directory and outputs the status")
+    @patch("npg_irods.cli.checksum_directory.checksum_directory", autospec=True)
+    def test_main_normal_case(
+        self, mock_checksum_directory: MagicMock, caplog: LogCaptureFixture
+    ):
+        # Arrange
+        mock_checksum_directory.return_value = (2, 1)
+
+        # Act
+        with caplog.at_level("DEBUG", "main"):
+            self._main(["--directory", "directory", "--md5sums-path", "md5sums_path"])
+
+        # Assert
+        mock_checksum_directory.assert_called_once_with(
+            PosixPath("directory"),
+            PosixPath("md5sums_path"),
+        )
+        assert "Checksummed path successfully" in caplog.text
+        assert "num_files=2" in caplog.text
+        assert "num_checksummed=1" in caplog.text
+
+    @staticmethod
+    def _main(args: list[str]):
+        with patch("sys.argv", ["checksum-directory"] + args):
+            checksum_directory_script.main()
 
 
 @m.describe("Checksum")
