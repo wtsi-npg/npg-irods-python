@@ -15,8 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import json
-from pathlib import Path, PurePath
+from pathlib import PurePath
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from helpers import is_inheritance_enabled, ADMIN_AC, PUBLIC_AC, STUDY_AC, UNMANAGED_AC
 from npg_irods.cli import publish_directory
@@ -67,12 +69,12 @@ class TestPublishDirectory:
     def test_npg_publish_tree_compatibility_ultima(
         self,
         tmp_path,
+        ultima_run,
         public_unmanaged_inheritance_enabled_collection: PurePath,
         monkeypatch: MonkeyPatch,
     ):
         # Arrange
-        src = Path("./tests/data/ultima/minimal").absolute()
-        # empty_collection stands in for $ZONE/ultimagen/runs
+        run_dir, checksums_path = ultima_run
         # SOP: Destination collection doesn't exist
         dest = (
             public_unmanaged_inheritance_enabled_collection / "run_id_prefix" / "run_id"
@@ -85,28 +87,33 @@ class TestPublishDirectory:
         # Public
         root_metadata = tmp_path / "root_metadata.json"
         root_metadata.write_text(json.dumps([{"attribute": "a1", "value": "v1"}]))
-        self._main(
-            [
-                str(src),
-                str(dest),
-                "--group",
-                "public",
-                "--exclude",
-                f"{src}/000001-",
-                "--exclude",
-                ".md5",
-                "--metadata-file",
-                str(root_metadata),
-            ]
-        )
+        root_args = [
+            str(run_dir),
+            str(dest),
+            "--fill",
+            "--use-checksums-file",
+            str(checksums_path),
+            "--group",
+            "public",
+            "--exclude",
+            f"{run_dir}/000001-",
+            "--exclude",
+            ".md5",
+            "--metadata-file",
+            str(root_metadata),
+        ]
+        self._main(root_args)
 
         # Study
         sample_metadata = tmp_path / "sample_metadata.json"
         sample_metadata.write_text(json.dumps([{"attribute": "a2", "value": "v2"}]))
         self._main(
             [
-                str(src / "000001-a"),
+                str(run_dir / "000001-a"),
                 str(dest / "000001-a"),
+                "--fill",
+                "--use-checksums-file",
+                str(checksums_path),
                 "--group",
                 "ss_1000#testZone",
                 "--exclude",
@@ -117,7 +124,18 @@ class TestPublishDirectory:
         )
 
         # Private
-        self._main([str(src / "000001-d"), str(dest / "000001-d")])
+        self._main(
+            [
+                str(run_dir / "000001-d"),
+                str(dest / "000001-d"),
+                "--fill",
+                "--use-checksums-file",
+                str(checksums_path),
+            ]
+        )
+
+        # Repeat
+        self._main(root_args)
 
         # Assert
         assert is_inheritance_enabled(
@@ -175,6 +193,86 @@ class TestPublishDirectory:
             ADMIN_AC,
             UNMANAGED_AC,
         ]
+
+    @m.context("When checksum missing")
+    @m.it("Skips that file, outputs errors and publishes other files")
+    def test_missing_checksum(
+        self, ultima_run, empty_collection: PurePath, caplog: LogCaptureFixture
+    ):
+        # Arrange
+        run_dir, checksums_path = ultima_run
+        checksums_path.write_text(
+            "".join(checksums_path.read_text().splitlines(keepends=True)[:-1])
+        )
+        dest = empty_collection
+
+        # Act
+        with pytest.raises(SystemExit):
+            self._main(
+                [
+                    str(run_dir),
+                    str(dest),
+                    "--fill",
+                    "--use-checksums-file",
+                    str(checksums_path),
+                    "--exclude-md5",
+                ]
+            )
+
+        # Assert
+        assert Collection(dest).contents(recurse=True) == [
+            Collection(dest / "000001-a"),
+            Collection(dest / "000001-d"),
+            DataObject(dest / "000001_a.txt"),
+            # No b.txt
+            DataObject(dest / "000001-a" / "000002-c.txt"),
+            DataObject(dest / "000001-d" / "000001-d.txt"),
+        ]
+
+        assert "Processed some items with errors" in caplog.text
+        assert f"No checksum found for {run_dir / "b.txt"}" in caplog.text
+        assert "num_items=7" in caplog.text
+        assert "num_processed=6" in caplog.text
+        assert "num_errors=1" in caplog.text
+
+    @m.context("When checksum stale")
+    @m.it("Skips that file, outputs errors and publishes other files")
+    def test_stale_checksum(
+        self, ultima_run, empty_collection: PurePath, caplog: LogCaptureFixture
+    ):
+        # Arrange
+        run_dir, checksums_path = ultima_run
+        (run_dir / "b.txt").touch()
+        dest = empty_collection
+
+        # Act
+        with pytest.raises(SystemExit):
+            self._main(
+                [
+                    str(run_dir),
+                    str(dest),
+                    "--fill",
+                    "--use-checksums-file",
+                    str(checksums_path),
+                    "--exclude-md5",
+                ]
+            )
+
+        # Assert
+        assert Collection(dest).contents(recurse=True) == [
+            Collection(dest / "000001-a"),
+            Collection(dest / "000001-d"),
+            DataObject(dest / "000001_a.txt"),
+            # No b.txt
+            DataObject(dest / "000001-a" / "000002-c.txt"),
+            DataObject(dest / "000001-d" / "000001-d.txt"),
+        ]
+
+        assert "Processed some items with errors" in caplog.text
+        assert f"Checksum for {run_dir / "b.txt"} may be out of date" in caplog.text
+        assert "num_items=7" in caplog.text
+        assert "num_processed=6" in caplog.text
+        assert "num_errors=1" in caplog.text
 
     @staticmethod
     def _main(args: list[str]):

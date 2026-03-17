@@ -26,6 +26,7 @@
 
 import logging
 import os
+import shutil
 from datetime import datetime, timezone
 from pathlib import PurePath
 from typing import Any, Generator
@@ -436,6 +437,21 @@ def challenging_paths_irods(tmp_path):
         yield expt_root
     finally:
         remove_rods_path(rods_path)
+
+
+@pytest.fixture(scope="function")
+def ultima_run(tmp_path):
+    """A fixture providing an Ultima runs directory and a checksums file."""
+    run_dir = (tmp_path / "minimal").absolute()
+    shutil.copytree("./tests/data/ultima/minimal", run_dir)
+    checksums_path = tmp_path / "minimal.md5"
+    checksums_path.write_text(
+        f"""ac06fd24fc0edc84761c799c975d73c3  {run_dir}/000001-a/000002-c.txt
+f8c316034eaf9cd99e7346afa5e4a8e3  {run_dir}/000001-d/000001-d.txt
+6e785a5236e0b5480025469d312b2aeb  {run_dir}/000001_a.txt
+2b1c6c7095b550e86230c4996d1595e4  {run_dir}/b.txt"""
+    )
+    yield run_dir, checksums_path
 
 
 @pytest.fixture(scope="function")

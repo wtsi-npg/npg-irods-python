@@ -21,6 +21,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Callable
 
 import structlog
 from npg.cli import add_logging_arguments, integer_in_range
@@ -31,7 +32,7 @@ from npg_irods import add_appinfo_structlog_processor
 from npg_irods.common import infer_zone
 from npg_irods.functions import make_path_filter
 from npg_irods.publish import publish_directory
-from npg_irods.utilities import read_md5_file
+from npg_irods.utilities import read_md5_file, read_md5sums_file
 
 description = """
 A utility to (recursively) publish a local directory to iRODS, retaining the directory
@@ -131,7 +132,8 @@ parser.add_argument(
     type=argparse.FileType("r", encoding="UTF-8"),
     default=None,
 )
-parser.add_argument(
+checksums_group = parser.add_mutually_exclusive_group(required=False)
+checksums_group.add_argument(
     "--use-checksum-files",
     help="Expect checksum files to be present alongside the data files with "
     "the same name as the data file but with an additional '.md5' extension"
@@ -141,6 +143,16 @@ parser.add_argument(
     "enabled and a checksum file cannot be read, an error will be raised for "
     "that file. Optional, defaults to false.",
     action="store_true",
+)
+checksums_group.add_argument(
+    "--use-checksums-file",
+    help="Expect checksums to be present in a checksums file at path specified "
+    "following GNU coreutils md5sum format. This avoids having to calculate the "
+    "checksums during the publish process. If this option is enabled and a "
+    "checksum is missing or stale, an error will be raised for that file. "
+    "Optional, defaults to none.",
+    type=str,
+    default=None,
 )
 parser.add_argument(
     "--num-clients",
@@ -154,6 +166,26 @@ parser.add_argument(
 def _parse_group(group: str) -> tuple[str, str | None]:
     name, zone = (group.split("#", maxsplit=1) + [None])[:2]
     return name, zone
+
+
+def make_get_checksum(md5sums_path: Path) -> Callable[[Path | str], str]:
+    md5sums = read_md5sums_file(md5sums_path)
+    md5sums_modified = md5sums_path.stat().st_mtime
+
+    def get_checksum(path: Path | str) -> str:
+        path = Path(path) if isinstance(path, str) else path
+        path = path.resolve()
+        checksum = md5sums.get(path)
+        if not checksum:
+            raise ValueError(f"No checksum found for {path}")
+        path_modified = path.stat().st_mtime
+        if path_modified > md5sums_modified:
+            raise ValueError(
+                f"Checksum for {path} may be out of date, file modified ({path_modified}) more recently than {md5sums_path} ({md5sums_modified})"
+            )
+        return checksum
+
+    return get_checksum
 
 
 def main():
@@ -240,7 +272,21 @@ def main():
         else None
     )
 
-    checksum_fn = read_md5_file if args.use_checksum_files else None
+    checksum_fn: Callable[[Path | str], str] | None
+    if args.use_checksum_files:
+        checksum_fn = read_md5_file
+    elif args.use_checksums_file:
+        try:
+            checksum_fn = make_get_checksum(Path(args.use_checksums_file))
+        except Exception as e:
+            log.error(
+                "Failed to read checksums file",
+                path=args.use_checksums_file,
+                error=str(e),
+            )
+            raise e
+    else:
+        checksum_fn = None
 
     num_items, num_processed, num_errors = publish_directory(
         args.directory,

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022, 2023, 2024, 2025 Genome Research Ltd. All rights
+# Copyright © 2022, 2023, 2024, 2025, 2026 Genome Research Ltd. All rights
 # reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
+# @author Calum Eadie <ce10@sanger.ac.uk>
 
 
 """This module contains data management utility functions for working with iRODS data
@@ -1255,3 +1256,27 @@ def read_md5_file(path: Path) -> str:
         if len(md5) != 32:
             raise ValueError(f"MD5 checksum is not 32 characters: '{md5}'")
         return md5
+
+
+def read_md5sums_file(path: Path) -> dict[Path, str]:
+    """
+    Reads an MD5 checksums file produced by checksum-directory or another tool
+    outputting to GNU coreutils md5sum compatible format. Raises an error if the
+    file does not exist or if a checksum is not 32 characters.
+
+    Args:
+        path: Path to the file to read the MD5 checksums from.
+
+    Returns:
+        Dictionary of absolute paths to MD5 checksums.
+    """
+    md5sums = {}
+    log.info("Reading MD5 checksums file.", path=path)
+    with path.open() as f:
+        for line in f:
+            line = line.strip()
+            md5, path = line.split("  ", 1)
+            if len(md5) != 32:
+                raise ValueError(f"MD5 checksum is not 32 characters: '{md5}'")
+            md5sums[Path(path)] = md5
+    return md5sums

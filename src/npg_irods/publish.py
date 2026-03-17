@@ -18,6 +18,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path, PurePath
+from typing import Callable
 
 from partisan.irods import AC, AVU, Collection, DataObject, client_pool, Permission
 from structlog import get_logger
@@ -36,7 +37,7 @@ def publish_directory(
     avus: list[AVU] = None,
     acl: list[AC] = None,
     filter_fn=None,
-    local_checksum=None,
+    local_checksum: Callable[[str], bool] | None = None,
     fill=False,
     force=False,
     handle_exceptions=True,
