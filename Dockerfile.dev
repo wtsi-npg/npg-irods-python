@@ -10,13 +10,15 @@ RUN apt-get update && \
     apt-get install -q -y --no-install-recommends \
     apt-transport-https \
     apt-utils \
-    build-essential \
     ca-certificates \
     curl \
     gcc \
     git \
+    libtool \
     make \
+    pkg-config \
     libbz2-dev \
+    libffi-dev \
     libncurses-dev \
     libsqlite3-dev \
     libreadline-dev \
