@@ -1,6 +1,6 @@
 FROM --platform=linux/amd64 ubuntu:bionic AS builder
 
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION=3.14
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -8,14 +8,17 @@ RUN apt-get update && \
     apt-get install -q -y --no-install-recommends \
     autoconf \
     automake \
-    build-essential \
     ca-certificates \
     curl \
     git \
     libtool \
+    make \
     pkg-config \
-    libffi-dev \
     libbz2-dev \
+    libffi-dev \
+    libncurses-dev \
+    libsqlite3-dev \
+    libreadline-dev \
     libssl-dev \
     zlib1g-dev \
     unattended-upgrades && \
