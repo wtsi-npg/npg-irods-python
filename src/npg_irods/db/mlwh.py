@@ -218,6 +218,8 @@ class OseqFlowcell(Base):
     id_lims = mapped_column(String(10), nullable=False)
     pipeline_id_lims = mapped_column(String(255))
     requested_data_type = mapped_column(String(255))
+    # See https://github.com/sanger/traction-service/blob/4141cc7af9ec3b8c1d5bdfd168893f7330b9d648/app/ont/ont.rb#L67
+    rebasecalling_process = mapped_column(String(50))
     tag_identifier = mapped_column(String(255))
     tag_sequence = mapped_column(String(255))
     tag_set_id_lims = mapped_column(String(255))
