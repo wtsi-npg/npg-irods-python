@@ -79,6 +79,9 @@ class PlatformNamespace(StrEnum):
 
     This can be used as a prefix for metadata keys to ensure uniqueness e.g. in iRODS
     and also simply to refer to a platform in a consistent way.
+
+    Although some of the platform names that we use are the same as the name of the
+    supplier company, they are separate concepts.
     """
 
     BIONANO = "bionano"
@@ -90,6 +93,7 @@ class PlatformNamespace(StrEnum):
     PACBIO = "pacbio"
     SEQUENOM = "sequenom"
     ULTIMA_GENOMICS = "ultimagen"
+    XENIUM = "xenium"
 
 
 @unique
@@ -119,6 +123,7 @@ def rods_path(path):
     Returns:
         The path
     """
+
     if rods_path_type(path) is None:
         raise ArgumentTypeError(f"iRODS path does not exist '{path}'")
 
@@ -134,6 +139,7 @@ def is_illumina(path: PathLike | str) -> bool:
     Returns:
         True if Illumina data.
     """
+
     illumina_legacy_patt = r"/seq/\d+\b"
     illumina_patt = r"/seq/illumina/runs/\d+\b"
     p = str(path)
@@ -152,6 +158,7 @@ def is_infinium(path: PathLike | str) -> bool:
     Returns:
         True if Infinium data.
     """
+
     return re.match(r"/infinium\b", str(path)) is not None
 
 
@@ -164,6 +171,7 @@ def is_bionano(path: PathLike | str) -> bool:
     Returns:
         True if BioNano data.
     """
+
     return re.match(r"/seq/bionano\b", str(path)) is not None
 
 
@@ -177,6 +185,7 @@ def is_element_biosciences(path: PathLike | str) -> bool:
     Returns:
         True if Element Biosciences data.
     """
+
     return re.match(r"/seq/elembio\b", str(path)) is not None
 
 
@@ -189,6 +198,7 @@ def is_fluidigm(path: PathLike | str) -> bool:
     Returns:
         True if Fluidigm data.
     """
+
     return re.match(r"/seq/fluidigm\b", str(path)) is not None
 
 
@@ -201,6 +211,7 @@ def is_10x(path: PathLike | str) -> bool:
     Returns:
         True if 10x data.
     """
+
     return re.match(r"/seq/\S+/(cell|long|space)ranger", str(path)) is not None
 
 
@@ -214,6 +225,7 @@ def is_oxford_nanopore(path: PathLike | str) -> bool:
     Returns:
         True if ONT data.
     """
+
     return re.match(r"/seq/ont\b", str(path)) is not None
 
 
@@ -226,6 +238,7 @@ def is_pacbio(path: PathLike | str) -> bool:
     Returns:
         True if PacBio data.
     """
+
     return re.match(r"/seq/pacbio\b", str(path)) is not None
 
 
@@ -239,6 +252,7 @@ def is_sequenom(path: PathLike | str) -> bool:
     Returns:
         True if Sequenom data.
     """
+
     return re.match(r"/seq/sequenom\b", str(path)) is not None
 
 
@@ -252,7 +266,21 @@ def is_ultima_genomics(path: PathLike | str) -> bool:
     Returns:
         True if Ultima data.
     """
+
     return re.match(r"/seq/ultimagen\b", str(path)) is not None
+
+
+def is_xenium(path: PathLike | str) -> bool:
+    """Test whether the argument should be data derived from a 10x Xenium instrument.
+
+    Args:
+        path: An iRODS path.
+
+    Returns:
+        True if Xenium data.
+    """
+
+    return re.match(r"/seq/xenium\b", str(path)) is not None
 
 
 def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
@@ -264,6 +292,7 @@ def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
     Returns:
         A tuple of platform and analysis type.
     """
+
     if is_bionano(path):
         return Platform.BIONANO, AnalysisType.OPTICAL_MAPPING
     if is_element_biosciences(path):
@@ -287,6 +316,8 @@ def infer_data_source(path: PathLike | str) -> Tuple[Platform, AnalysisType]:
         return Platform.SEQUENOM, AnalysisType.GENOTYPING
     if is_ultima_genomics(path):
         return Platform.ULTIMA_GENOMICS, AnalysisType.NUCLEIC_ACID_SEQUENCING
+    if is_xenium(path):
+        return Platform.XENIUM, AnalysisType.GENE_EXPRESSION
 
     return Platform.OTHER, AnalysisType.OTHER
 

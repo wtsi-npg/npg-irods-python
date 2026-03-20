@@ -16,21 +16,20 @@ requires-python = ">=3.12"
 dynamic = ["version"]
 
 dependencies = [
-    "npg-python-lib >= 1.0.0,<2",
+    "npg-python-lib >=2,<3",
     "npg_id_generation >=5.0.1",
-    "partisan >=4.1,<5",
+    "partisan >=4.2,<5",
     "pymysql >=1.1.1",
-    "python-dateutil >=2.9.0,<3",
-    "rich >=13.6.0",
-    "sqlalchemy >=2.0.33",
-    "structlog >=23.3.0",
+    "python-dateutil >=2.9,<3",
+    "sqlalchemy >=2",
+    "structlog >=25",
     "yattag"
 ]
 
 [project.optional-dependencies]
 test = [
-    "black >=26.0,<27",
-    "pytest >=8.0,<10",
+    "black >=26,<27",
+    "pytest >=9,<10",
     "sqlalchemy-utils >=0.41.0",
 ]
 
@@ -48,6 +47,7 @@ repository = "https://github.com/wtsi-npg/npg-irods-python.git"
 "copy-confirm" = "npg_irods.cli.copy_confirm:main"
 "locate-data-objects" = "npg_irods.cli.locate_data_objects:main"
 "publish-directory" = "npg_irods.cli.publish_directory:main"
+"publish-xenium-results" = "npg_irods.cli.publish_xenium_results:main"
 "repair-common-metadata" = "npg_irods.cli.repair_common_metadata:main"
 "repair-checksums" = "npg_irods.cli.repair_checksums:main"
 "repair-replicas" = "npg_irods.cli.repair_replicas:main"
