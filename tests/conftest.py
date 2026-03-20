@@ -123,7 +123,7 @@ def sql_test_utilities():
 
 
 @pytest.fixture(scope="function")
-def mlwh_session() -> Session:
+def mlwh_session() -> Generator[Session, Any, None]:
     """Create an empty ML warehouse database fixture."""
     section = INI_SECTION_GITHUB if is_running_in_github_ci() else INI_SECTION_LOCAL
 
@@ -142,7 +142,7 @@ def mlwh_session() -> Session:
 
     mlwh.Base.metadata.create_all(engine)
     session_maker = sessionmaker(bind=engine)
-    sess: Session() = session_maker()
+    sess: Session = session_maker()
 
     try:
         yield sess
