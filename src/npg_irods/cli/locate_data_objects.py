@@ -174,8 +174,10 @@ def illumina_updates_cli(cli_args: argparse.ArgumentParser):
     skip_absent_runs = cli_args.skip_absent_runs
     json = cli_args.report_json
     zone = cli_args.zone
-    cache_path = cli_args.mlwh_cache
+    mlwh_cache = cli_args.mlwh_cache
     prime_cache = cli_args.prime_mlwh_cache
+
+    cache_path = Path(mlwh_cache) if mlwh_cache else None
 
     with Session(engine) as sess:
         num_proc, num_errors = illumina_updates(
@@ -185,7 +187,7 @@ def illumina_updates_cli(cli_args: argparse.ArgumentParser):
             skip_absent_runs=skip_absent_runs,
             json=json,
             zone=zone,
-            cache_path=Path(cache_path),
+            cache_path=cache_path,
             prime_cache=prime_cache,
         )
 
@@ -313,8 +315,10 @@ def ont_updates_cli(cli_args: argparse.ArgumentParser):
     report_tags = cli_args.report_tags
     json = cli_args.report_json
     zone = cli_args.zone
-    cache_path = cli_args.mlwh_cache
+    mlwh_cache = cli_args.mlwh_cache
     prime_cache = cli_args.prime_mlwh_cache
+
+    cache_path = Path(mlwh_cache) if mlwh_cache else None
 
     with Session(engine) as sess:
         num_proc, num_errors = ont_updates(
@@ -324,7 +328,7 @@ def ont_updates_cli(cli_args: argparse.ArgumentParser):
             report_tags=report_tags,
             json=json,
             zone=zone,
-            cache_path=Path(cache_path),
+            cache_path=cache_path,
             prime_cache=prime_cache,
         )
 
@@ -446,8 +450,10 @@ def pacbio_updates_cli(cli_args: argparse.ArgumentParser):
     skip_absent_runs = cli_args.skip_absent_runs
     json = cli_args.report_json
     zone = cli_args.zone
-    cache_path = cli_args.mlwh_cache
+    mlwh_cache = cli_args.mlwh_cache
     prime_cache = cli_args.prime_mlwh_cache
+
+    cache_path = Path(mlwh_cache) if mlwh_cache else None
 
     with Session(engine) as sess:
         num_proc, num_errors = pacbio_updates(
@@ -457,7 +463,7 @@ def pacbio_updates_cli(cli_args: argparse.ArgumentParser):
             skip_absent_runs=skip_absent_runs,
             json=json,
             zone=zone,
-            cache_path=Path(cache_path),
+            cache_path=cache_path,
             prime_cache=prime_cache,
         )
 
@@ -654,7 +660,7 @@ def _load_mlwh_change_ids(
 
     log.info(
         "Filtering MLWH updates using cache",
-        cache=str(cache_path),
+        cache=cache_path.as_posix(),
         samples=len(sample_ids),
         studies=len(study_ids),
     )
