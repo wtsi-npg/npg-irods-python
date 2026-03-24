@@ -45,7 +45,9 @@ def checksum_directory(path: Path, md5sums_path: Path):
 
     md5sums = read_md5sums_file(md5sums_path) if md5sums_path.exists() else {}
 
-    with md5sums_path.open("a") as md5sums_file:
+    # Use line buffering so checksums we've already calculated are persisted even
+    # if something goes wrong.
+    with md5sums_path.open("a", buffering=1) as md5sums_file:
         for path in sorted(path.rglob("*")):
             if path.is_file() and path.suffix.lower() != ".md5":
                 num_files += 1
