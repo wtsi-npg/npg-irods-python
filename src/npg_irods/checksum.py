@@ -53,7 +53,7 @@ def checksum_directory(path: Path, md5sums_path: Path):
                 num_files += 1
 
                 if path in md5sums:
-                    log.debug(
+                    log.info(
                         "Match found in md5sums file. Skipping.",
                         path=path,
                         md5sums_path=md5sums_path,
@@ -66,7 +66,7 @@ def checksum_directory(path: Path, md5sums_path: Path):
                 md5sum = digest.hexdigest()
                 md5sums_file.write(f"{md5sum}  {path}\n")
 
-                log.debug("Calculated checksum.", path=path, md5sum=md5sum)
+                log.info("Calculated checksum.", path=path, md5sum=md5sum)
 
                 num_checksummed += 1
 
