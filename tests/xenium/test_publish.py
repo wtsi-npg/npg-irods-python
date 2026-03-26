@@ -28,12 +28,12 @@ from npg_irods.xenium import publish_result_dir
 class TestPublish:
     @m.context("When a local Xenium results directory is provided")
     @m.it("Publishes it to iRODS with correct collection metadata")
-    def test_publish_results_directory(self, empty_collection):
+    def test_publish_results_directory(self, empty_collection_path):
         local_path = Path(
             "tests/data/xenium/synthetic/"
             "output-XETG00000__0000000__synthetic_region_001__20000101__000000"
         )
-        remote_path = empty_collection / "xenium"
+        remote_path = empty_collection_path / "xenium"
 
         Collection(remote_path).create()  # The root collection must exist
         coll = publish_result_dir(local_path, remote_path)

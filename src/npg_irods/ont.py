@@ -475,7 +475,6 @@ def find_run_collections(
     Returns:
         Paths of collections created between these times.
     """
-
     args = []
     if zone is not None:
         args.extend(["-z", shlex.quote(zone)])
@@ -531,7 +530,7 @@ def barcode_name_from_id(tag_identifier: str) -> str:
 
 def barcode_collections(coll: Collection, *tag_identifier) -> list[Collection]:
     """Return the barcode-specific sub-collections that exist under the specified
-    collection basecalled and deplexed on instrument or offline.
+    collection basecalled and deplexed on-instrument or offline.
 
     The arrangement of these collections mirrors the directory structure created by the
     guppy/dorado basecaller. E.g. for tag identifier NB01:

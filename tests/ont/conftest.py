@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023, 2024, 2026 Genome Research Ltd. All
+# rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +22,6 @@ from pathlib import PurePath
 from typing import Any, Generator
 
 import pytest
-from partisan.icommands import iput
 from partisan.irods import AVU, Collection
 from sqlalchemy.orm import Session
 
@@ -31,8 +31,7 @@ from helpers import (
     EARLY,
     LATE,
     LATEST,
-    add_rods_path,
-    remove_rods_path,
+    consume,
 )
 from npg_irods.db.mlwh import OseqFlowcell, Sample, Study
 from npg_irods.metadata import ont
@@ -235,31 +234,19 @@ def ont_synthetic_mlwh(mlwh_session, ont_barcodes) -> Generator[Session, Any, No
 
 
 @pytest.fixture(scope="function")
-def ont_gridion_irods(tmp_path):
-    """A fixture providing a set of files based on output from an ONT GridION
-    instrument. This dataset provides an example of file and directory naming
-    conventions. The file contents are dummy values."""
-    root_path = PurePath("/testZone/home/irods/test/ont_gridion_irods")
-    rods_path = add_rods_path(root_path, tmp_path)
-
-    iput("./tests/data/ont/gridion", rods_path, recurse=True)
-    expt_root = rods_path / "gridion"
-
-    try:
-        yield expt_root
-    finally:
-        remove_rods_path(rods_path)
-
-
-@pytest.fixture(scope="function")
-def ont_synthetic_irods(tmp_path):
+def ont_synthetic_irods(tmp_irods_collection_path):
     """A fixture providing a synthetic set of files and metadata based on output
     from an ONT GridION instrument, modified to represent the way simple and
     multiplexed experiments are laid out. The file contents are dummy values."""
-    root_path = PurePath("/testZone/home/irods/test/ont_synthetic_irods")
-    rods_path = add_rods_path(root_path, tmp_path)
+    expt_root = tmp_irods_collection_path / "synthetic"
 
-    expt_root = rods_path / "synthetic"
+    # We have synthetic data only for simple_experiment_001,
+    # multiplexed_experiment_001, rebasecalled_multiplexed_experiment_001
+    # and old_rebasecalled_multiplexed_experiment_001
+    expt_coll = Collection(expt_root)
+    consume(
+        expt_coll.put("./tests/data/ont/synthetic", recurse=True, verify_checksum=True)
+    )
 
     for expt in range(1, NUM_SIMPLE_EXPTS + 1):
         for slot in range(1, NUM_INSTRUMENT_SLOTS + 1):
@@ -269,7 +256,7 @@ def ont_synthetic_irods(tmp_path):
             run_folder = f"20190904_1514_G{slot}00000_{flowcell_id}_69126024"
 
             coll = Collection(expt_root / expt_name / run_folder)
-            coll.create(parents=True)
+            coll.create(parents=True, exist_ok=True)
             meta = [
                 AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
                 AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
@@ -286,7 +273,7 @@ def ont_synthetic_irods(tmp_path):
             run_folder = f"20190904_1514_GA{slot}0000_{flowcell_id}_cf751ba1"
 
             coll = Collection(expt_root / expt_name / run_folder)
-            coll.create(parents=True)
+            coll.create(parents=True, exist_ok=True)
             meta = [
                 AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
                 AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
@@ -313,7 +300,7 @@ def ont_synthetic_irods(tmp_path):
                 "default",
             )
             coll = Collection(path)
-            coll.create(parents=True)
+            coll.create(parents=True, exist_ok=True)
             meta = [
                 AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
                 AVU(ont.Instrument.SAMPLE_ID, sample_id),
@@ -340,7 +327,7 @@ def ont_synthetic_irods(tmp_path):
                 "default",
             )
             coll = Collection(path)
-            coll.create(parents=True)
+            coll.create(parents=True, exist_ok=True)
             meta = [
                 AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
                 AVU(ont.Instrument.INSTRUMENT_SLOT, f"{slot}"),
@@ -348,12 +335,66 @@ def ont_synthetic_irods(tmp_path):
             ]
             coll.add_metadata(*meta)
 
-    # We have synthetic data only for simple_experiment_001,
-    # multiplexed_experiment_001, rebasecalled_multiplexed_experiment_001
-    # and old_rebasecalled_multiplexed_experiment_001
-    iput("./tests/data/ont/synthetic", rods_path, recurse=True)
+    try:
+        yield expt_root
+    finally:
+        expt_coll.remove(recurse=True)
+
+
+@pytest.fixture(scope="function")
+def ont_simple_experiment_001_slot_1(tmp_irods_collection_path):
+    """A reduced fixture containing only simple_experiment_001 slot 1."""
+    expt_root = tmp_irods_collection_path / "synthetic"
+    expt_coll = Collection(expt_root)
+    expt_name = "simple_experiment_001"
+    flowcell_id = "flowcell011"
+    sample_id = "simple_sample_001"
+    run_folder = "20190904_1514_G100000_flowcell011_69126024"
+
+    coll = Collection(expt_root / expt_name / run_folder)
+    coll.create(parents=True, exist_ok=True)
+    coll.add_metadata(
+        AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
+        AVU(ont.Instrument.INSTRUMENT_SLOT, "1"),
+        AVU(ont.Instrument.SAMPLE_ID, sample_id),
+        AVU(ont.Instrument.FLOWCELL_ID, flowcell_id),
+    )
 
     try:
         yield expt_root
     finally:
-        remove_rods_path(rods_path)
+        expt_coll.remove(recurse=True)
+
+
+@pytest.fixture(scope="function")
+def ont_multiplexed_experiment_001_slot_1(tmp_irods_collection_path):
+    """A reduced fixture containing only multiplexed_experiment_001 slot 1."""
+    expt_root = tmp_irods_collection_path / "synthetic"
+    root_coll = Collection(expt_root)
+    expt_name = "multiplexed_experiment_001"
+    expt_coll = Collection(expt_root / expt_name)
+    flowcell_id = "flowcell101"
+    sample_id = "multi_rb_sample_001"
+    run_folder = "20190904_1514_GA10000_flowcell101_cf751ba1"
+
+    root_coll.create(parents=True, exist_ok=True)
+    consume(
+        expt_coll.put(
+            "./tests/data/ont/synthetic/multiplexed_experiment_001",
+            recurse=True,
+            verify_checksum=True,
+        )
+    )
+
+    coll = Collection(expt_root / expt_name / run_folder)
+    coll.add_metadata(
+        AVU(ont.Instrument.EXPERIMENT_NAME, expt_name),
+        AVU(ont.Instrument.INSTRUMENT_SLOT, "1"),
+        AVU(ont.Instrument.SAMPLE_ID, sample_id),
+        AVU(ont.Instrument.FLOWCELL_ID, flowcell_id),
+    )
+
+    try:
+        yield expt_root
+    finally:
+        root_coll.remove(recurse=True)

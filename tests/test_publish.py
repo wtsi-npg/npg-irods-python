@@ -36,9 +36,9 @@ class TestPublish:
         "the local directory does not exist and error handling is enabled"
     )
     @m.it("Returns the expected error count")
-    def test_publish_non_existent_dir_yield(self, tmpdir, empty_collection):
+    def test_publish_non_existent_dir_yield(self, tmpdir, empty_collection_path):
         num_items, num_processed, num_errors = publish_directory(
-            tmpdir / "no_such_dir", empty_collection
+            tmpdir / "no_such_dir", empty_collection_path
         )
         assert num_items == 1  # The exception
         assert num_processed == 0
@@ -48,22 +48,22 @@ class TestPublish:
         "When the local directory does not exist and error handling is not enabled"
     )
     @m.it("Raises a PublishingError")
-    def test_publish_non_existent_dir_err(self, tmpdir, empty_collection):
+    def test_publish_non_existent_dir_err(self, tmpdir, empty_collection_path):
         with pytest.raises(PublishingError, match="Error while publishing") as exc_info:
             publish_directory(
-                tmpdir / "no_such_dir", empty_collection, handle_exceptions=False
+                tmpdir / "no_such_dir", empty_collection_path, handle_exceptions=False
             )
 
         assert exc_info.value.src == tmpdir / "no_such_dir"
-        assert exc_info.value.dest == empty_collection
+        assert exc_info.value.dest == empty_collection_path
         assert exc_info.value.num_processed == 0
         assert exc_info.value.num_errors == 1
 
     @m.context("When the directory is empty")
     @m.it("Creates an empty collection in iRODS and returns the expected item counts")
-    def test_publish_empty_dir(self, tmpdir, empty_collection):
+    def test_publish_empty_dir(self, tmpdir, empty_collection_path):
         num_items, num_processed, num_errors = publish_directory(
-            tmpdir, empty_collection
+            tmpdir, empty_collection_path
         )
         assert num_items == 1  # The collection itself
         assert num_processed == 1
@@ -71,9 +71,9 @@ class TestPublish:
 
     @m.context("When the local directory is not empty")
     @m.it("Creates a collection in iRODS and returns the expected item counts")
-    def test_publish_non_empty_dir(self, empty_collection):
+    def test_publish_non_empty_dir(self, empty_collection_path):
         src = Path("./tests/data/simple/collection")
-        dest = empty_collection
+        dest = empty_collection_path
 
         num_items, num_processed, num_errors = publish_directory(src, dest)
 
@@ -90,9 +90,9 @@ class TestPublish:
 
     @m.context("When an ACL is provided")
     @m.it("Adds it to the published collections and data objects")
-    def test_publish_with_acl(self, empty_collection):
+    def test_publish_with_acl(self, empty_collection_path):
         src = Path("./tests/data/simple/collection")
-        dest = empty_collection
+        dest = empty_collection_path
         acl = [STUDY_AC]
 
         num_items, num_processed, num_errors = publish_directory(src, dest, acl=acl)
@@ -107,9 +107,9 @@ class TestPublish:
 
     @m.context("When metadata are provided")
     @m.it("Adds it to the published root collection, but not to its contents")
-    def test_publish_with_metadata(self, empty_collection):
+    def test_publish_with_metadata(self, empty_collection_path):
         src = Path("./tests/data/simple/collection")
-        dest = empty_collection / "sub"
+        dest = empty_collection_path / "sub"
         avus = [AVU("attr1", "val1"), AVU("attr2", "val2")]
 
         num_items, num_processed, num_errors = publish_directory(src, dest, avus=avus)
@@ -128,9 +128,9 @@ class TestPublish:
 
     @m.context("When not handling errors and an error occurs")
     @m.it("Raises a PublishingError")
-    def test_publish_with_error(self, empty_collection):
+    def test_publish_with_error(self, empty_collection_path):
         src = Path("./tests/data/simple/collection")
-        dest = empty_collection / "sub"
+        dest = empty_collection_path / "sub"
         avus = [AVU("attr1", "")]  # Empty value to trigger an error
 
         with pytest.raises(PublishingError, match="Error while publishing") as exc_info:
@@ -143,9 +143,9 @@ class TestPublish:
 
     @m.context("When src inside working directory and specified with relative path")
     @m.it("Passes relative paths to filter_fn")
-    def test_publish_inside_working_directory_relative_src(self, empty_collection):
+    def test_publish_inside_working_directory_relative_src(self, empty_collection_path):
         src = Path("./tests/data/simple/collection")
-        dest = empty_collection
+        dest = empty_collection_path
 
         paths = []
         publish_directory(src, dest, filter_fn=lambda x: paths.append(x))
@@ -157,9 +157,9 @@ class TestPublish:
 
     @m.context("When src inside working directory and specified with absolute path")
     @m.it("Passes absolute paths to filter_fn")
-    def test_publish_inside_working_directory_absolute_src(self, empty_collection):
+    def test_publish_inside_working_directory_absolute_src(self, empty_collection_path):
         src = Path("./tests/data/simple/collection").absolute()
-        dest = empty_collection
+        dest = empty_collection_path
 
         paths = []
         publish_directory(src, dest, filter_fn=lambda x: paths.append(x))
@@ -172,13 +172,13 @@ class TestPublish:
     @m.context("When src outside working directory and specified with relative path")
     @m.it("Passes relative paths to filter_fn")
     def test_publish_outside_working_directory(
-        self, tmpdir, empty_collection, monkeypatch: MonkeyPatch
+        self, tmpdir, empty_collection_path, monkeypatch: MonkeyPatch
     ):
         absolute_path = Path("./tests/data/simple/collection").absolute()
         monkeypatch.chdir(tmpdir)
         relative_path = Path(relpath(absolute_path, getcwd()))
         src = relative_path
-        dest = empty_collection
+        dest = empty_collection_path
 
         paths = []
         publish_directory(src, dest, filter_fn=lambda x: paths.append(x))
@@ -191,12 +191,12 @@ class TestPublish:
     @m.context("When src outside working directory and specified with absolute path")
     @m.it("Passes absolute paths to filter_fn")
     def test_publish_outside_working_directory_absolute_src(
-        self, tmpdir, empty_collection, monkeypatch: MonkeyPatch
+        self, tmpdir, empty_collection_path, monkeypatch: MonkeyPatch
     ):
         absolute_path = Path("./tests/data/simple/collection").absolute()
         monkeypatch.chdir(tmpdir)
         src = absolute_path
-        dest = empty_collection
+        dest = empty_collection_path
 
         paths = []
         publish_directory(src, dest, filter_fn=lambda x: paths.append(x))
@@ -208,10 +208,10 @@ class TestPublish:
 
     @m.context("When parent collections do not exist")
     @m.it("Creates without applying groups or metadata")
-    def test_publish_collection_missing_parent_collection(self, empty_collection):
+    def test_publish_collection_missing_parent_collection(self, empty_collection_path):
         # Arrange
         src = Path("./tests/data/simple/collection")
-        dest = empty_collection / "missing1" / "missing2" / "sub"
+        dest = empty_collection_path / "missing1" / "missing2" / "sub"
 
         # Act
         avus = [AVU("a1", "v1")]
@@ -233,11 +233,11 @@ class TestPublish:
 
         default_acl = [AC("irods", Permission.OWN, "testZone")]
 
-        missing1 = Collection(empty_collection / "missing1")
+        missing1 = Collection(empty_collection_path / "missing1")
         assert missing1.acl() == default_acl
         assert missing1.metadata() == []
 
-        missing2 = Collection(empty_collection / "missing1" / "missing2")
+        missing2 = Collection(empty_collection_path / "missing1" / "missing2")
         assert missing2.acl() == default_acl
         assert missing2.metadata() == []
 
@@ -246,11 +246,11 @@ class TestPublish:
     @m.it("Returns the expected error count")
     @patch("partisan.irods.Baton.create_collection", autospec=True)
     def test_publish_missing_parent_collection_error_yield(
-        self, mock_create_collection: Mock, tmpdir, empty_collection
+        self, mock_create_collection: Mock, tmpdir, empty_collection_path
     ):
         # Arrange
         src = tmpdir
-        dest = empty_collection / "missing1" / "sub"
+        dest = empty_collection_path / "missing1" / "sub"
         mock_create_collection.side_effect = Exception("e1")
 
         # Act
@@ -268,11 +268,11 @@ class TestPublish:
     @m.it("Raises a PublishingError")
     @patch("partisan.irods.Baton.create_collection", autospec=True)
     def test_publish_missing_parent_collection_error_err(
-        self, mock_create_collection: Mock, tmpdir, empty_collection
+        self, mock_create_collection: Mock, tmpdir, empty_collection_path
     ):
         # Arrange
         src = tmpdir
-        dest = empty_collection / "missing1" / "sub"
+        dest = empty_collection_path / "missing1" / "sub"
         mock_create_collection.side_effect = Exception("e1")
 
         # Act
@@ -292,11 +292,11 @@ class TestPublish:
     @m.context("and parent collection has inheritance disabled")
     @m.it("publishes with public read permission and without unmanaged read permission")
     def test_publish_with_public_acl_inheritance_disabled(
-        self, public_unmanaged_inheritance_disabled_collection
+        self, public_unmanaged_inheritance_disabled_collection_path
     ):
         # Arrange
         src = Path("./tests/data/simple/collection")
-        dest = public_unmanaged_inheritance_disabled_collection / "missing" / "sub"
+        dest = public_unmanaged_inheritance_disabled_collection_path / "missing" / "sub"
 
         # Act
         num_items, num_processed, num_errors = publish_directory(
@@ -309,10 +309,10 @@ class TestPublish:
         assert num_errors == 0
 
         assert not is_inheritance_enabled(
-            public_unmanaged_inheritance_disabled_collection / "missing"
+            public_unmanaged_inheritance_disabled_collection_path / "missing"
         )
         assert Collection(
-            public_unmanaged_inheritance_disabled_collection / "missing"
+            public_unmanaged_inheritance_disabled_collection_path / "missing"
         ).acl() == [ADMIN_AC]
 
         assert not is_inheritance_enabled(dest)
@@ -330,11 +330,11 @@ class TestPublish:
         "publishes with study and unmanaged read permissions and without public permission"
     )
     def test_publish_with_study_acl_inheritance_disabled(
-        self, public_unmanaged_inheritance_disabled_collection
+        self, public_unmanaged_inheritance_disabled_collection_path
     ):
         # Arrange
         src = Path("./tests/data/simple/collection")
-        dest = public_unmanaged_inheritance_disabled_collection / "missing" / "sub"
+        dest = public_unmanaged_inheritance_disabled_collection_path / "missing" / "sub"
 
         # Act
         num_items, num_processed, num_errors = publish_directory(
@@ -347,10 +347,10 @@ class TestPublish:
         assert num_errors == 0
 
         assert not is_inheritance_enabled(
-            public_unmanaged_inheritance_disabled_collection / "missing"
+            public_unmanaged_inheritance_disabled_collection_path / "missing"
         )
         assert Collection(
-            public_unmanaged_inheritance_disabled_collection / "missing"
+            public_unmanaged_inheritance_disabled_collection_path / "missing"
         ).acl() == [ADMIN_AC]
 
         assert not is_inheritance_enabled(dest)
@@ -366,11 +366,11 @@ class TestPublish:
     @m.context("and parent collection has inheritance disabled")
     @m.it("publishes without public and unmanaged read permissions")
     def test_publish_with_private_acl_inheritance_disabled(
-        self, public_unmanaged_inheritance_disabled_collection
+        self, public_unmanaged_inheritance_disabled_collection_path
     ):
         # Arrange
         src = Path("./tests/data/simple/collection")
-        dest = public_unmanaged_inheritance_disabled_collection / "missing" / "sub"
+        dest = public_unmanaged_inheritance_disabled_collection_path / "missing" / "sub"
 
         # Act
         num_items, num_processed, num_errors = publish_directory(src, dest, acl=[])
@@ -381,10 +381,10 @@ class TestPublish:
         assert num_errors == 0
 
         assert not is_inheritance_enabled(
-            public_unmanaged_inheritance_disabled_collection / "missing"
+            public_unmanaged_inheritance_disabled_collection_path / "missing"
         )
         assert Collection(
-            public_unmanaged_inheritance_disabled_collection / "missing"
+            public_unmanaged_inheritance_disabled_collection_path / "missing"
         ).acl() == [ADMIN_AC]
 
         assert not is_inheritance_enabled(dest)

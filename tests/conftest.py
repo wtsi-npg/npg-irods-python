@@ -28,16 +28,12 @@ import logging
 import os
 import shutil
 from datetime import datetime, timezone
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from typing import Any, Generator
 
 import pytest
 import structlog
 from npg.conf import IniData
-from partisan.icommands import (
-    iput,
-    irm,
-)
 from partisan.irods import AC, AVU, Collection, DataObject, Permission
 from partisan.metadata import DublinCore
 from sqlalchemy import create_engine, text
@@ -47,17 +43,17 @@ from sqlalchemy_utils import create_database, database_exists, drop_database
 from helpers import (
     BEGIN,
     CREATED,
+    PUBLIC_AC,
+    UNMANAGED_AC,
     add_rods_path,
     add_sql_test_utilities,
     add_test_groups,
+    consume,
+    enable_inheritance,
     is_running_in_github_ci,
-    remove_rods_path,
     remove_sql_test_utilities,
     remove_test_groups,
     set_replicate_invalid,
-    enable_inheritance,
-    PUBLIC_AC,
-    UNMANAGED_AC,
 )
 from npg_irods import db
 from npg_irods.db import mlwh
@@ -125,6 +121,7 @@ def sql_test_utilities():
 @pytest.fixture(scope="function")
 def mlwh_session() -> Generator[Session, Any, None]:
     """Create an empty ML warehouse database fixture."""
+
     section = INI_SECTION_GITHUB if is_running_in_github_ci() else INI_SECTION_LOCAL
 
     dbconfig = IniData(db.Config).from_file(TEST_INI, section)
@@ -160,10 +157,8 @@ def mlwh_session() -> Generator[Session, Any, None]:
 
 
 def initialize_mlwh_study_and_samples(session: Session):
-    """
-    Insert ML warehouse test data for synthetic runs.
+    """Insert ML warehouse test data for synthetic runs."""
 
-    """
     default_timestamps = {
         "created": CREATED,
         "last_updated": BEGIN,
@@ -220,60 +215,69 @@ def study_and_samples_mlwh(mlwh_session) -> Generator[Session, Any, None]:
 
 
 @pytest.fixture(scope="function")
-def empty_collection(tmp_path):
+def tmp_irods_collection_path(tmp_path) -> Generator[PurePath, Any, None]:
+    """A fixture providing a temporary iRODS collection."""
+    root_path = PurePath("/testZone/home/irods/tmp")
+    coll_path = add_rods_path(root_path, tmp_path)
+    coll = Collection(coll_path).create(exist_ok=True, parents=True)
+
+    try:
+        yield coll_path
+    finally:
+        coll.remove(recurse=True)
+
+
+@pytest.fixture(scope="function")
+def empty_collection_path(tmp_irods_collection_path) -> PurePath:
     """A fixture providing an empty collection."""
-    root_path = PurePath("/testZone/home/irods/test/simple_collection")
-    coll_path = add_rods_path(root_path, tmp_path)
+    coll_path = tmp_irods_collection_path / "empty_collection"
+    Collection(coll_path).create(exist_ok=True, parents=True)
 
-    try:
-        yield coll_path
-    finally:
-        irm(coll_path, force=True, recurse=True)
+    return coll_path
 
 
 @pytest.fixture(scope="function")
-def populated_collection(tmp_path):
-    """A fixture providing a collection a single  data object and a sub-collection,
-    also containing a single data object."""
-    root_path = PurePath("/testZone/home/irods/test/populated_collection")
-    coll_path = add_rods_path(root_path, tmp_path)
+def populated_collection_path(tmp_irods_collection_path) -> PurePath:
+    """A fixture providing a collection path containing a single data object and a
+    sub-collection, also containing a single data object."""
+    coll_path = tmp_irods_collection_path / "populated_collection"
+    consume(
+        Collection(coll_path).put(
+            "./tests/data/simple/collection", recurse=True, verify_checksum=True
+        )
+    )
 
-    iput("./tests/data/simple/collection", coll_path, recurse=True)
-
-    try:
-        yield coll_path
-    finally:
-        irm(coll_path, force=True, recurse=True)
+    return coll_path
 
 
 @pytest.fixture(scope="function")
-def simple_data_object(tmp_path):
+def simple_data_object_path(
+    tmp_irods_collection_path,
+) -> Generator[PurePath, Any, None]:
     """A fixture providing a collection containing a single data object containing
     UTF-8 data."""
-    root_path = PurePath("/testZone/home/irods/test/simple_data_object")
-    rods_path = add_rods_path(root_path, tmp_path)
-
-    obj_path = rods_path / "lorem.txt"
-    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
+    obj_path = tmp_irods_collection_path / "lorem.txt"
+    obj = DataObject(obj_path).put(
+        "./tests/data/simple/data_object/lorem.txt", verify_checksum=True
+    )
 
     try:
         yield obj_path
     finally:
-        remove_rods_path(rods_path)
+        obj.remove(force=True)
 
 
 @pytest.fixture(scope="function")
-def annotated_data_object(tmp_path):
+def annotated_data_object_path(
+    tmp_irods_collection_path,
+) -> Generator[PurePath, Any, None]:
     """A fixture providing a collection containing a single, annotated data object
     containing UTF-8 data."""
+    obj_path = tmp_irods_collection_path / "lorem.txt"
 
-    root_path = PurePath("/testZone/home/irods/test/annotated_data_object")
-    rods_path = add_rods_path(root_path, tmp_path)
-
-    obj_path = rods_path / "lorem.txt"
-    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
-
-    obj = DataObject(obj_path)
+    obj = DataObject(obj_path).put(
+        "./tests/data/simple/data_object/lorem.txt", verify_checksum=True
+    )
     obj.add_metadata(
         AVU(
             DublinCore.CREATED, datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -287,22 +291,19 @@ def annotated_data_object(tmp_path):
     try:
         yield obj_path
     finally:
-        remove_rods_path(rods_path)
+        obj.remove(force=True)
 
 
 @pytest.fixture(scope="function")
-def single_study_and_single_sample_data_object(tmp_path):
+def single_study_single_sample_data_object_path(
+    tmp_irods_collection_path,
+) -> Generator[PurePath, Any, None]:
     """A fixture providing a collection containing a single data object with sample
     and study metadata."""
-    root_path = PurePath(
-        "/testZone/home/irods/test/single_study_and_single_sample_data_object"
+    obj_path = tmp_irods_collection_path / "lorem.txt"
+    obj = DataObject(obj_path).put(
+        "./tests/data/simple/data_object/lorem.txt", verify_checksum=True
     )
-    rods_path = add_rods_path(root_path, tmp_path)
-
-    obj_path = rods_path / "lorem.txt"
-    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
-
-    obj = DataObject(obj_path)
     obj.add_metadata(
         AVU(TrackedSample.ID, "id_sample_lims1"), AVU(TrackedStudy.ID, "1000")
     )
@@ -310,22 +311,19 @@ def single_study_and_single_sample_data_object(tmp_path):
     try:
         yield obj_path
     finally:
-        remove_rods_path(rods_path)
+        obj.remove(force=True)
 
 
 @pytest.fixture(scope="function")
-def single_study_and_multi_sample_data_object(tmp_path):
+def single_study_multi_sample_data_object_path(
+    tmp_irods_collection_path,
+) -> Generator[PurePath, Any, None]:
     """A fixture providing a collection containing a single data object with multiple
     sample and single study metadata."""
-    root_path = PurePath(
-        "/testZone/home/irods/test/single_study_and_multi_sample_data_object"
+    obj_path = tmp_irods_collection_path / "lorem.txt"
+    obj = DataObject(obj_path).put(
+        "./tests/data/simple/data_object/lorem.txt", verify_checksum=True
     )
-    rods_path = add_rods_path(root_path, tmp_path)
-
-    obj_path = rods_path / "lorem.txt"
-    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
-
-    obj = DataObject(obj_path)
     obj.add_metadata(
         AVU(TrackedSample.ID, "id_sample_lims1"),
         AVU(TrackedSample.ID, "id_sample_lims2"),
@@ -335,78 +333,74 @@ def single_study_and_multi_sample_data_object(tmp_path):
     try:
         yield obj_path
     finally:
-        remove_rods_path(rods_path)
+        obj.remove(force=True)
 
 
 @pytest.fixture(scope="function")
-def consent_withdrawn_gapi_data_object(tmp_path):
-    root_path = PurePath("/testZone/home/irods/test/consent_withdrawn_gapi_data_object")
-    rods_path = add_rods_path(root_path, tmp_path)
-
-    obj_path = rods_path / "lorem.txt"
-    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
-
-    obj = DataObject(obj_path)
+def consent_withdrawn_gapi_data_object_path(
+    tmp_irods_collection_path,
+) -> Generator[PurePath, Any, None]:
+    obj_path = tmp_irods_collection_path / "lorem.txt"
+    obj = DataObject(obj_path).put(
+        "./tests/data/simple/data_object/lorem.txt", verify_checksum=True
+    )
     obj.add_metadata(AVU(TrackedSample.CONSENT, "0"))
 
     try:
         yield obj_path
     finally:
-        remove_rods_path(rods_path)
+        obj.remove(force=True)
 
 
 @pytest.fixture(scope="function")
-def consent_withdrawn_npg_data_object(tmp_path):
-    root_path = PurePath("/testZone/home/irods/test/consent_withdrawn_npg_data_object")
-    rods_path = add_rods_path(root_path, tmp_path)
-
-    obj_path = rods_path / "lorem.txt"
-    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
-
-    obj = DataObject(obj_path)
+def consent_withdrawn_npg_data_object_path(
+    tmp_irods_collection_path,
+) -> Generator[PurePath, Any, None]:
+    obj_path = tmp_irods_collection_path / "lorem.txt"
+    obj = DataObject(obj_path).put(
+        "./tests/data/simple/data_object/lorem.txt", verify_checksum=True
+    )
     obj.add_metadata(AVU(TrackedSample.CONSENT_WITHDRAWN, "1"))
 
     try:
         yield obj_path
     finally:
-        remove_rods_path(rods_path)
+        obj.remove(force=True)
 
 
 @pytest.fixture(scope="function")
-def invalid_replica_data_object(tmp_path):
+def invalid_replica_data_object_path(
+    tmp_irods_collection_path,
+) -> Generator[PurePath, Any, None]:
     """A fixture providing a data object with one of its two replicas marked invalid."""
-    root_path = PurePath("/testZone/home/irods/test/invalid_replica_data_object")
-    rods_path = add_rods_path(root_path, tmp_path)
-
-    obj_path = rods_path / "invalid_replica.txt"
-    iput("./tests/data/simple/data_object/lorem.txt", obj_path)
-    set_replicate_invalid(DataObject(obj_path), 1)
+    obj_path = tmp_irods_collection_path / "invalid_replica.txt"
+    obj = DataObject(obj_path).put(
+        "./tests/data/simple/data_object/lorem.txt", verify_checksum=True
+    )
+    set_replicate_invalid(obj, 1)
 
     try:
         yield obj_path
     finally:
-        remove_rods_path(rods_path)
+        obj.remove(force=True)
 
 
 @pytest.fixture(scope="function")
-def annotated_collection_tree(tmp_path):
+def annotated_collection_tree_path(
+    tmp_irods_collection_path,
+) -> Generator[PurePath, Any, None]:
     """A fixture providing a tree of collections and data objects, with both
     collections and data objects having annotation."""
-
-    root_path = PurePath("/testZone/home/irods/test/annotated_collection_tree")
-    rods_path = add_rods_path(root_path, tmp_path)
-
-    iput("./tests/data/tree", rods_path, recurse=True)
-    tree_root = rods_path / "tree"
+    tree_root = tmp_irods_collection_path / "annotated_collection_tree"
 
     group_ac = AC("ss_1000", Permission.READ, zone="testZone")
     public_ac = AC("public", Permission.READ, zone="testZone")
 
     coll = Collection(tree_root)
+    consume(coll.put("./tests/data/tree", recurse=True, verify_checksum=True))
 
     # Create some empty collections
-    c = Collection(coll.path / "c")
-    c.create()
+    c = Collection(coll.path / "c").create()
     for x in ["s", "t", "u"]:
         Collection(c.path / x).create()
 
@@ -420,27 +414,28 @@ def annotated_collection_tree(tmp_path):
     try:
         yield tree_root
     finally:
-        remove_rods_path(rods_path)
+        coll.remove(recurse=True)
 
 
 @pytest.fixture(scope="function")
-def challenging_paths_irods(tmp_path):
+def challenging_irods_paths(
+    tmp_irods_collection_path,
+) -> Generator[PurePath, Any, None]:
     """A fixture providing a collection of challengingly named paths which contain spaces
     and/or quotes."""
-    root_path = PurePath("/testZone/home/irods/test/challenging_paths_irods")
-    rods_path = add_rods_path(root_path, tmp_path)
+    expt_root = tmp_irods_collection_path / "challenging"
 
-    iput("./tests/data/challenging", rods_path, recurse=True)
-    expt_root = rods_path / "challenging"
+    coll = Collection(expt_root)
+    consume(coll.put("./tests/data/challenging", recurse=True, verify_checksum=True))
 
     try:
         yield expt_root
     finally:
-        remove_rods_path(rods_path)
+        coll.remove(recurse=True)
 
 
 @pytest.fixture(scope="function")
-def ultima_run(tmp_path):
+def ultima_run(tmp_path) -> Generator[tuple[Path, Path], Any, None]:
     """A fixture providing an Ultima runs directory and a checksums file."""
     run_dir = (tmp_path / "minimal").absolute()
     shutil.copytree("./tests/data/ultima/minimal", run_dir)
@@ -455,10 +450,14 @@ f8c316034eaf9cd99e7346afa5e4a8e3  {run_dir}/000001-d/000001-d.txt
 
 
 @pytest.fixture(scope="function")
-def public_unmanaged_inheritance_enabled_collection(tmp_path):
-    """A fixture providing a collection with public and unmanaged read permissions and inheritance enabled.
+def public_unmanaged_inheritance_enabled_collection(
+    tmp_path,
+) -> Generator[PurePath, Any, None]:
+    """A fixture providing a collection with public and unmanaged read permissions and
+    inheritance enabled.
 
-    Simplified version of how top level runs folder are configured for many instruments, e.g. `/seq/illumina/runs`.
+    Simplified version of how top level runs folder are configured for many
+    instruments, e.g. `/seq/illumina/runs`.
     """
     yield from _collection_with_permissions_inheritance(
         tmp_path, [PUBLIC_AC, UNMANAGED_AC], True
@@ -466,8 +465,11 @@ def public_unmanaged_inheritance_enabled_collection(tmp_path):
 
 
 @pytest.fixture(scope="function")
-def public_unmanaged_inheritance_disabled_collection(tmp_path):
-    """A fixture providing a collection with public and unmanaged read permissions and inheritance disabled."""
+def public_unmanaged_inheritance_disabled_collection_path(
+    tmp_path,
+) -> Generator[PurePath, Any, None]:
+    """A fixture providing a collection with public and unmanaged read permissions and
+    inheritance disabled."""
     yield from _collection_with_permissions_inheritance(
         tmp_path, [PUBLIC_AC, UNMANAGED_AC], False
     )
@@ -479,12 +481,12 @@ def _collection_with_permissions_inheritance(tmp_path, permissions: list[AC], in
     )
     coll_path = add_rods_path(root_path, tmp_path)
 
-    Collection(coll_path).add_permissions(*permissions)
-
+    coll = Collection(coll_path)
+    coll.add_permissions(*permissions)
     if inherit:
         enable_inheritance(coll_path)
 
     try:
         yield coll_path
     finally:
-        irm(coll_path, force=True, recurse=True)
+        coll.remove(recurse=True)

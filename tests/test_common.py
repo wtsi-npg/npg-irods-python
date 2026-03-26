@@ -29,7 +29,7 @@ class TestCommonFunctions:
     )
     @m.it("Updates study and sample metadata from MLWH")
     def test_ensure_secondary_metadata_updated(
-        self, single_study_and_single_sample_data_object, study_and_samples_mlwh
+        self, single_study_single_sample_data_object_path, study_and_samples_mlwh
     ):
         sample_id = "id_sample_lims1"
         study_id = "1000"
@@ -50,7 +50,7 @@ class TestCommonFunctions:
             AVU(TrackedSample.UUID, "82429892-0ab6-11ee-b5ba-fa163eac3ag7"),
         ]
 
-        obj = DataObject(single_study_and_single_sample_data_object)
+        obj = DataObject(single_study_single_sample_data_object_path)
         assert ensure_secondary_metadata_updated(obj, study_and_samples_mlwh)
 
         for avu in expected_avus:
@@ -63,7 +63,7 @@ class TestCommonFunctions:
     @m.it("Updates study and sample metadata from MLWH")
     def test_ensure_secondary_metadata_updated_multiple_samples(
         self,
-        single_study_and_multi_sample_data_object,
+        single_study_multi_sample_data_object_path,
         study_and_samples_mlwh,
     ):
         sample_id1 = "id_sample_lims1"
@@ -91,7 +91,7 @@ class TestCommonFunctions:
             AVU(TrackedSample.SUPPLIER_NAME, "supplier_name2"),
         ]
 
-        obj = DataObject(single_study_and_multi_sample_data_object)
+        obj = DataObject(single_study_multi_sample_data_object_path)
         assert ensure_secondary_metadata_updated(obj, study_and_samples_mlwh)
 
         for avu in expected_avus:
@@ -103,11 +103,11 @@ class TestCommonFunctions:
     )
     @m.it("Updates permissions according to the study")
     def test_ensure_secondary_metadata_permissions_updated(
-        self, single_study_and_single_sample_data_object, study_and_samples_mlwh
+        self, single_study_single_sample_data_object_path, study_and_samples_mlwh
     ):
         zone = "testZone"
 
-        obj = DataObject(single_study_and_single_sample_data_object)
+        obj = DataObject(single_study_single_sample_data_object_path)
         assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
         assert ensure_secondary_metadata_updated(obj, study_and_samples_mlwh)
         assert obj.permissions() == [
@@ -121,11 +121,11 @@ class TestCommonFunctions:
     )
     @m.it("Updates permissions according to the study")
     def test_ensure_secondary_metadata_permissions_updated_no_sample(
-        self, single_study_and_single_sample_data_object, study_and_samples_mlwh
+        self, single_study_single_sample_data_object_path, study_and_samples_mlwh
     ):
         zone = "testZone"
 
-        obj = DataObject(single_study_and_single_sample_data_object)
+        obj = DataObject(single_study_single_sample_data_object_path)
         obj.remove_metadata(AVU(TrackedSample.ID, "id_sample_lims1"))
 
         assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
@@ -141,11 +141,11 @@ class TestCommonFunctions:
     )
     @m.it("Removes access permissions")
     def test_ensure_secondary_metadata_permissions_updated_no_study(
-        self, single_study_and_single_sample_data_object, study_and_samples_mlwh
+        self, single_study_single_sample_data_object_path, study_and_samples_mlwh
     ):
         zone = "testZone"
 
-        obj = DataObject(single_study_and_single_sample_data_object)
+        obj = DataObject(single_study_single_sample_data_object_path)
         obj.remove_metadata(AVU(TrackedStudy.ID, "1000"))
         obj.add_permissions(
             AC("ss_1000", perm=Permission.READ, zone=zone),

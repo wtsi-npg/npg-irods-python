@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2021, 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2021, 2022, 2023, 2024, 2026 Genome Research Ltd. All
+# rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -141,11 +142,15 @@ class TestONTFindUpdates:
     @m.context("When a slot position is specified")
     @m.it("Finds only collections with that experiment name and slot position")
     def test_find_updates_for_experiment_slot(
-        self, ont_synthetic_irods, ont_synthetic_mlwh
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
     ):
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         num_found, num_updated, num_errors = apply_metadata(
             experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
@@ -166,11 +171,17 @@ class TestONTMetadataCreation(object):
     @m.context("When an ONT experiment collection is annotated")
     @m.context("When the experiment is single-sample")
     @m.it("Adds sample and study metadata to the run-folder collection")
-    def test_add_new_sample_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
+    def test_add_new_sample_metadata(
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
+    ):
         zone = "testZone"
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         c = Component(experiment_name=expt, instrument_slot=slot)
 
@@ -205,11 +216,15 @@ class TestONTMetadataCreation(object):
     @m.context("When the experiment is multiplexed")
     @m.it("Adds {tag_index_from_id => <n>} metadata to barcode<0n> sub-collections")
     def test_add_new_plex_metadata(
-        self, ont_synthetic_irods, ont_synthetic_mlwh, ont_barcodes
+        self, ont_multiplexed_experiment_001_slot_1, ont_synthetic_mlwh, ont_barcodes
     ):
         expt = "multiplexed_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+        path = (
+            ont_multiplexed_experiment_001_slot_1
+            / expt
+            / "20190904_1514_GA10000_flowcell101_cf751ba1"
+        )
 
         c = Component(experiment_name=expt, instrument_slot=slot)
 
@@ -229,12 +244,19 @@ class TestONTMetadataCreation(object):
     @m.context("When the experiment is multiplexed")
     @m.it("Adds sample and study metadata to barcode<0n> sub-collections")
     def test_add_new_plex_sample_metadata(
-        self, ont_synthetic_irods, ont_synthetic_mlwh, ont_barcodes
+        self,
+        ont_multiplexed_experiment_001_slot_1,
+        ont_synthetic_mlwh,
+        ont_barcodes,
     ):
         zone = "testZone"
         expt = "multiplexed_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+        path = (
+            ont_multiplexed_experiment_001_slot_1
+            / expt
+            / "20190904_1514_GA10000_flowcell101_cf751ba1"
+        )
         num_barcodes = len(ont_barcodes)
 
         c = Component(experiment_name=expt, instrument_slot=slot)
@@ -351,10 +373,16 @@ class TestONTMetadataUpdate(object):
     @m.context("When ONT metadata are applied")
     @m.context("When the metadata are absent")
     @m.it("Adds the metadata")
-    def test_updates_absent_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
+    def test_updates_absent_metadata(
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
+    ):
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         coll = Collection(path)
 
@@ -372,10 +400,16 @@ class TestONTMetadataUpdate(object):
     @m.context("When ONT metadata are applied")
     @m.context("When correct metadata are already present")
     @m.it("Leaves the metadata unchanged")
-    def test_updates_present_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
+    def test_updates_present_metadata(
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
+    ):
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         coll = Collection(path)
         coll.add_metadata(AVU(TrackedSample.NAME, "name1"))
@@ -392,10 +426,16 @@ class TestONTMetadataUpdate(object):
     @m.context("When ONT metadata are applied")
     @m.context("When incorrect metadata are present")
     @m.it("Changes the metadata and adds history metadata")
-    def test_updates_changed_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
+    def test_updates_changed_metadata(
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
+    ):
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         coll = Collection(path)
         coll.add_metadata(AVU(TrackedSample.NAME, "name0"))
@@ -416,10 +456,16 @@ class TestONTMetadataUpdate(object):
     @m.context("When ONT metadata are applied")
     @m.context("When an attribute has multiple incorrect values")
     @m.it("Groups those values in the history metadata")
-    def test_updates_multiple_metadata(self, ont_synthetic_irods, ont_synthetic_mlwh):
+    def test_updates_multiple_metadata(
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
+    ):
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         coll = Collection(path)
         coll.add_metadata(AVU(TrackedStudy.NAME, "Study A"))
@@ -447,11 +493,15 @@ class TestONTMetadataUpdate(object):
     @m.context("When an iRODS path has metadata identifying its run component")
     @m.it("Updates the metadata")
     def test_updates_annotated_collection(
-        self, ont_synthetic_irods, ont_synthetic_mlwh
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
     ):
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         coll = Collection(path)
         coll.add_metadata(
@@ -532,11 +582,17 @@ class TestONTPermissionsUpdate:
     @m.context("When ONT permissions are updated")
     @m.context("When the experiment is multiplexed")
     @m.it("Makes report files publicly readable")
-    def test_public_read_reports(self, ont_synthetic_irods, ont_synthetic_mlwh):
+    def test_public_read_reports(
+        self, ont_multiplexed_experiment_001_slot_1, ont_synthetic_mlwh
+    ):
         zone = "testZone"
         expt = "multiplexed_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+        path = (
+            ont_multiplexed_experiment_001_slot_1
+            / expt
+            / "20190904_1514_GA10000_flowcell101_cf751ba1"
+        )
 
         c = Component(experiment_name=expt, instrument_slot=slot)
         expected_acl = [
@@ -557,12 +613,16 @@ class TestONTPermissionsUpdate:
     @m.context("When permissions are absent")
     @m.it("Add study-specific permissions")
     def test_updates_absent_study_permissions(
-        self, ont_synthetic_irods, ont_synthetic_mlwh
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
     ):
         zone = "testZone"
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         coll = Collection(path)
         coll.add_metadata(
@@ -581,12 +641,16 @@ class TestONTPermissionsUpdate:
     @m.context("When the permissions are already present")
     @m.it("Leaves the permissions unchanged")
     def test_updates_present_study_permissions(
-        self, ont_synthetic_irods, ont_synthetic_mlwh
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
     ):
         zone = "testZone"
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         coll = Collection(path)
         coll.add_metadata(
@@ -607,12 +671,16 @@ class TestONTPermissionsUpdate:
     @m.context("When incorrect permissions are present")
     @m.it("Updated the permissions")
     def test_updates_changed_study_permissions(
-        self, ont_synthetic_irods, ont_synthetic_mlwh
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
     ):
         zone = "testZone"
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         coll = Collection(path)
         coll.add_metadata(
@@ -634,11 +702,17 @@ class TestONTPermissionsUpdate:
     @m.context("When the experiment is single-sample")
     @m.context("When data have had consent withdrawn")
     @m.it("Does not restore access permissions")
-    def test_retains_consent_withdrawn(self, ont_synthetic_irods, ont_synthetic_mlwh):
+    def test_retains_consent_withdrawn(
+        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
+    ):
         zone = "testZone"
         expt = "simple_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_G100000_flowcell011_69126024"
+        path = (
+            ont_simple_experiment_001_slot_1
+            / expt
+            / "20190904_1514_G100000_flowcell011_69126024"
+        )
 
         c = Component(experiment_name=expt, instrument_slot=slot)
         expected_acl = [AC("irods", perm=Permission.OWN, zone=zone)]
@@ -658,12 +732,16 @@ class TestONTPermissionsUpdate:
     @m.context("When data have had consent withdrawn")
     @m.it("Does not restore access permissions")
     def test_retains_consent_withdrawn_mx(
-        self, ont_synthetic_irods, ont_synthetic_mlwh
+        self, ont_multiplexed_experiment_001_slot_1, ont_synthetic_mlwh
     ):
         zone = "testZone"
         expt = "multiplexed_experiment_001"
         slot = 1
-        path = ont_synthetic_irods / expt / "20190904_1514_GA10000_flowcell101_cf751ba1"
+        path = (
+            ont_multiplexed_experiment_001_slot_1
+            / expt
+            / "20190904_1514_GA10000_flowcell101_cf751ba1"
+        )
 
         c = Component(experiment_name=expt, instrument_slot=slot)
         expected_acl = [AC("irods", perm=Permission.OWN, zone=zone)]

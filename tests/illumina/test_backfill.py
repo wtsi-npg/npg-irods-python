@@ -39,18 +39,18 @@ def assert_excluded_object(obj_path: str):
 
 @m.describe("Making a product dictionary for a data object")
 class TestCreateProductDict:
-    def test_has_zero_tag_index(self, simple_data_object):
-        obj = DataObject(simple_data_object)
+    def test_has_zero_tag_index(self, simple_data_object_path):
+        obj = DataObject(simple_data_object_path)
         obj.add_metadata(AVU(SeqConcept.TAG_INDEX, "0"))
         assert has_zero_tag_index(obj)
 
-    def test_has_phi_reference(self, simple_data_object):
-        obj = DataObject(simple_data_object)
+    def test_has_phi_reference(self, simple_data_object_path):
+        obj = DataObject(simple_data_object_path)
         obj.add_metadata(AVU(SeqConcept.REFERENCE, "PhiX"))
         assert has_phix_reference(obj)
 
-    def test_has_subset(self, simple_data_object):
-        obj = DataObject(simple_data_object)
+    def test_has_subset(self, simple_data_object_path):
+        obj = DataObject(simple_data_object_path)
         obj.add_metadata(AVU(SeqConcept.COMPONENT, "{'subset': 'phix'}"))
         assert has_subset(obj)
 

@@ -21,9 +21,11 @@
 
 import os
 import subprocess
+from collections import deque
 from datetime import datetime
 from pathlib import PurePath
 from os import PathLike
+from typing import Iterator
 
 import pytest
 from partisan.exception import RodsError
@@ -136,7 +138,7 @@ def add_rods_path(root_path: PurePath, tmp_path: PurePath) -> PurePath:
     """Add a path to iRODS, returning the path in iRODS."""
     parts = PurePath(*tmp_path.parts[1:])
     rods_path = root_path / parts
-    imkdir(rods_path, make_parents=True)
+    Collection(rods_path).create(parents=True)
 
     return rods_path
 
@@ -148,7 +150,7 @@ def remove_rods_path(rods_path: PurePath):
         coll.add_permissions(
             AC(user="irods", perm=Permission.OWN, zone="testZone"), recurse=True
         )
-        irm(rods_path, force=True, recurse=True)
+        coll.remove(recurse=True)
 
 
 def add_test_groups():
@@ -163,6 +165,14 @@ def remove_test_groups():
     if have_admin():
         for g in TEST_GROUPS:
             rmgroup(g)
+
+
+def consume(iterator: Iterator):
+    """Advance the iterator to consume it entirely.
+
+    Taken from Python itertools recipes.
+    """
+    deque(iterator, maxlen=0)
 
 
 def history_in_meta(history: AVU, metadata: list[AVU]):
@@ -218,13 +228,13 @@ def is_inheritance_enabled(rods_path: PathLike):
 
 
 # Based on partisan.icommands
-def ichmod(*args):
+def ichmod(*args):  # TODO: move to partisan.icommands
     cmd = ["ichmod"] + list(args)
     _run(cmd)
 
 
 # Based on partisan.icommands
-def ils(*args):
+def ils(*args):  # TODO: move to partisan.icommands
     cmd = ["ils"] + list(args)
 
     completed = subprocess.run(cmd, capture_output=True)
