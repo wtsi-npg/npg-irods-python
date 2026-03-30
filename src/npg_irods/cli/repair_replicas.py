@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2024, 2026 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,11 +21,11 @@ import argparse
 import sys
 
 import structlog
-from npg.cli import add_io_arguments, add_logging_arguments
+from npg.cli import add_io_arguments, add_logging_arguments, open_input, open_output
 from npg.log import configure_structlog
 
 from npg_irods import add_appinfo_structlog_processor, version
-from npg_irods.utilities import repair_replicas
+from npg_irods.utilities import repair_replicas, santise_path
 
 description = """
 Reads iRODS data object paths from a file or STDIN, one per line and repairs their
@@ -97,29 +97,39 @@ log = structlog.get_logger("main")
 
 
 def main():
-    num_processed, num_repaired, num_errors = repair_replicas(
-        args.input,
-        args.output,
-        num_replicas=args.num_replicas,
-        print_repair=args.print_repair,
-        print_fail=args.print_fail,
-        num_clients=args.clients,
-        num_threads=args.threads,
-    )
+    input_path = santise_path(args.input)
+    output_path = santise_path(args.output)
 
-    if num_errors:
-        log.error(
-            "Some replicas failed",
-            num_processed=num_processed,
-            num_repaired=num_repaired,
-            num_errors=num_errors,
-        )
-        sys.exit(1)
+    with open_input(input_path, encoding="utf-8") as reader:
+        with open_output(output_path, encoding="utf-8") as writer:
 
-    msg = "All repairs were successful" if num_repaired else "No paths required repair"
-    log.info(
-        msg,
-        num_processed=num_processed,
-        num_repaired=num_repaired,
-        num_errors=num_errors,
-    )
+            num_processed, num_repaired, num_errors = repair_replicas(
+                reader,
+                writer,
+                num_replicas=args.num_replicas,
+                print_repair=args.print_repair,
+                print_fail=args.print_fail,
+                num_clients=args.clients,
+                num_threads=args.threads,
+            )
+
+            if num_errors:
+                log.error(
+                    "Some replicas failed",
+                    num_processed=num_processed,
+                    num_repaired=num_repaired,
+                    num_errors=num_errors,
+                )
+                sys.exit(1)
+
+            msg = (
+                "All repairs were successful"
+                if num_repaired
+                else "No paths required repair"
+            )
+            log.info(
+                msg,
+                num_processed=num_processed,
+                num_repaired=num_repaired,
+                num_errors=num_errors,
+            )

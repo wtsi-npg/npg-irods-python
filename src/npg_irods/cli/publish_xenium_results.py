@@ -51,7 +51,7 @@ parser = add_io_arguments(parser)
 
 parser.add_argument(
     "collection",
-    help="The iRODS collection to publish the lo directory to.",
+    help="The iRODS collection to publish the local directory to.",
     type=str,
 )
 parser.add_argument(
@@ -81,11 +81,11 @@ log = structlog.get_logger("main")
 
 
 def main():
-    input = santise_path(args.input)
-    output = santise_path(args.output)
+    input_path = santise_path(args.input)
+    output_path = santise_path(args.output)
 
-    with open_input(input, encoding="utf-8") as reader:
-        with open_output(output, encoding="utf-8") as writer:
+    with open_input(input_path, encoding="utf-8") as reader:
+        with open_output(output_path, encoding="utf-8") as writer:
 
             num_dirs, num_published, num_failed = publish_result_dirs(
                 reader,

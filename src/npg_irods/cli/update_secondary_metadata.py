@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2023, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2023, 2024, 2026 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,12 +22,18 @@ import sys
 
 import sqlalchemy
 import structlog
-from npg.cli import add_db_config_arguments, add_io_arguments, add_logging_arguments
+from npg.cli import (
+    add_db_config_arguments,
+    add_io_arguments,
+    add_logging_arguments,
+    open_input,
+    open_output,
+)
 from npg.conf import IniData
 from npg.log import configure_structlog
 
 from npg_irods import add_appinfo_structlog_processor, db, version
-from npg_irods.utilities import update_secondary_metadata
+from npg_irods.utilities import santise_path, update_secondary_metadata
 
 description = """
 Reads iRODS data object and/or collection paths from a file or STDIN, one per line and
@@ -115,29 +121,39 @@ def main():
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
 
-    num_processed, num_updated, num_errors = update_secondary_metadata(
-        args.input,
-        args.output,
-        engine,
-        print_update=args.print_update,
-        print_fail=args.print_fail,
-        num_clients=args.clients,
-        num_threads=args.threads,
-    )
+    input_path = santise_path(args.input)
+    output_path = santise_path(args.output)
 
-    if num_errors:
-        log.error(
-            "Update failed",
-            num_processed=num_processed,
-            num_updated=num_updated,
-            num_errors=num_errors,
-        )
-        sys.exit(1)
+    with open_input(input_path, encoding="utf-8") as reader:
+        with open_output(output_path, encoding="utf-8") as writer:
 
-    msg = "All updates were successful" if num_updated else "No updates were required"
-    log.info(
-        msg,
-        num_processed=num_processed,
-        num_updated=num_updated,
-        num_errors=num_errors,
-    )
+            num_processed, num_updated, num_errors = update_secondary_metadata(
+                reader,
+                writer,
+                engine,
+                print_update=args.print_update,
+                print_fail=args.print_fail,
+                num_clients=args.clients,
+                num_threads=args.threads,
+            )
+
+            if num_errors:
+                log.error(
+                    "Update failed",
+                    num_processed=num_processed,
+                    num_updated=num_updated,
+                    num_errors=num_errors,
+                )
+                sys.exit(1)
+
+            msg = (
+                "All updates were successful"
+                if num_updated
+                else "No updates were required"
+            )
+            log.info(
+                msg,
+                num_processed=num_processed,
+                num_updated=num_updated,
+                num_errors=num_errors,
+            )
