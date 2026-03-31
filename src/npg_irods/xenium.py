@@ -176,7 +176,12 @@ def _load_metadata(result_dir: Path) -> dict[str, str]:
 
 def _irods_partial_path(result_dir: Path) -> PurePath:
     """Given a Xenium result directory, return a relative iRODS path that uses our
-    standard path structure for storing Xenium data."""
+    standard path structure for storing Xenium data.
+
+    We are using slide_id in the path, rather than run_name, because the former is
+    machine-readable while the latter is keyed in by hand on the instrument.
+
+    """
 
     d = result_dir.resolve()
     if not is_output_directory(d):
@@ -186,11 +191,11 @@ def _irods_partial_path(result_dir: Path) -> PurePath:
 
     try:
         instrument = metadata[Instrument.INSTRUMENT_SN.value]
-        run_name = metadata[Instrument.RUN_NAME.value]
+        slide_id = metadata[Instrument.SLIDE_ID.value]
     except KeyError as e:
         raise ValueError(
             f"Missing required metadata key: '{e}' from "
             f"experiment.xenium file in {d.as_posix()}"
         ) from e
 
-    return PurePath(instrument, run_name, d.name)
+    return PurePath(instrument, slide_id, d.name)

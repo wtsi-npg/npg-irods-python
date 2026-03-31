@@ -39,10 +39,10 @@ class TestPublish:
         coll = publish_result_dir(local_path, remote_path)
 
         instrument = "XETG00000"
-        run_name = "synthetic_run_001"
+        slide_id = "0000000"
 
         assert coll.exists()
-        assert coll.path == remote_path / instrument / run_name / local_path.name
+        assert coll.path == remote_path / instrument / slide_id / local_path.name
 
         expected_metadata = [
             avu.with_namespace(PlatformNamespace.XENIUM)
