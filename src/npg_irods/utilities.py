@@ -29,6 +29,7 @@ import os
 import re
 import sys
 import threading
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from importlib import resources
 from pathlib import Path, PurePath
@@ -323,7 +324,7 @@ def check_replicas(
     print_pass=True,
     print_fail=False,
 ) -> tuple[int, int, int]:
-    """Read iRODS data objects paths from a file and check that each one has correct
+    """Read iRODS data objects paths from a reader and check that each one has correct
       replicas, printing the results to a writer.
 
       The conditions for replicas of a data object to be correct are:
@@ -346,7 +347,7 @@ def check_replicas(
 
       Returns:
           A tuple of the number of paths checked, the number of paths found to be
-          correct and the number of errors (paths with incorrect checksums and/or paths
+          correct, and the number of errors (paths with incorrect checksums and/or paths
           that failed to be checked because of an exception).
     """
     with client_pool(num_clients) as bp:
@@ -1280,3 +1281,34 @@ def read_md5sums_file(path: Path) -> dict[Path, str]:
                 raise ValueError(f"MD5 checksum is not 32 characters: '{md5}'")
             md5sums[Path(path)] = md5
     return md5sums
+
+
+def santise_path(path: str | None) -> str | None:
+    """Sanitise a path string by removing leading and trailing whitespace. This
+    function rejects strings that contain control characters and some other invisible
+    or unused Unicode characters, raising ValueError.
+
+    Returns:
+        A sanitised path string or None if the input is None.
+    """
+
+    def bad_char(c) -> bool:
+        if c == "\x00":
+            return True
+
+        # Cc: Control Non-printing control chars like NUL, tab, newline, ESC.
+        # Cf: Format Invisible formatting chars that affect text behaviour.
+        # Cs: Surrogate UTF-16 surrogate code points. These are not real standalone Unicode characters.
+        # Co: Private-use code points reserved for private agreements.
+        # Cn: Unassigned code points that are not currently assigned.
+        return unicodedata.category(c) in {"Cc", "Cf", "Cs", "Co", "Cn"}
+
+    if path is None:
+        return None
+
+    path = path.strip()
+    for i, char in enumerate(path):
+        if bad_char(char):
+            raise ValueError(f"Invalid character in '{path}' at position {i}: '{char}'")
+
+    return path

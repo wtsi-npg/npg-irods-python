@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2022, 2023, 2024 Genome Research Ltd. All rights reserved.
+# Copyright © 2022, 2023, 2024, 2026 Genome Research Ltd. All rights
+# reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,11 +22,11 @@ import argparse
 import sys
 
 import structlog
-from npg.cli import add_io_arguments, add_logging_arguments
+from npg.cli import add_io_arguments, add_logging_arguments, open_input, open_output
 from npg.log import configure_structlog
 
 from npg_irods import add_appinfo_structlog_processor, version
-from npg_irods.utilities import check_checksums
+from npg_irods.utilities import check_checksums, santise_path
 
 description = """
 Reads iRODS data object paths from a file or STDIN, one per line and performs
@@ -93,27 +94,33 @@ log = structlog.get_logger("main")
 
 
 def main():
-    num_processed, num_passed, num_errors = check_checksums(
-        args.input,
-        args.output,
-        print_pass=args.print_pass,
-        print_fail=args.print_fail,
-        num_clients=args.clients,
-        num_threads=args.threads,
-    )
+    input_path = santise_path(args.input)
+    output_path = santise_path(args.output)
 
-    if num_errors:
-        log.error(
-            "Some checks did not pass",
-            num_processed=num_processed,
-            num_passed=num_passed,
-            num_errors=num_errors,
-        )
-        sys.exit(1)
+    with open_input(input_path, encoding="utf-8") as reader:
+        with open_output(output_path, encoding="utf-8") as writer:
 
-    log.info(
-        "All checks passed",
-        num_processed=num_processed,
-        num_passed=num_passed,
-        num_errors=num_errors,
-    )
+            num_processed, num_passed, num_errors = check_checksums(
+                reader,
+                writer,
+                print_pass=args.print_pass,
+                print_fail=args.print_fail,
+                num_clients=args.clients,
+                num_threads=args.threads,
+            )
+
+            if num_errors:
+                log.error(
+                    "Some checks did not pass",
+                    num_processed=num_processed,
+                    num_passed=num_passed,
+                    num_errors=num_errors,
+                )
+                sys.exit(1)
+
+            log.info(
+                "All checks passed",
+                num_processed=num_processed,
+                num_passed=num_passed,
+                num_errors=num_errors,
+            )

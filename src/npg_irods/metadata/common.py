@@ -22,7 +22,6 @@
 from datetime import datetime
 from enum import unique
 from pathlib import PurePath
-from typing import List
 
 from partisan.irods import AVU, DataObject, Replica, RodsItem
 from partisan.metadata import AsValueEnum, DublinCore, with_namespace
@@ -402,8 +401,9 @@ def has_trimmable_replicas(obj: DataObject, num_replicas=2) -> bool:
     Returns:
         True if there are any replicas to trim.
     """
+
     valid, invalid = trimmable_replicas(obj, num_replicas=num_replicas)
-    return valid or invalid
+    return len(valid + invalid) > 0
 
 
 def requires_creation_metadata(obj: DataObject) -> bool:

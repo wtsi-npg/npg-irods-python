@@ -135,5 +135,7 @@ dmypy.json
 # Docker tmp file mounts
 tests/tmp/
 
-# IntelliJ / Pycharm
+# IntelliJ / Pycharm etc.
 .idea/
+.junie
+.serena
