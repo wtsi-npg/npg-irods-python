@@ -110,8 +110,8 @@ class TestIDProductMetadata:
     @m.context("When id_product metadata are not required")
     @m.context("When ensure_ function is called")
     @m.it("Returns False")
-    def test_ensure_metadata_absent_not_required(self, annotated_data_object):
-        obj = DataObject(annotated_data_object)
+    def test_ensure_metadata_absent_not_required(self, annotated_data_object_path):
+        obj = DataObject(annotated_data_object_path)
 
         assert not ensure_id_product(obj, LocationWriter(PACBIO))
 

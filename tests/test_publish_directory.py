@@ -197,14 +197,14 @@ class TestPublishDirectory:
     @m.context("When checksum missing")
     @m.it("Skips that file, outputs errors and publishes other files")
     def test_missing_checksum(
-        self, ultima_run, empty_collection: PurePath, caplog: LogCaptureFixture
+        self, ultima_run, empty_collection_path: PurePath, caplog: LogCaptureFixture
     ):
         # Arrange
         run_dir, checksums_path = ultima_run
         checksums_path.write_text(
             "".join(checksums_path.read_text().splitlines(keepends=True)[:-1])
         )
-        dest = empty_collection
+        dest = empty_collection_path
 
         # Act
         with pytest.raises(SystemExit):
@@ -238,12 +238,12 @@ class TestPublishDirectory:
     @m.context("When checksum stale")
     @m.it("Skips that file, outputs errors and publishes other files")
     def test_stale_checksum(
-        self, ultima_run, empty_collection: PurePath, caplog: LogCaptureFixture
+        self, ultima_run, empty_collection_path: PurePath, caplog: LogCaptureFixture
     ):
         # Arrange
         run_dir, checksums_path = ultima_run
         (run_dir / "b.txt").touch()
-        dest = empty_collection
+        dest = empty_collection_path
 
         # Act
         with pytest.raises(SystemExit):

@@ -84,11 +84,11 @@ class TestLIMS:
 
     @m.context("When a data object ACL does not contain any managed access controls")
     @m.it("Has consent withdrawn permissions")
-    def test_has_consent_withdrawn_permissions_obj(self, simple_data_object):
+    def test_has_consent_withdrawn_permissions_obj(self, simple_data_object_path):
         zone = "testZone"
         managed_1000 = AC("ss_1000", Permission.READ, zone=zone)
         managed_2000 = AC("ss_2000", Permission.WRITE, zone=zone)
-        obj = DataObject(simple_data_object)
+        obj = DataObject(simple_data_object_path)
 
         assert obj.add_permissions(AC("unmanaged", Permission.READ, zone=zone)) == 1
         assert has_consent_withdrawn_permissions(obj)
@@ -106,11 +106,11 @@ class TestLIMS:
         "When a collection has an ACL that does not contain any managed access controls"
     )
     @m.it("Has consent withdrawn permissions")
-    def test_has_consent_withdrawn_permissions_coll(self, populated_collection):
+    def test_has_consent_withdrawn_permissions_coll(self, populated_collection_path):
         zone = "testZone"
         managed_1000 = AC("ss_1000", Permission.READ, zone=zone)
         unmanaged = AC("unmanaged", Permission.READ, zone=zone)
-        coll = Collection(populated_collection)
+        coll = Collection(populated_collection_path)
 
         assert has_consent_withdrawn_permissions(coll, recurse=False)
 
@@ -125,11 +125,13 @@ class TestLIMS:
         "that do not contain any managed access controls"
     )
     @m.it("Has consent withdrawn permissions")
-    def test_has_consent_withdrawn_permissions_coll_recur(self, populated_collection):
+    def test_has_consent_withdrawn_permissions_coll_recur(
+        self, populated_collection_path
+    ):
         zone = "testZone"
         managed_1000 = AC("ss_1000", Permission.READ, zone=zone)
         unmanaged = AC("unmanaged", Permission.READ, zone=zone)
-        coll = Collection(populated_collection)
+        coll = Collection(populated_collection_path)
 
         assert coll.add_permissions(unmanaged) == 1
         for item in coll.iter_contents(recurse=True):
@@ -137,18 +139,18 @@ class TestLIMS:
 
         assert has_consent_withdrawn_permissions(coll, recurse=True)
         assert (
-            DataObject(
-                populated_collection / "collection" / "sub" / "b.txt"
-            ).add_permissions(managed_1000)
+            DataObject(populated_collection_path / "sub" / "b.txt").add_permissions(
+                managed_1000
+            )
             == 1
         )
         assert not has_consent_withdrawn_permissions(coll, recurse=True)
 
     @m.context("When a data object has an AVU with an NPG consent withdrawn value")
     @m.it("Has consent withdrawn metadata")
-    def test_has_consent_withdrawn_metadata_npg_obj(self, simple_data_object):
+    def test_has_consent_withdrawn_metadata_npg_obj(self, simple_data_object_path):
         npg_withdrawn = AVU(TrackedSample.CONSENT_WITHDRAWN, 1)
-        obj = DataObject(simple_data_object)
+        obj = DataObject(simple_data_object_path)
 
         assert not has_consent_withdrawn_metadata(obj)
         obj.add_metadata(npg_withdrawn)
@@ -156,9 +158,9 @@ class TestLIMS:
 
     @m.context("When a data object has an AVU with a GAPI consent withdrawn value")
     @m.it("Has consent withdrawn metadata")
-    def test_has_consent_withdrawn_metadata_gapi_obj(self, simple_data_object):
+    def test_has_consent_withdrawn_metadata_gapi_obj(self, simple_data_object_path):
         gapi_withdrawn = AVU(TrackedSample.CONSENT, 0)
-        obj = DataObject(simple_data_object)
+        obj = DataObject(simple_data_object_path)
 
         assert not has_consent_withdrawn_metadata(obj)
         obj.add_metadata(gapi_withdrawn)
@@ -170,9 +172,9 @@ class TestLIMS:
 
     @m.context("When a collection has an AVU with an NPG consent withdrawn value")
     @m.it("Has consent withdrawn metadata")
-    def test_has_consent_withdrawn_metadata_npg_coll(self, populated_collection):
+    def test_has_consent_withdrawn_metadata_npg_coll(self, populated_collection_path):
         npg_withdrawn = AVU(TrackedSample.CONSENT_WITHDRAWN, 1)
-        coll = Collection(populated_collection)
+        coll = Collection(populated_collection_path)
 
         assert not has_consent_withdrawn_metadata(coll, recurse=False)
         assert coll.add_metadata(npg_withdrawn) == 1
@@ -183,9 +185,11 @@ class TestLIMS:
         "with an NPG consent withdrawn value"
     )
     @m.it("Has consent withdrawn metadata")
-    def test_has_consent_withdrawn_metadata_npg_coll_recur(self, populated_collection):
+    def test_has_consent_withdrawn_metadata_npg_coll_recur(
+        self, populated_collection_path
+    ):
         npg_withdrawn = AVU(TrackedSample.CONSENT_WITHDRAWN, 1)
-        coll = Collection(populated_collection)
+        coll = Collection(populated_collection_path)
 
         assert not has_consent_withdrawn_metadata(coll, recurse=True)
         assert coll.add_metadata(npg_withdrawn) == 1
@@ -196,18 +200,18 @@ class TestLIMS:
         assert has_consent_withdrawn_metadata(coll, recurse=True)
 
         assert (
-            DataObject(
-                populated_collection / "collection" / "sub" / "b.txt"
-            ).remove_metadata(npg_withdrawn)
+            DataObject(populated_collection_path / "sub" / "b.txt").remove_metadata(
+                npg_withdrawn
+            )
             == 1
         )
         assert not has_consent_withdrawn_metadata(coll, recurse=True)
 
     @m.context("When a collection has an AVU with a GAPI consent withdrawn value")
     @m.it("Has consent withdrawn metadata")
-    def test_has_consent_withdrawn_metadata_gapi_coll(self, populated_collection):
+    def test_has_consent_withdrawn_metadata_gapi_coll(self, populated_collection_path):
         gapi_withdrawn = AVU(TrackedSample.CONSENT, 0)
-        coll = Collection(populated_collection)
+        coll = Collection(populated_collection_path)
 
         assert not has_consent_withdrawn_metadata(coll, recurse=False)
         assert coll.add_metadata(gapi_withdrawn) == 1
@@ -222,9 +226,11 @@ class TestLIMS:
         "with a GAPI consent withdrawn value"
     )
     @m.it("Has consent withdrawn metadata")
-    def test_has_consent_withdrawn_metadata_gapi_coll_recur(self, populated_collection):
+    def test_has_consent_withdrawn_metadata_gapi_coll_recur(
+        self, populated_collection_path
+    ):
         gapi_withdrawn = AVU(TrackedSample.CONSENT, 0)
-        coll = Collection(populated_collection)
+        coll = Collection(populated_collection_path)
 
         assert not has_consent_withdrawn_metadata(coll, recurse=True)
         assert coll.add_metadata(gapi_withdrawn) == 1
@@ -236,6 +242,6 @@ class TestLIMS:
 
         gapi_consented = AVU(TrackedSample.CONSENT, 1)
         assert DataObject(
-            populated_collection / "collection" / "sub" / "b.txt"
+            populated_collection_path / "sub" / "b.txt"
         ).supersede_metadata(gapi_consented) == (1, 1)
         assert not has_consent_withdrawn_metadata(coll, recurse=True)

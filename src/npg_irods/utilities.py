@@ -1165,7 +1165,7 @@ def write_safe_remove_commands(target, writer: io.TextIOBase):
     """Write safe path removal commands for a target path in iRODS.
 
     Args:
-        target: An iRODS path (str, PurePath or RodsItem) to remove.
+        target: An iRODS path (str, PurePath, or RodsItem) to remove.
         writer: Writer where command strings will be written.
     """
 

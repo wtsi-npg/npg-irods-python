@@ -254,8 +254,8 @@ class TestEnsureChecksumMetadata:
         "there are no existing checksum metadata"
     )
     @m.it("Adds checksum metadata and returns True")
-    def test_ensure_matching_checksum_metadata_none(self, simple_data_object):
-        obj = DataObject(simple_data_object)
+    def test_ensure_matching_checksum_metadata_none(self, simple_data_object_path):
+        obj = DataObject(simple_data_object_path)
 
         assert not has_matching_checksum_metadata(obj)
         assert ensure_matching_checksum_metadata(obj)
@@ -267,8 +267,8 @@ class TestEnsureChecksumMetadata:
         "there are existing, correct checksum metadata"
     )
     @m.it("Does nothing and returns False")
-    def test_ensure_matching_checksum_metadata_correct(self, simple_data_object):
-        obj = DataObject(simple_data_object)
+    def test_ensure_matching_checksum_metadata_correct(self, simple_data_object_path):
+        obj = DataObject(simple_data_object_path)
         ensure_matching_checksum_metadata(obj)
 
         assert has_matching_checksum_metadata(obj)
@@ -276,8 +276,10 @@ class TestEnsureChecksumMetadata:
 
     @m.context("When a data object has incomplete checksums")
     @m.it("Raises an exception")
-    def test_ensure_matching_checksum_metadata_incomplete(self, simple_data_object):
-        obj = DataObject(simple_data_object)
+    def test_ensure_matching_checksum_metadata_incomplete(
+        self, simple_data_object_path
+    ):
+        obj = DataObject(simple_data_object_path)
         checksum = obj.checksum()
         replicas = [
             Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
@@ -294,8 +296,8 @@ class TestEnsureChecksumMetadata:
         "it does not have matching checksums"
     )
     @m.it("Raises an exception")
-    def test_ensure_matching_checksum_metadata_mismatch(self, simple_data_object):
-        obj = DataObject(simple_data_object)
+    def test_ensure_matching_checksum_metadata_mismatch(self, simple_data_object_path):
+        obj = DataObject(simple_data_object_path)
         checksum = obj.checksum()
         replicas = [
             Replica("dummy_resource", "dummy_location", 0, checksum=checksum),
@@ -313,8 +315,8 @@ class TestEnsureChecksumMetadata:
         "there are existing, incorrect checksum metadata"
     )
     @m.it("Corrects the metadata")
-    def test_ensure_matching_checksum_metadata_incorrect(self, simple_data_object):
-        obj = DataObject(simple_data_object)
+    def test_ensure_matching_checksum_metadata_incorrect(self, simple_data_object_path):
+        obj = DataObject(simple_data_object_path)
         obj.add_metadata(AVU(DataFile.MD5, "invalid_checksum"))
         obj.add_metadata(AVU(DataFile.MD5, "another_invalid_checksum"))
 
@@ -328,20 +330,22 @@ class TestConsentMetadataPredicates:
     @m.context("A has_ function is called")
     @m.it("Returns True")
     def test_has_consent_withdrawn_metadata_present(
-        self, consent_withdrawn_gapi_data_object, consent_withdrawn_npg_data_object
+        self,
+        consent_withdrawn_gapi_data_object_path,
+        consent_withdrawn_npg_data_object_path,
     ):
         assert has_consent_withdrawn_metadata(
-            DataObject(consent_withdrawn_gapi_data_object)
+            DataObject(consent_withdrawn_gapi_data_object_path)
         )
         assert has_consent_withdrawn_metadata(
-            DataObject(consent_withdrawn_npg_data_object)
+            DataObject(consent_withdrawn_npg_data_object_path)
         )
 
     @m.context("When consent withdrawn metadata are absent")
     @m.context("A has_ function is called")
     @m.it("Returns False")
-    def test_has_consent_withdrawn_metadata_absent(self, simple_data_object):
-        assert not has_consent_withdrawn_metadata(DataObject(simple_data_object))
+    def test_has_consent_withdrawn_metadata_absent(self, simple_data_object_path):
+        assert not has_consent_withdrawn_metadata(DataObject(simple_data_object_path))
 
 
 @m.describe("Type metadata API")
@@ -399,8 +403,8 @@ class TestCommonMetadataAPI:
     @m.context("When common metadata are present")
     @m.context("When a has_ function is called")
     @m.it("Returns True")
-    def test_has_metadata_present(self, annotated_data_object):
-        obj = DataObject(annotated_data_object)
+    def test_has_metadata_present(self, annotated_data_object_path):
+        obj = DataObject(annotated_data_object_path)
 
         assert has_creation_metadata(obj)
         assert has_type_metadata(obj)
@@ -409,8 +413,8 @@ class TestCommonMetadataAPI:
     @m.context("When common metadata are absent")
     @m.context("When a has_ function is called")
     @m.it("Returns False")
-    def test_has_metadata_absent(self, annotated_data_object):
-        obj = DataObject(annotated_data_object)
+    def test_has_metadata_absent(self, annotated_data_object_path):
+        obj = DataObject(annotated_data_object_path)
 
         obj.remove_metadata(AVU("dcterms:creator", "dummy creator"))
         assert not has_creation_metadata(obj)
@@ -424,8 +428,8 @@ class TestCommonMetadataAPI:
     @m.context("When common metadata are present")
     @m.context("When an ensure_ function is called")
     @m.it("Returns False")
-    def test_ensure_metadata_present(self, annotated_data_object):
-        obj = DataObject(annotated_data_object)
+    def test_ensure_metadata_present(self, annotated_data_object_path):
+        obj = DataObject(annotated_data_object_path)
 
         assert has_creation_metadata(obj)
         assert not ensure_creation_metadata(obj, creator="dummy creator")
@@ -439,8 +443,8 @@ class TestCommonMetadataAPI:
     @m.context("When common metadata are absent")
     @m.context("When an ensure_ function is called")
     @m.it("Adds absent metadata and returns True")
-    def test_ensure_metadata_absent(self, annotated_data_object):
-        obj = DataObject(annotated_data_object)
+    def test_ensure_metadata_absent(self, annotated_data_object_path):
+        obj = DataObject(annotated_data_object_path)
 
         obj.remove_metadata(AVU("dcterms:creator", "dummy creator"))
         assert not has_creation_metadata(obj)
@@ -463,8 +467,8 @@ class TestTargetMetadataPredicates:
     @m.context("When target metadata are present")
     @m.context("When has_ function is called")
     @m.it("Returns True")
-    def test_has_metadata_present(self, annotated_data_object):
-        obj = DataObject(annotated_data_object)
+    def test_has_metadata_present(self, annotated_data_object_path):
+        obj = DataObject(annotated_data_object_path)
 
         obj.add_metadata(AVU(DataFile.TARGET, "1"))
         assert has_target_metadata(obj)
@@ -472,7 +476,7 @@ class TestTargetMetadataPredicates:
     @m.context("When target metadata are not present")
     @m.context("When has_ function is called")
     @m.it("Returns False")
-    def test_has_metadata_absent(self, annotated_data_object):
-        obj = DataObject(annotated_data_object)
+    def test_has_metadata_absent(self, annotated_data_object_path):
+        obj = DataObject(annotated_data_object_path)
 
         assert not has_target_metadata(obj)
