@@ -61,7 +61,7 @@ parser.add_argument(
     "multiple times to filter on additional regular expressions. Exclude "
     "regular expressions are applied after any include regular expressions. "
     "Paths will be absolute or relative depending on whether directory is an "
-    "absolute or relative path."
+    "absolute or relative path. "
     "Optional, defaults to none.",
     type=str,
     action="append",
@@ -74,7 +74,7 @@ parser.add_argument(
     "paths will be published, all others will be ignored. If more than one "
     "regex is supplied, the matches for all of them are aggregated. "
     "Paths will be absolute or relative depending on whether directory is an "
-    "absolute or relative path."
+    "absolute or relative path. "
     "Optional, defaults to all.",
     type=str,
     action="append",
@@ -117,7 +117,7 @@ ff_group.add_argument(
 parser.add_argument(
     "--group",
     help="iRODS group to have read access. Optional, defaults to none. "
-    "May be used multiple times to add read permissions for multiple groups."
+    "May be used multiple times to add read permissions for multiple groups. "
     "Zone may be specified with #zone suffix, otherwise inferred from collection.",
     type=str,
     action="append",
