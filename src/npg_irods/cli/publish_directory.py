@@ -116,8 +116,12 @@ ff_group.add_argument(
 
 parser.add_argument(
     "--group",
-    help="iRODS group to have read access. Optional, defaults to none. "
+    help="Add read access for the given iRODS group. "
+    "Optional, defaults to none. "
     "May be used multiple times to add read permissions for multiple groups. "
+    "For new items, adds read access in addition to any inherited permissions. "
+    "For existing items, in addition to existing permissions. "
+    "Unless explicitly specified, public permissions are removed. "  # See ADR 1
     "Zone may be specified with #zone suffix, otherwise inferred from collection.",
     type=str,
     action="append",
