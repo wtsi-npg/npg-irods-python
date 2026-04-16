@@ -27,6 +27,7 @@ from npg_irods.exception import PublishingError
 from npg_irods.metadata.lims import make_public_read_acl
 from npg_irods.metadata.xenium import EXPERIMENT_FILENAME, Instrument
 from npg_irods.publish import publish_directory
+from npg_irods.utilities import sanitise_path
 
 log = get_logger(__name__)
 
@@ -38,7 +39,6 @@ def is_output_directory(result_dir: Path) -> bool:
     Note that a Xenium run can comprise multiple directories as there will be one for
     each region of interest in the analysis.
     """
-
     d = result_dir.resolve()
     metadata_file = d / EXPERIMENT_FILENAME
 
@@ -90,14 +90,14 @@ def publish_result_dirs(
         published, and the number that failed to publish.
 
     """
-
     num_dirs, num_published, number_failed = 0, 0, 0
 
     for path in reader:
+        src_dir = Path(sanitise_path(path)).resolve()
+
         num_dirs += 1
         try:
-            coll = publish_result_dir(Path(path.strip()), remote_root)
-            update_permissions(coll, acl=make_public_read_acl(), recurse=True)
+            publish_result_dir(src_dir, remote_root)
 
             if print_success:
                 num_published += 1
@@ -152,6 +152,10 @@ def publish_result_dir(
             num_errors=num_errors,
         )
 
+    published = Collection(dest)
+
+    # Here is where we would normally apply study-level permissions.
+
     log.info(
         "Publishing complete",
         src=src.as_posix(),
@@ -160,13 +164,12 @@ def publish_result_dir(
         num_errors=num_errors,
     )
 
-    return Collection(dest)
+    return published
 
 
 def _load_metadata(result_dir: Path) -> dict[str, str]:
     """Load experiment metadata from the 'experiment.xenium' file in the given Xenium
     result directory."""
-
     metadata_file = result_dir.resolve() / EXPERIMENT_FILENAME
     with open(metadata_file, "r") as f:
         metadata = json.load(f)
@@ -182,7 +185,6 @@ def _irods_partial_path(result_dir: Path) -> PurePath:
     machine-readable while the latter is keyed in by hand on the instrument.
 
     """
-
     d = result_dir.resolve()
     if not is_output_directory(d):
         raise ValueError(f"Path '{d.as_posix()}' is not a Xenium result directory")

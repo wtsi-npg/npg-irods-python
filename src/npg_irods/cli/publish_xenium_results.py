@@ -23,7 +23,7 @@ from npg.cli import add_io_arguments, add_logging_arguments, open_input, open_ou
 from npg.log import configure_structlog
 
 from npg_irods import add_appinfo_structlog_processor, version
-from npg_irods.utilities import santise_path
+from npg_irods.utilities import sanitise_path
 from npg_irods.xenium import publish_result_dirs
 
 description = """Publishes each Xenium result directory in its input to its own iRODS
@@ -39,7 +39,6 @@ A subset of the keys and values from the experiment.xenium file are added as met
 to the iRODS collection. The metadata includes information such as the instrument name,
 run name, and other relevant details from the Xenium experiment.
 
-All data published by this script will be set to be readable by the iRODS "public" group.
 This script is not responsible for adding LIMS-related tracking metadata.
 """
 
@@ -81,8 +80,8 @@ log = structlog.get_logger("main")
 
 
 def main():
-    input_path = santise_path(args.input)
-    output_path = santise_path(args.output)
+    input_path = sanitise_path(args.input)
+    output_path = sanitise_path(args.output)
 
     with open_input(input_path, encoding="utf-8") as reader:
         with open_output(output_path, encoding="utf-8") as writer:

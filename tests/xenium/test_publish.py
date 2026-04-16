@@ -18,7 +18,7 @@
 
 from pathlib import Path
 
-from partisan.irods import AVU, Collection
+from partisan.irods import AC, AVU, Collection, Permission
 from pytest import mark as m
 
 from npg_irods.common import PlatformNamespace
@@ -69,3 +69,16 @@ class TestPublish:
         ]
 
         assert coll.metadata() == expected_metadata
+
+        public_read = AC(user="public", perm=Permission.READ, zone="testZone")
+
+        assert public_read not in coll.acl(), f"'{coll}' has public read access"
+
+        num_checked, num_expected = 0, 102
+        for item in coll.iter_contents(acl=True, recurse=True):
+            num_checked += 1
+            assert public_read not in item.acl(), f"'{item}' has public read access"
+
+        assert (
+            num_checked == num_expected
+        ), f"Unexpected number of checks for public read access: [{num_checked}/{num_expected}]"

@@ -25,7 +25,7 @@ from npg.cli import add_io_arguments, add_logging_arguments, open_input, open_ou
 from npg.log import configure_structlog
 
 from npg_irods import add_appinfo_structlog_processor, version
-from npg_irods.utilities import repair_replicas, santise_path
+from npg_irods.utilities import repair_replicas, sanitise_path
 
 description = """
 Reads iRODS data object paths from a file or STDIN, one per line and repairs their
@@ -97,8 +97,8 @@ log = structlog.get_logger("main")
 
 
 def main():
-    input_path = santise_path(args.input)
-    output_path = santise_path(args.output)
+    input_path = sanitise_path(args.input)
+    output_path = sanitise_path(args.output)
 
     with open_input(input_path, encoding="utf-8") as reader:
         with open_output(output_path, encoding="utf-8") as writer:
