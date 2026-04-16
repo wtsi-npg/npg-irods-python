@@ -33,7 +33,7 @@ from npg.conf import IniData
 from npg.log import configure_structlog
 
 from npg_irods import add_appinfo_structlog_processor, db, version
-from npg_irods.utilities import santise_path, update_secondary_metadata
+from npg_irods.utilities import sanitise_path, update_secondary_metadata
 
 description = """
 Reads iRODS data object and/or collection paths from a file or STDIN, one per line and
@@ -121,8 +121,8 @@ def main():
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
 
-    input_path = santise_path(args.input)
-    output_path = santise_path(args.output)
+    input_path = sanitise_path(args.input)
+    output_path = sanitise_path(args.output)
 
     with open_input(input_path, encoding="utf-8") as reader:
         with open_output(output_path, encoding="utf-8") as writer:

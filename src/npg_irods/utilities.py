@@ -1283,7 +1283,7 @@ def read_md5sums_file(path: Path) -> dict[Path, str]:
     return md5sums
 
 
-def santise_path(path: str | None) -> str | None:
+def sanitise_path(path: str | None) -> str | None:
     """Sanitise a path string by removing leading and trailing whitespace. This
     function rejects strings that contain control characters and some other invisible
     or unused Unicode characters, raising ValueError.
