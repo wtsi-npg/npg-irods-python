@@ -39,7 +39,6 @@ A subset of the keys and values from the experiment.xenium file are added as met
 to the iRODS collection. The metadata includes information such as the instrument name,
 run name, and other relevant details from the Xenium experiment.
 
-All data published by this script will be set to be readable by the iRODS "public" group.
 This script is not responsible for adding LIMS-related tracking metadata.
 """
 
