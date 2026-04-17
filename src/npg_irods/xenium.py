@@ -22,9 +22,8 @@ from pathlib import Path, PurePath
 from partisan.irods import AVU, Collection
 from structlog import get_logger
 
-from npg_irods.common import PlatformNamespace, update_permissions
+from npg_irods.common import PlatformNamespace
 from npg_irods.exception import PublishingError
-from npg_irods.metadata.lims import make_public_read_acl
 from npg_irods.metadata.xenium import EXPERIMENT_FILENAME, Instrument
 from npg_irods.publish import publish_directory
 from npg_irods.utilities import sanitise_path
@@ -42,7 +41,17 @@ def is_output_directory(result_dir: Path) -> bool:
     d = result_dir.resolve()
     metadata_file = d / EXPERIMENT_FILENAME
 
-    return d.is_dir() and metadata_file.is_file()
+    accept = d.is_dir() and metadata_file.is_file()
+    log.debug(
+        "Xenium result directory check",
+        path=d.as_posix(),
+        path_is_dir=d.is_dir(),
+        metadata_path=metadata_file.as_posix(),
+        metadata_is_file=metadata_file.is_file(),
+        accept=accept,
+    )
+
+    return accept
 
 
 def make_xenium_metadata(result_dir: Path) -> list[AVU]:
@@ -93,20 +102,20 @@ def publish_result_dirs(
     num_dirs, num_published, number_failed = 0, 0, 0
 
     for path in reader:
-        src_dir = Path(sanitise_path(path)).resolve()
+        p = Path(sanitise_path(path)).resolve()
 
         num_dirs += 1
         try:
-            publish_result_dir(src_dir, remote_root)
+            publish_result_dir(p, remote_root)
 
             if print_success:
                 num_published += 1
-                print(path, file=writer)
+                print(p, file=writer)
         except Exception as e:
-            log.error(f"Failed to publish {path}: {e}")
+            log.error(f"Failed to publish '{p}': {e}")
             if print_fail:
                 number_failed += 1
-                print(path, file=writer)
+                print(p, file=writer)
 
     return num_dirs, num_published, number_failed
 
