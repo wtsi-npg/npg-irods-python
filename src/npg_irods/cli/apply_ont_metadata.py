@@ -80,7 +80,7 @@ log = structlog.get_logger("main")
 
 
 def main():
-    dbconfig = IniData(db.Config).from_file(args.db_config.name, "mlwh_ro")
+    dbconfig = IniData(db.Config).from_file(args.db_config, "mlwh_ro")
     engine = sqlalchemy.create_engine(
         dbconfig.url, pool_pre_ping=True, pool_recycle=3600
     )
