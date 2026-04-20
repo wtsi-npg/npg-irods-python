@@ -149,8 +149,19 @@ def publish_result_dir(
         metadata=avus,
     )
 
+    def filter_item(item: Path) -> bool:
+        """Filter out symlinks and non-files/directories."""
+        return item.is_symlink() or not (item.is_file() or item.is_dir())
+
     num_items, num_processed, num_errors = publish_directory(
-        src, dest, avus=avus, force=True, fill=True, num_clients=4, tries=tries
+        src,
+        dest,
+        avus=avus,
+        filter_fn=filter_item,
+        force=True,
+        fill=True,
+        num_clients=4,
+        tries=tries,
     )
 
     if num_errors > 0:
