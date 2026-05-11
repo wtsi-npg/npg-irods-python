@@ -16,19 +16,43 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from pathlib import Path
+from pathlib import Path, PurePath
+from unittest.mock import MagicMock, patch
 
 from partisan.irods import AC, AVU, Collection, Permission
 from pytest import mark as m
 
 from npg_irods.common import PlatformNamespace
-from npg_irods.xenium import publish_result_dir
+from npg_irods.xenium import publish_result_dirs, publish_result_dir
 
 
 class TestPublish:
+
+    @m.context("When publishing a directory fails")
+    @m.it("Reports failure")
+    @patch("npg_irods.xenium.publish_result_dir", autospec=True)
+    def test_publish_result_dirs(self, mock_publish_result_dir: MagicMock):
+        # Arrange
+        reader = ["a", "b"]
+        writer = None
+        remote_root = PurePath("remote_root")
+        use_checksums_directory = False
+
+        mock_publish_result_dir.side_effect = [None, Exception]
+
+        # Act
+        num_dirs, num_published, num_failed = publish_result_dirs(
+            reader, writer, remote_root, use_checksums_directory
+        )
+
+        # Assert
+        assert num_dirs == 2
+        assert num_published == 1
+        assert num_failed == 1
+
     @m.context("When a local Xenium results directory is provided")
     @m.it("Publishes it to iRODS with correct collection metadata")
-    def test_publish_results_directory(self, empty_collection_path):
+    def test_publish_result_dir(self, empty_collection_path):
         local_path = Path(
             "tests/data/xenium/synthetic/"
             "output-XETG00000__0000000__synthetic_region_001__20000101__000000"
