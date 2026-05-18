@@ -48,7 +48,7 @@ class TestChecksumScript:
             PosixPath("directory"),
             PosixPath("md5sums_path"),
         )
-        assert "Checksummed path successfully" in caplog.text
+        assert "Checksummed directory successfully" in caplog.text
         assert "num_files=2" in caplog.text
         assert "num_checksummed=1" in caplog.text
 
@@ -102,3 +102,16 @@ class TestChecksum:
 92f14d525211301f5ccb1ab6a8884fb3  {path}/sub/b.txt
 """
         )
+
+    @m.context("When checksum file parent directories missing")
+    @m.it("Creates them")
+    def test_checksum_directory_no_existing(self, tmp_path):
+        # Arrange
+        path = Path("./tests/data/simple/collection").absolute()
+        md5sums_path = tmp_path / "missing" / "missing" / "collection.md5"
+
+        # Act
+        checksum_directory(path, md5sums_path)
+
+        # Assert
+        assert md5sums_path.exists()

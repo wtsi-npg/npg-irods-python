@@ -33,6 +33,7 @@ import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from importlib import resources
 from pathlib import Path, PurePath
+from typing import Callable
 
 import partisan
 from partisan.exception import RodsError
@@ -1259,6 +1260,22 @@ def read_md5_file(path: Path) -> str:
         return md5
 
 
+def get_md5sums_path(checksums_directory: Path, folder: Path) -> Path:
+    """
+    TODO: incl only one implementation
+
+    Note: provides a default implementation of organising a checksums directory.
+
+    Individual instrument pipelines may want a different implementation, e.g.
+    - Using jus
+    - Sharding
+    """
+
+    # TODO: Consider sharding?
+
+    return (checksums_directory.resolve() / folder.relative_to("/")).with_suffix(".md5")
+
+
 def read_md5sums_file(path: Path) -> dict[Path, str]:
     """
     Reads an MD5 checksums file produced by checksum-directory or another tool
@@ -1281,6 +1298,32 @@ def read_md5sums_file(path: Path) -> dict[Path, str]:
                 raise ValueError(f"MD5 checksum is not 32 characters: '{md5}'")
             md5sums[Path(path)] = md5
     return md5sums
+
+
+def make_get_checksum(md5sums_path: Path) -> Callable[[Path | str], str]:
+    md5sums = read_md5sums_file(md5sums_path)
+    md5sums_modified = md5sums_path.stat().st_mtime
+
+    def get_checksum(path: Path | str) -> str:
+        path = Path(path) if isinstance(path, str) else path
+        path = path.resolve()
+        checksum = md5sums.get(path)
+        if not checksum:
+            raise ValueError(f"No checksum found for {path}")
+        path_modified = path.stat().st_mtime
+        if path_modified > md5sums_modified:
+            raise ValueError(
+                f"Checksum for {path} may be out of date, file modified ({path_modified}) more recently than {md5sums_path} ({md5sums_modified})"
+            )
+        log.debug(
+            "Read checksum from checksums file",
+            local_checksum=checksum,
+            path=path,
+            md5sums_path=md5sums_path,
+        )
+        return checksum
+
+    return get_checksum
 
 
 def sanitise_path(path: str | None) -> str | None:

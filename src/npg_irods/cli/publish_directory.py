@@ -25,13 +25,13 @@ from typing import Callable
 import structlog
 from npg.cli import add_logging_arguments, integer_in_range
 from npg.log import configure_structlog
-from partisan.irods import AC, AVU, Permission, current_user
+from partisan.irods import AC, AVU, Permission
 
 from npg_irods import add_appinfo_structlog_processor
 from npg_irods.common import infer_zone
 from npg_irods.functions import make_path_filter
 from npg_irods.publish import publish_directory
-from npg_irods.utilities import read_md5_file, read_md5sums_file
+from npg_irods.utilities import read_md5_file, make_get_checksum
 
 description = """
 A utility to (recursively) publish a local directory to iRODS, retaining the directory
@@ -41,26 +41,6 @@ structure.
 
 def logger():
     return structlog.get_logger(__name__)
-
-
-def make_get_checksum(md5sums_path: Path) -> Callable[[Path | str], str]:
-    md5sums = read_md5sums_file(md5sums_path)
-    md5sums_modified = md5sums_path.stat().st_mtime
-
-    def get_checksum(path: Path | str) -> str:
-        path = Path(path) if isinstance(path, str) else path
-        path = path.resolve()
-        checksum = md5sums.get(path)
-        if not checksum:
-            raise ValueError(f"No checksum found for {path}")
-        path_modified = path.stat().st_mtime
-        if path_modified > md5sums_modified:
-            raise ValueError(
-                f"Checksum for {path} may be out of date, file modified ({path_modified}) more recently than {md5sums_path} ({md5sums_modified})"
-            )
-        return checksum
-
-    return get_checksum
 
 
 def _parse_group(group: str) -> tuple[str, str | None]:

@@ -17,6 +17,7 @@
 #
 import argparse
 import sys
+from pathlib import Path
 
 import structlog
 from npg.cli import add_io_arguments, add_logging_arguments, open_input, open_output
@@ -70,6 +71,16 @@ def main():
         action="store_true",
     )
     parser.add_argument(
+        "--use-checksums-directory",
+        help="Expect checksums to be present in a checksums file within specified "
+        "checksums directory following GNU coreutils md5sum format. "
+        "This avoids having to calculate the checksums during the publish process. "
+        "If this option is enabled and a checksum is missing or stale, an error "
+        "will be raised for that file. "
+        "Optional, defaults to none.",
+        type=str,
+    )
+    parser.add_argument(
         "--version",
         help="Print the version and exit.",
         action="version",
@@ -88,6 +99,9 @@ def main():
 
     input_path = sanitise_path(args.input)
     output_path = sanitise_path(args.output)
+    checksums_directory = (
+        Path(args.use_checksums_directory) if args.use_checksums_directory else None
+    )
 
     with open_input(input_path, encoding="utf-8") as reader:
         with open_output(output_path, encoding="utf-8") as writer:
@@ -98,6 +112,7 @@ def main():
                 remote_root=args.collection,
                 print_success=args.print_success,
                 print_fail=args.print_fail,
+                use_checksums_directory=checksums_directory,
             )
 
             if num_failed:
