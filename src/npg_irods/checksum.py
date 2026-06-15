@@ -23,14 +23,14 @@ from pathlib import Path
 from npg_irods.utilities import read_md5sums_file, log
 
 
-def checksum_directory(path: Path, md5sums_path: Path):
+def checksum_directory(directory_path: Path, md5sums_path: Path):
     """Calculate MD5 checksums for all files in a directory and write to file.
 
     The output follows GNU coreutils md5sum format. Checksum files (*.md5) are
     ignored. Files with existing checksums are skipped.
 
     Args:
-        path (Path): The directory to checksum.
+        directory_path (Path): The directory to checksum.
         md5sums_path (Path): The file to write checksums to.
 
     Returns:
@@ -41,7 +41,7 @@ def checksum_directory(path: Path, md5sums_path: Path):
     num_files = 0
     num_checksummed = 0
 
-    path = path.resolve()
+    directory_path = directory_path.resolve()
 
     md5sums = read_md5sums_file(md5sums_path) if md5sums_path.exists() else {}
 
@@ -50,25 +50,31 @@ def checksum_directory(path: Path, md5sums_path: Path):
     md5sums_path.parent.mkdir(parents=True, exist_ok=True)
 
     with md5sums_path.open("a") as md5sums_file:
-        for path in sorted(path.rglob("*")):
-            if path.is_file() and path.suffix.lower() != ".md5":
+        for file_path in sorted(directory_path.rglob("*")):
+            if file_path.is_file() and file_path.suffix.lower() != ".md5":
                 num_files += 1
 
-                if path in md5sums:
+                if file_path in md5sums:
                     log.debug(
                         "Match found in md5sums file. Skipping.",
-                        path=path,
+                        path=file_path,
                         md5sums_path=md5sums_path,
                     )
                     continue
 
-                with open(path, "rb") as f:
+                if file_path.is_symlink():
+                    # We've encountered symbolic links to device files e.g. /proc/kcore
+                    # Filter out
+                    log.warn("Path is a symbolic link. Skipping.", path=file_path)
+                    continue
+
+                with open(file_path, "rb") as f:
                     digest = file_digest(f, "md5")
 
                 md5sum = digest.hexdigest()
-                md5sums_file.write(f"{md5sum}  {path}\n")
+                md5sums_file.write(f"{md5sum}  {file_path}\n")
 
-                log.debug("Calculated checksum.", path=path, md5sum=md5sum)
+                log.debug("Calculated checksum.", path=file_path, md5sum=md5sum)
 
                 num_checksummed += 1
 

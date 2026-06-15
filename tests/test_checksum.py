@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Calum Eadie <ce10@sanger.ac.uk>
-
+import shutil
 from pathlib import Path, PosixPath
 from unittest.mock import patch, MagicMock
 
@@ -83,7 +83,7 @@ class TestChecksum:
 
     @m.context("When checksumming a directory with an existing checksum file")
     @m.it("Creates a checksum file")
-    def test_checksum_directory_no_existing(self, tmp_path):
+    def test_checksum_directory_existing(self, tmp_path):
         # Arrange
         path = Path("./tests/data/simple/collection").absolute()
         md5sums_path = tmp_path / "collection.md5"
@@ -105,7 +105,7 @@ class TestChecksum:
 
     @m.context("When checksum file parent directories missing")
     @m.it("Creates them")
-    def test_checksum_directory_no_existing(self, tmp_path):
+    def test_checksum_directory_parent_missing(self, tmp_path):
         # Arrange
         path = Path("./tests/data/simple/collection").absolute()
         md5sums_path = tmp_path / "missing" / "missing" / "collection.md5"
@@ -115,3 +115,28 @@ class TestChecksum:
 
         # Assert
         assert md5sums_path.exists()
+
+    @m.context(
+        "When checksumming a directory containing a file which is a symbolic link"
+    )
+    @m.it("Skips")
+    def test_checksum_directory_file_sym_link(self, tmp_path):
+        # Arrange
+        path = tmp_path / "collection"
+        path.mkdir()
+        (tmp_path / "a.txt").touch()
+        (path / "b.txt").symlink_to(tmp_path / "a.txt")
+        md5sums_path = tmp_path / "collection.md5"
+
+        # Act
+        num_files, num_checksummed = checksum_directory(path, md5sums_path)
+
+        # Assert
+        assert num_files == 1
+        assert num_checksummed == 0
+        assert (
+            "a.txt" not in md5sums_path.read_text()
+        ), "Path to symbolic link should not appear"
+        assert (
+            "b.txt" not in md5sums_path.read_text()
+        ), "Path to symbolic link destination should not appear"
