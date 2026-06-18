@@ -99,7 +99,7 @@ def publish_result_dirs(
             to True.
         print_fail: Print the paths of directories that failed to publish. Defaults
             to False.
-        use_checksums_directory: TODO
+        use_checksums_directory: Path to checksum directory. Optional.
 
     Returns:
         A tuple of the number of directories processed, the number successfully
@@ -145,7 +145,7 @@ def publish_result_dir(
         remote_root: iRODS path to the root of the Xenium results collection. This
             collection must exist.
         tries: Number of times to retry publishing if it fails.
-        use_checksums_directory: TODO
+        use_checksums_directory: Path to checksum directory. Optional.
 
     Returns:
         The iRODS collection containing the published results.

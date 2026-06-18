@@ -29,12 +29,17 @@ from npg_irods.checksum import checksum_directory
 from npg_irods.utilities import get_md5sums_path
 
 description = """
-BOB
-
 A utility to calculate MD5 checksums for all files in a directory.
 
 The output follows GNU coreutils md5sum format. Checksum files (*.md5) are
 ignored. Files with existing checksums are skipped.
+
+Supports two modes of specifying checksum locations:
+
+- Explicitly specifying a file to write checksums to (`--md5sums-path`)
+- Specifying a directory (`--checksums-directory`). Checksums are written to a
+  file within the directory that can be uniquely retrieved by other
+  npg-irods-python utilities.
 """
 
 
@@ -65,8 +70,8 @@ def main():
     checksums_file_group.add_argument(
         "--checksums-directory",
         help="The directory to write checksums to."
-        "The path of file to write checksums to is derived from path of"
-        "directory to checksum.",
+        "The path of the file to write checksums to is derived from the path of"
+        "the directory to checksum.",
     )
 
     parser.add_argument(

@@ -1262,17 +1262,15 @@ def read_md5_file(path: Path) -> str:
 
 def get_md5sums_path(checksums_directory: Path, folder: Path) -> Path:
     """
-    TODO: incl only one implementation
+    Returns a path to checksums file for given folder.
 
-    Note: provides a default implementation of organising a checksums directory.
+    Guarantees checksums file will be unique for the folder by using the full
+    folder path to generate path.
 
-    Individual instrument pipelines may want a different implementation, e.g.
-    - Using jus
-    - Sharding
+    Individual instrument pipelines may have different requirements (e.g. sharding,
+    not requiring full path to be used for uniqueness) and need to calculate a path
+    themselves.
     """
-
-    # TODO: Consider sharding?
-
     return (checksums_directory.resolve() / folder.relative_to("/")).with_suffix(".md5")
 
 
