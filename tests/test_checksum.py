@@ -31,9 +31,10 @@ from npg_irods.cli import checksum_directory as checksum_directory_script
 class TestChecksumScript:
 
     @m.context("When run with default parameters only")
+    @m.context("in --md5sums-path mode")
     @m.it("Checksums the directory and outputs the status")
     @patch("npg_irods.cli.checksum_directory.checksum_directory", autospec=True)
-    def test_main_normal_case(
+    def test_main_normal_case_md5sums_path(
         self, mock_checksum_directory: MagicMock, caplog: LogCaptureFixture
     ):
         # Arrange
@@ -47,6 +48,29 @@ class TestChecksumScript:
         mock_checksum_directory.assert_called_once_with(
             PosixPath("directory"),
             PosixPath("md5sums_path"),
+        )
+        assert "Checksummed directory successfully" in caplog.text
+        assert "num_files=2" in caplog.text
+        assert "num_checksummed=1" in caplog.text
+
+    @m.context("When run with default parameters only")
+    @m.context("in --checksums-directory mode")
+    @m.it("Checksums the directory and outputs the status")
+    @patch("npg_irods.cli.checksum_directory.checksum_directory", autospec=True)
+    def test_main_normal_case_checksums_directory(
+        self, mock_checksum_directory: MagicMock, caplog: LogCaptureFixture
+    ):
+        # Arrange
+        mock_checksum_directory.return_value = (2, 1)
+
+        # Act
+        with caplog.at_level("DEBUG"):
+            self._main(["--directory", "/a/b", "--checksums-directory", "/c/d"])
+
+        # Assert
+        mock_checksum_directory.assert_called_once_with(
+            PosixPath("/a/b"),
+            PosixPath("/c/d/a/b.md5"),
         )
         assert "Checksummed directory successfully" in caplog.text
         assert "num_files=2" in caplog.text
