@@ -504,3 +504,39 @@ class TestPublish:
             if isinstance(item, Collection):
                 assert is_inheritance_enabled(item)
             assert item.acl() == [ADMIN_AC, UNMANAGED_AC]
+
+    @m.context("When publishing a directory containing symbolic links")
+    @m.it("Should follow file links")
+    @m.it("And should not follow directory links (to avoid filesystem loops)")
+    def test_publish_symlinks(self, empty_collection_path):
+        # Arrange
+        src = Path("./tests/data/symlinks/collection")
+        outside = Path("./tests/data/symlinks/outside")
+        dest = empty_collection_path
+
+        # Act
+        num_items, num_processed, num_errors = publish_directory(src, dest)
+
+        # Assert
+        assert num_items == 8
+        assert num_processed == 8
+        assert num_errors == 0
+
+        assert Collection(dest).contents(recurse=True) == [
+            Collection(dest / "inside"),
+            Collection(dest / "outside"),
+            Collection(dest / "sub"),
+            DataObject(dest / "a.txt"),
+            DataObject(dest / "inside.txt"),
+            DataObject(dest / "outside.txt"),
+            # No inside/b.txt
+            # No outside/c.txt
+            DataObject(dest / "sub/b.txt"),
+        ]
+        assert (
+            DataObject(dest / "inside.txt").read()
+            == (src / "sub" / "b.txt").read_text()
+        ), "Should follow link and archive contents of linked file, not the symbolic link"
+        assert (
+            DataObject(dest / "outside.txt").read() == (outside / "c.txt").read_text()
+        ), "Should follow link and archive contents of linked file, not the symbolic link"

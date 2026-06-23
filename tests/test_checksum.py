@@ -83,7 +83,7 @@ class TestChecksum:
 
     @m.context("When checksumming a directory with an existing checksum file")
     @m.it("Creates a checksum file")
-    def test_checksum_directory_no_existing(self, tmp_path):
+    def test_checksum_directory_existing(self, tmp_path):
         # Arrange
         path = Path("./tests/data/simple/collection").absolute()
         md5sums_path = tmp_path / "collection.md5"
@@ -99,6 +99,51 @@ class TestChecksum:
         assert (
             md5sums_path.read_text()
             == f"""cac862166e910d51dc16aa0eab7a7a7c  {path}/a.txt
+92f14d525211301f5ccb1ab6a8884fb3  {path}/sub/b.txt
+"""
+        )
+
+    @m.context("When checksumming a directory which is a symbolic link")
+    @m.it("Records resolved paths")
+    def test_checksum_directory_outer_directory_sym_link(self, tmp_path):
+        # Arrange
+        actual_path = Path("./tests/data/simple/collection").absolute()
+        path = tmp_path / "collection"
+        path.symlink_to(actual_path, target_is_directory=True)
+        md5sums_path = tmp_path / "collection.md5"
+
+        # Act
+        num_files, num_checksummed = checksum_directory(path, md5sums_path)
+
+        # Assert
+        assert num_files == 2
+        assert num_checksummed == 2
+        assert (
+            md5sums_path.read_text()
+            == f"""cac862166e910d51dc16aa0eab7a7a7c  {actual_path}/a.txt
+92f14d525211301f5ccb1ab6a8884fb3  {actual_path}/sub/b.txt
+"""
+        )
+
+    @m.context("When checksumming a directory containing symbolic links")
+    @m.it("Should follow file links")
+    @m.it("And should not follow directory links (to avoid filesystem loops)")
+    def test_checksum_directory_inner_symlinks(self, tmp_path):
+        # Arrange
+        path = Path("./tests/data/symlinks/collection").absolute()
+        md5sums_path = tmp_path / "collection.md5"
+
+        # Act
+        num_files, num_checksummed = checksum_directory(path, md5sums_path)
+
+        # Assert
+        assert num_files == 4
+        assert num_checksummed == 4
+        assert (
+            md5sums_path.read_text()
+            == f"""cac862166e910d51dc16aa0eab7a7a7c  {path}/a.txt
+92f14d525211301f5ccb1ab6a8884fb3  {path}/inside.txt
+a146493229dd8f6170f697fce4bca8bd  {path}/outside.txt
 92f14d525211301f5ccb1ab6a8884fb3  {path}/sub/b.txt
 """
         )

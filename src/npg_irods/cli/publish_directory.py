@@ -38,6 +38,11 @@ A utility to (recursively) publish a local directory to iRODS, retaining the dir
 structure.
 """
 
+epilog = """
+notes:
+  Symbolic Links: Follows file links. Does not follow directory links (to avoid filesystem loops).
+"""
+
 
 def logger():
     return structlog.get_logger(__name__)
@@ -69,9 +74,10 @@ def _parse_group(group: str) -> tuple[str, str | None]:
 
 
 def main():
-
     parser = argparse.ArgumentParser(
-        description=description, formatter_class=argparse.RawDescriptionHelpFormatter
+        description=description,
+        epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     add_logging_arguments(parser)
 

@@ -34,6 +34,11 @@ The output follows GNU coreutils md5sum format. Checksum files (*.md5) are
 ignored. Files with existing checksums are skipped.
 """
 
+epilog = """
+notes:
+  Symbolic Links: Follows file links. Does not follow directory links (to avoid filesystem loops).
+"""
+
 
 def logger():
     return structlog.get_logger(__name__)
@@ -41,7 +46,9 @@ def logger():
 
 def main():
     parser = argparse.ArgumentParser(
-        description=description, formatter_class=argparse.RawDescriptionHelpFormatter
+        description=description,
+        epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     add_logging_arguments(parser)
 
