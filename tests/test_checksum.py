@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Calum Eadie <ce10@sanger.ac.uk>
-import shutil
+
 from pathlib import Path, PosixPath
 from unittest.mock import patch, MagicMock
 
