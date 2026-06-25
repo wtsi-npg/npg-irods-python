@@ -275,6 +275,47 @@ class TestPublishDirectory:
         assert "num_processed=6" in caplog.text
         assert "num_errors=1" in caplog.text
 
+    @m.context("When publishing a directory which is a symbolic link")
+    @m.context("and using checksums file")
+    @m.it("Should verify checksums using resolved paths")
+    def test_publish_outer_directory_sym_link(
+        self,
+        ultima_run,
+        empty_collection_path: PurePath,
+        caplog: LogCaptureFixture,
+        tmp_path,
+    ):
+        # Arrange
+        actual_run_dir, checksums_path = (
+            ultima_run  # checksums_path uses actual/resolved paths
+        )
+        run_dir = tmp_path / "run"
+        run_dir.symlink_to(actual_run_dir, target_is_directory=True)
+        dest = empty_collection_path
+
+        # Act
+        self._main(
+            [
+                str(run_dir),
+                str(dest),
+                "--fill",
+                "--use-checksums-file",
+                str(checksums_path),
+                "--exclude-md5",
+            ]
+        )
+
+        # Assert
+        # No errors: Has been able to use resolved paths
+        assert Collection(dest).contents(recurse=True) == [
+            Collection(dest / "000001-a"),
+            Collection(dest / "000001-d"),
+            DataObject(dest / "000001_a.txt"),
+            DataObject(dest / "b.txt"),
+            DataObject(dest / "000001-a" / "000002-c.txt"),
+            DataObject(dest / "000001-d" / "000001-d.txt"),
+        ]
+
     @staticmethod
     def _main(args: list[str]):
         with patch("sys.argv", ["publish-directory"] + args):
