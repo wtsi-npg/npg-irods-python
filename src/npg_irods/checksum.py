@@ -40,6 +40,10 @@ def checksum_directory(path: Path, md5sums_path: Path):
 
     num_files = 0
     num_checksummed = 0
+    # No error count as we fail fast.
+    # We want all files checksummed when we evoke checksum-directory and
+    # don't expect failures, so we don't currently have error handling like
+    # other npg-irods-python tools which expect iRODS failures.
 
     path = path.resolve()
 
