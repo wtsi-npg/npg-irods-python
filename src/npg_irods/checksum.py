@@ -27,7 +27,7 @@ def checksum_directory(path: Path, md5sums_path: Path):
     """Calculate MD5 checksums for all files in a directory and write to file.
 
     The output follows GNU coreutils md5sum format. Checksum files (*.md5) are
-    ignored. Files with existing checksums are skipped.
+    ignored. Files with existing checksums are skipped. Fails fast on errors.
 
     Args:
         path (Path): The directory to checksum.

@@ -36,6 +36,7 @@ ignored. Files with existing checksums are skipped.
 
 epilog = """
 notes:
+  Error Handling: Fails fast. Exits and displays exception on first failure.
   Symbolic Links: Follows file links. Does not follow directory links (to avoid filesystem loops).
 """
 
