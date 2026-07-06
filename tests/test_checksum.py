@@ -20,6 +20,7 @@
 from pathlib import Path, PosixPath
 from unittest.mock import patch, MagicMock
 
+import pytest
 from pytest import mark as m
 from pytest import LogCaptureFixture
 
@@ -51,6 +52,22 @@ class TestChecksumScript:
         assert "Checksummed path successfully" in caplog.text
         assert "num_files=2" in caplog.text
         assert "num_checksummed=1" in caplog.text
+
+    @m.context("When encounter file not found")
+    @m.it("Provide SINGULARITY_BIND troubleshooting")
+    def test_main_file_not_found(self, tmp_path, caplog: LogCaptureFixture):
+        # Arrange
+        directory = str(Path("./tests/data/simple/collection").absolute())
+        md5sums_path = str(tmp_path / "missing" / "checksums.md5")
+
+        # Act
+        with caplog.at_level("DEBUG"):
+            with pytest.raises(SystemExit) as system_exit:
+                self._main(["--directory", directory, "--md5sums-path", md5sums_path])
+
+        # Assert
+        assert system_exit.value.code == 1
+        assert "SINGULARITY_BIND" in caplog.text
 
     @staticmethod
     def _main(args: list[str]):

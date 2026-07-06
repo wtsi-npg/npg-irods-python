@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Calum Eadie <ce10@sanger.ac.uk>
+import sys
 
 import argparse
 from pathlib import Path
@@ -85,16 +86,21 @@ def main():
     path = Path(args.directory)
     md5sums_path = Path(args.md5sums_path)
 
-    num_files, num_checksummed = checksum_directory(
-        path,
-        md5sums_path,
-    )
-
-    logger().info(
-        "Checksummed path successfully",
-        num_files=num_files,
-        num_checksummed=num_checksummed,
-    )
+    try:
+        num_files, num_checksummed = checksum_directory(
+            path,
+            md5sums_path,
+        )
+        logger().info(
+            "Checksummed path successfully",
+            num_files=num_files,
+            num_checksummed=num_checksummed,
+        )
+    except FileNotFoundError:
+        logger().exception(
+            "File not found. If you're running under Singularity, check bind configuration (e.g. SINGULARITY_BIND, --bind). This is a common cause.",
+        )
+        sys.exit(1)
 
 
 if __name__ == "__main__":
