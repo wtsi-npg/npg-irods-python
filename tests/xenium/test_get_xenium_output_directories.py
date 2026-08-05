@@ -57,7 +57,7 @@ class TestGetXeniumOutputDirectoriesScript:
         assert "num_errors=0" in caplog.text
 
     @m.context("When some parts of tree cannot be searched")
-    @m.it("Should out experiment directories that can be")
+    @m.it("Should output experiment directories that can be")
     def test_main_error_case(
         self,
         caplog: LogCaptureFixture,
