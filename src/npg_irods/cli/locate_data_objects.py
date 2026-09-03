@@ -657,8 +657,8 @@ def _load_mlwh_change_ids(
         return None, None
 
     with MlwhChangeCache(cache_path, prime_cache=prime_cache) as cache:
-        sample_ids = cache.changed_sample_ids(sess, since, until)
-        study_ids = cache.changed_study_ids(sess, since, until)
+        sample_ids = cache.changed_sample_keys(sess, since, until)
+        study_ids = cache.changed_study_keys(sess, since, until)
 
     logger().info(
         "Filtering MLWH updates using cache",

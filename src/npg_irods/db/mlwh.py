@@ -104,8 +104,8 @@ def find_sample_by_sample_id(sess: Session, sample_id: str) -> Sample:
 
 def find_updated_samples(
     sess: Session, since: datetime, until: datetime
-) -> Iterator[str]:
-    """Return IDs of Samples that have been updated in the ML warehouse.
+) -> Iterator[Sample]:
+    """Return Samples that have been updated in the ML warehouse.
 
     Args:
         sess: An open SQL session.
@@ -113,12 +113,12 @@ def find_updated_samples(
         until: The end of the time range.
 
     Returns:
-        Iterator of Sample IDs.
+        Iterator of Samples.
     """
-    recent_creation = since - timedelta(days=1)
+    recent_creation = since - timedelta(days=1)  # FIXME
 
     query = (
-        sess.query(Sample.id_sample_lims)
+        sess.query(Sample)
         .filter(
             Sample.recorded_at.between(since, until)
             & not_(Sample.created.between(recent_creation, since))
@@ -126,14 +126,14 @@ def find_updated_samples(
         .order_by(asc(Sample.recorded_at))
     )
 
-    for (sample_id,) in query.yield_per(SQL_CHUNK_SIZE):
-        yield sample_id
+    for sample in query.yield_per(SQL_CHUNK_SIZE):
+        yield sample
 
 
 def find_updated_studies(
     sess: Session, since: datetime, until: datetime
-) -> Iterator[str]:
-    """Return IDs of Studies that have been updated in the ML warehouse.
+) -> Iterator[Study]:
+    """Return Studies that have been updated in the ML warehouse.
 
     Args:
         sess: An open SQL session.
@@ -141,12 +141,12 @@ def find_updated_studies(
         until: The end of the time range.
 
     Returns:
-        Iterator of Study IDs.
+        Iterator of Studies.
     """
-    recent_creation = since - timedelta(days=1)
+    recent_creation = since - timedelta(days=1)  # FIXME
 
     query = (
-        sess.query(Study.id_study_lims)
+        sess.query(Study)
         .filter(
             Study.recorded_at.between(since, until)
             & not_(Study.created.between(recent_creation, since))
@@ -154,5 +154,5 @@ def find_updated_studies(
         .order_by(asc(Study.recorded_at))
     )
 
-    for (study_id,) in query.yield_per(SQL_CHUNK_SIZE):
-        yield study_id
+    for study in query.yield_per(SQL_CHUNK_SIZE):
+        yield study

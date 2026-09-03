@@ -57,11 +57,10 @@ from helpers import (
     set_replicate_invalid,
 )
 from npg_irods import db
-from npg_irods.db import mlwh
 from npg_irods.metadata.common import DataFile
 from npg_irods.metadata.lims import Sample, Study, TrackedSample, TrackedStudy
 
-logging.basicConfig(level=logging.ERROR, encoding="utf-8")
+logging.basicConfig(level=logging.ERROR)
 
 log_processors = [
     # If log level is too low, abort pipeline and throw away log entry.
@@ -169,6 +168,7 @@ def initialize_mlwh_study_and_samples(session: Session):
     study_x = Study(
         id_lims="LIMS_01",
         id_study_lims="1000",
+        uuid_study_lims="72429892-0ab6-11ee-b5ba-fa163eac3af0",
         name="Study X",
         study_title="Test Study Title",
         accession_number="Test Accession",

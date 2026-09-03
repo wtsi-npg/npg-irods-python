@@ -69,7 +69,11 @@ def make_pacbio_fixture(session, num_runs=2, num_wells=2, num_tags=2, is_revio=T
     }
 
     study_x = Study(
-        id_lims="LIMS_01", id_study_lims="1000", name="Study X", **default_timestamps
+        id_lims="LIMS_01",
+        id_study_lims="1000",
+        uuid_study_lims="a2429892-0ab6-11ee-b5ba-fa163eac3af0",
+        name="Study X",
+        **default_timestamps,
     )
     session.add(study_x)
 

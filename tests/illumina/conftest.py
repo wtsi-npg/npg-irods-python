@@ -62,14 +62,23 @@ def initialize_mlwh_illumina_synthetic(session: Session):
     )
 
     study_a = Study(
-        id_lims="LIMS_01", id_study_lims="4000", name="Study A", **default_timestamps
+        id_lims="LIMS_01",
+        id_study_lims="4000",
+        uuid_study_lims="82429892-0ab6-11ee-b5ba-fa163eac3af0",
+        name="Study A",
+        **default_timestamps,
     )
     study_b = Study(
-        id_lims="LIMS_01", id_study_lims="5000", name="Study B", **default_timestamps
+        id_lims="LIMS_01",
+        id_study_lims="5000",
+        uuid_study_lims="82429892-0ab6-11ee-b5ba-fa163eac3af1",
+        name="Study B",
+        **default_timestamps,
     )
     control_study = Study(
         id_lims="LIMS_888",
         id_study_lims="888",
+        uuid_study_lims="82429892-0ab6-11ee-b5ba-fa163eac3af2",
         name="Control Study",
         **default_timestamps,
     )
