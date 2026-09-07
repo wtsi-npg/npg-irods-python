@@ -32,6 +32,7 @@ from partisan.irods import (
     Collection,
     DataObject,
     Permission,
+    query_metadata,
     rods_path_type,
     rods_user,
 )
@@ -493,3 +494,44 @@ def ensure_secondary_metadata_updated(
         perm_update = update_permissions(item, acl)
 
     return any([meta_update, cons_update, perm_update])
+
+
+def get_irods_collections(pipeline_coll: str, id_products: list[str]) -> dict[str, str]:
+    """
+    Retrieve the iRODS paths of sample collections through their specific `id_product`
+
+    Args:
+        pipeline_coll (str):
+            iRODS path to pipeline collection
+        id_products (list[str]):
+            A list of unique IDs of sequencing products
+
+    Raises:
+        Exception:
+            * No location related to the `id_products` in iRODS.
+            * More than one location is found in iRODS for a product ID.
+
+    Returns:
+        dict[str,str]:
+            * key (str): sample product ID.
+            * value (str): iRODS path.
+    """
+    product_locations = {}
+    for id_product in id_products:
+        query = [
+            AVU("id_product", id_product),
+        ]
+        query_response = query_metadata(*query, data_object=False, zone=pipeline_coll)
+        if not query_response:
+            msg = f"No iRODS collection is found for product ID '{id_product}'"
+            log.error(msg)
+            raise Exception(msg)
+        if len(query_response) > 1:
+            msg = f"Multiple iRODS collections found for product ID '{id_product}'"
+            log.error(msg)
+            raise Exception(msg)
+
+        collection = query_response.pop()
+        product_locations[id_product] = str(collection)
+        log.info(f"Found '{collection}' related to product ID '{id_product}'")
+    return product_locations

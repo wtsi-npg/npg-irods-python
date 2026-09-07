@@ -16,9 +16,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from partisan.irods import AC, AVU, DataObject, Permission
+import pytest
 from pytest import mark as m
 
-from npg_irods.common import ensure_secondary_metadata_updated
+from partisan.irods import Collection
+from npg_irods.common import ensure_secondary_metadata_updated, get_irods_collections
 from npg_irods.metadata.lims import TrackedSample, TrackedStudy
 
 
@@ -157,3 +159,40 @@ class TestCommonFunctions:
         ]
         assert ensure_secondary_metadata_updated(obj, study_and_samples_mlwh)
         assert obj.permissions() == [AC("irods", perm=Permission.OWN, zone=zone)]
+
+    @m.context("When no iRODS collection has the requested id_products")
+    @m.it("Raises Exception error")
+    def test_irods_locations_no_collection(self, sample_collections_with_id_product):
+        with pytest.raises(Exception):
+            get_irods_collections(
+                "/testZone/home/irods",
+                ["244c6fce98d0261f25cedd81dnotexisting7c954c8e25f471f5b6aaca144a32"],
+            )
+
+    @m.context(
+        "When the same sample product ID is assigned to multiple iRODS collections"
+    )
+    @m.it("Raises Exception error")
+    def test_irods_locations_multiple_ids(self, sample_collections_with_id_product):
+        paths = list(sample_collections_with_id_product.keys())
+        duplicated_avu = sample_collections_with_id_product[paths[0]]
+        sample_collections_with_id_product[paths[1]] = duplicated_avu
+        for irods_path, avu_items in sample_collections_with_id_product.items():
+            for avu in avu_items:
+                Collection(irods_path).add_metadata(avu)
+
+        with pytest.raises(Exception):
+            get_irods_collections("/testZone/home/irods", [duplicated_avu.value])
+
+    @m.context("When sample iRODS collections have the requested id_products")
+    @m.it("Returns their iRODS locations")
+    def test_irods_locations(self, sample_collections_with_id_product):
+        id_products = []
+        for irods_path, avu_items in sample_collections_with_id_product.items():
+            for avu in avu_items:
+                if avu.attribute == "id_product":
+                    id_products.append(avu.value)
+                Collection(irods_path).add_metadata(avu)
+
+        locations = get_irods_collections("/testZone/home/irods", id_products)
+        assert len(locations) == 4
