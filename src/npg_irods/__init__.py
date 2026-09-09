@@ -16,10 +16,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @author Keith James <kdj@sanger.ac.uk>
-
-
+import argparse
 import importlib.metadata
 import sys
+from datetime import timedelta
 
 import structlog
 
@@ -41,6 +41,17 @@ def add_appinfo_structlog_processor():
     c = structlog.get_config()
     c["processors"] = [_add_executable_info] + c["processors"]
     structlog.configure(**c)
+
+
+def parse_timedelta_from_hours(hours: str) -> timedelta:
+    """Custom argparse type for hours."""
+
+    try:
+        return timedelta(hours=int(hours))
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"Incorrect format {hours}. Must be an integer."
+        )
 
 
 def version() -> str:
