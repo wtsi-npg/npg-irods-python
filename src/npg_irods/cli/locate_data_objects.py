@@ -681,15 +681,28 @@ def _print_data_objects_updated_in_mlwh(
     num_processed = num_errors = 0
 
     studies = find_updated_studies(sess, since=since, until=until)
+
     np, ne = _find_and_print_data_objects(
-        TrackedStudy.ID, studies, query, since=since, until=until, json=json, zone=zone
+        TrackedStudy.ID,
+        map(lambda study: study.id_study_lims, studies),
+        query,
+        since=since,
+        until=until,
+        json=json,
+        zone=zone,
     )
     num_processed += np
     num_errors += ne
 
     samples = find_updated_samples(sess, since=since, until=until)
     np, ne = _find_and_print_data_objects(
-        TrackedSample.ID, samples, query, since=since, until=until, json=json, zone=zone
+        TrackedSample.UUID,
+        map(lambda sample: sample.uuid_sample_lims, samples),
+        query,
+        since=since,
+        until=until,
+        json=json,
+        zone=zone,
     )
     num_processed += np
     num_errors += ne
@@ -706,10 +719,10 @@ def _find_and_print_data_objects(
     json: bool = False,
     zone: str = None,
 ) -> tuple[int, int]:
-    """Print data object paths identified by their metadata e.g. sample ID or study ID.
+    """Print data object paths identified by their metadata e.g. sample UUID or study ID.
 
     Args:
-        attr: An AVU attribute to search on e.g. sample ID or study ID.
+        attr: An AVU attribute to search on e.g. sample UUID or study ID.
         values: An interator of AVU values corresponding to the attribute to search for.
         query: Additional AVUs to combine with attr and values in the queries.
         since: Earliest changes to find.

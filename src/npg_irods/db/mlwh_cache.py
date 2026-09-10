@@ -80,7 +80,7 @@ STUDY_HASH_COLS = (
 )
 
 SAMPLE_KEY = "uuid_sample_lims"
-STUDY_KEY = "uuid_study_lims"
+STUDY_KEY = "id_study_lims"  # uuid_sample_lims metadata is not available yet in iRODS
 
 
 SAMPLE_CACHE_CREATE_SQL = (
