@@ -357,7 +357,7 @@ class TestGetRecentlyCreatedDirectories:
         assert "Unexpected empty directory" in caplog.text
 
     @m.it(
-        "Should excludes checksums (.md5) and macOS Finder metadata (.DS_Store) files"
+        "Should exclude checksums (.md5) and macOS Finder metadata (.DS_Store) files"
     )
     @patch("npg_irods.cli.get_recently_created_directories.get_ctime")
     @patch("npg_irods.cli.get_recently_created_directories.get_now_utc")
