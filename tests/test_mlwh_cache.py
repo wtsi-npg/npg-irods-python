@@ -106,8 +106,10 @@ class TestMlwhChangeCache:
 
             assert changed_samples == set()
 
-    @m.context("When more updated rows exist than the cache batch size")
-    @m.it("Should return every changed sample ID")
+    @m.context("When more updated rows exist than the (SQLite) cache batch size")
+    @m.it(
+        "Should return every changed sample ID, even though they span multiple batches"
+    )
     def test_changed_sample_ids_multiple_batches(self, mlwh_session, tmp_path):
         sample_keys = {
             f"00000000-0000-0000-0000-{n:012d}" for n in range(CACHE_CHUNK_SIZE + 1)
@@ -127,6 +129,11 @@ class TestMlwhChangeCache:
         )
         mlwh_session.commit()
 
+        # There was a bug in MlwhChangeCache where it unintentionally closed the MLWH
+        # query result stream by issuing a new MLWH query during each chunk's
+        # processing. This meant that effectively only one cache chunk would ever be
+        # processed. This test demonstrates implicitly that this is fixed because >1
+        # chunk is processed.
         with MlwhChangeCache(tmp_path / "mlwh_cache.sqlite") as cache:
             changed_ids = cache.changed_sample_keys(mlwh_session, BEGIN, LATEST)
 
