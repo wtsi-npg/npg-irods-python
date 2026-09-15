@@ -69,13 +69,25 @@ def initialize_mlwh_ont_synthetic(session: Session, ont_barcodes):
     }
 
     study_x = Study(
-        id_lims="LIMS_01", id_study_lims="1000", name="Study X", **default_timestamps
+        id_lims="LIMS_01",
+        id_study_lims="1000",
+        uuid_study_lims="92429892-0ab6-11ee-b5ba-fa163eac3af0",
+        name="Study X",
+        **default_timestamps,
     )
     study_y = Study(
-        id_lims="LIMS_01", id_study_lims="2000", name="Study Y", **default_timestamps
+        id_lims="LIMS_01",
+        id_study_lims="2000",
+        uuid_study_lims="92429892-0ab6-11ee-b5ba-fa163eac3af1",
+        name="Study Y",
+        **default_timestamps,
     )
     study_z = Study(
-        id_lims="LIMS_01", id_study_lims="3000", name="Study Z", **default_timestamps
+        id_lims="LIMS_01",
+        id_study_lims="3000",
+        uuid_study_lims="92429892-0ab6-11ee-b5ba-fa163eac3af2",
+        name="Study Z",
+        **default_timestamps,
     )
     session.add_all([study_x, study_y, study_z])
 

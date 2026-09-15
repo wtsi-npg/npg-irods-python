@@ -35,6 +35,7 @@ from structlog import get_logger
 
 from npg_irods.common import infer_zone, update_metadata, update_permissions
 from npg_irods.db.mlwh import SQL_CHUNK_SIZE
+from npg_irods.db.mlwh_cache import SAMPLE_KEY, STUDY_KEY
 from npg_irods.exception import CollectionNotFound, DataObjectNotFound
 from npg_irods.metadata.common import SeqConcept, SeqSubset
 from npg_irods.metadata.illumina import Instrument
@@ -543,7 +544,7 @@ def find_updated_components(
             )
         )
     elif changed_sample_ids:
-        filters.append(Sample.id_sample_lims.in_(changed_sample_ids))
+        filters.append(getattr(Sample, SAMPLE_KEY).in_(changed_sample_ids))
 
     if changed_study_ids is None:
         filters.append(
@@ -553,7 +554,7 @@ def find_updated_components(
             )
         )
     elif changed_study_ids:
-        filters.append(Study.id_study_lims.in_(changed_study_ids))
+        filters.append(getattr(Study, STUDY_KEY).in_(changed_study_ids))
 
     query = (
         sess.query(
