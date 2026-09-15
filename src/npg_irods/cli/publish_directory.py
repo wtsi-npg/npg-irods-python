@@ -25,13 +25,14 @@ from typing import Callable
 import structlog
 from npg.cli import add_logging_arguments, integer_in_range
 from npg.log import configure_structlog
-from partisan.irods import AC, AVU, Permission, current_user
+from partisan.irods import AC, AVU, Permission
 
 from npg_irods import add_appinfo_structlog_processor
+from npg_irods.arguments import add_checksum_arguments, make_checksum_fn
 from npg_irods.common import infer_zone
 from npg_irods.functions import make_path_filter
 from npg_irods.publish import publish_directory
-from npg_irods.utilities import read_md5_file, read_md5sums_file
+from npg_irods.utilities import read_md5_file, make_get_checksum
 
 description = """
 A utility to (recursively) publish a local directory to iRODS, retaining the directory
@@ -46,26 +47,6 @@ notes:
 
 def logger():
     return structlog.get_logger(__name__)
-
-
-def make_get_checksum(md5sums_path: Path) -> Callable[[Path | str], str]:
-    md5sums = read_md5sums_file(md5sums_path)
-    md5sums_modified = md5sums_path.stat().st_mtime
-
-    def get_checksum(path: Path | str) -> str:
-        path = Path(path) if isinstance(path, str) else path
-        path = path.resolve()
-        checksum = md5sums.get(path)
-        if not checksum:
-            raise ValueError(f"No checksum found for {path}")
-        path_modified = path.stat().st_mtime
-        if path_modified > md5sums_modified:
-            raise ValueError(
-                f"Checksum for {path} may be out of date, file modified ({path_modified}) more recently than {md5sums_path} ({md5sums_modified})"
-            )
-        return checksum
-
-    return get_checksum
 
 
 def _parse_group(group: str) -> tuple[str, str | None]:
@@ -171,28 +152,7 @@ def main():
         type=argparse.FileType("r", encoding="UTF-8"),
         default=None,
     )
-    checksums_group = parser.add_mutually_exclusive_group(required=False)
-    checksums_group.add_argument(
-        "--use-checksum-files",
-        help="Expect checksum files to be present alongside the data files with "
-        "the same name as the data file but with an additional '.md5' extension"
-        "e.g. 'data.txt' and 'data.txt.md5'. Each checksum file should contain only "
-        "the single MD5 checksum of the corresponding data file. This avoids having "
-        "to calculate the checksums during the publish process. If this option is "
-        "enabled and a checksum file cannot be read, an error will be raised for "
-        "that file. Optional, defaults to false.",
-        action="store_true",
-    )
-    checksums_group.add_argument(
-        "--use-checksums-file",
-        help="Expect checksums to be present in a checksums file at path specified "
-        "following GNU coreutils md5sum format. This avoids having to calculate the "
-        "checksums during the publish process. If this option is enabled and a "
-        "checksum is missing or stale, an error will be raised for that file. "
-        "Optional, defaults to none.",
-        type=str,
-        default=None,
-    )
+    parser = add_checksum_arguments(parser)
     parser.add_argument(
         "--num-clients",
         help="Number of iRODS clients to use for the operation, maximum 24. "
@@ -283,21 +243,7 @@ def main():
         else None
     )
 
-    checksum_fn: Callable[[Path | str], str] | None
-    if args.use_checksum_files:
-        checksum_fn = read_md5_file
-    elif args.use_checksums_file:
-        try:
-            checksum_fn = make_get_checksum(Path(args.use_checksums_file))
-        except Exception as e:
-            logger().error(
-                "Failed to read checksums file",
-                path=args.use_checksums_file,
-                error=str(e),
-            )
-            raise e
-    else:
-        checksum_fn = None
+    checksum_fn = make_checksum_fn(args)
 
     num_items, num_processed, num_errors = publish_directory(
         args.directory,
