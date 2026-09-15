@@ -265,7 +265,7 @@ class MlwhChangeCache:
             cache_upsert_fn:
 
         Returns:
-
+            The number of updates.
         """
         updates: list[tuple[str, str, int, str]] = []
         total = 0
