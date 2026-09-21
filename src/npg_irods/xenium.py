@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from typing import Callable
 
 import json
 from pathlib import Path, PurePath
@@ -74,7 +75,12 @@ def make_xenium_metadata(result_dir: Path) -> list[AVU]:
 
 
 def publish_result_dirs(
-    reader, writer, remote_root: PurePath, print_success=True, print_fail=False
+    reader,
+    writer,
+    remote_root: PurePath,
+    print_success=True,
+    print_fail=False,
+    local_checksum: Callable[[str], bool] | None = None,
 ):
     """Read local Xenium result directory paths from a reader and publish their contents
     to iRODS, printing the results to a writer.
@@ -94,6 +100,11 @@ def publish_result_dirs(
             to True.
         print_fail: Print the paths of directories that failed to publish. Defaults
             to False.
+        local_checksum: A callable that returns a checksum for a local file. Optional,
+            if None, each local file's MD5 checksum will be calculated. If local files
+            are large, it may improve the publishing time to use this argument to
+            supply pre-caculated checksums. The callable should take a single argument
+            (the file path) and return the checksum as a string.
 
     Returns:
         A tuple of the number of directories processed, the number successfully
@@ -107,7 +118,9 @@ def publish_result_dirs(
 
         num_dirs += 1
         try:
-            publish_result_dir(p, remote_root, dir_index=i)
+            publish_result_dir(
+                p, remote_root, local_checksum=local_checksum, dir_index=i
+            )
 
             num_published += 1
 
@@ -128,6 +141,7 @@ def publish_result_dir(
     result_dir: Path,
     remote_root: PurePath,
     tries: int = 3,
+    local_checksum: Callable[[str], bool] | None = None,
     dir_index: int | None = None,
 ) -> Collection:
     """Publish one Xenium results directory to iRODS.
@@ -137,6 +151,11 @@ def publish_result_dir(
         remote_root: iRODS path to the root of the Xenium results collection. This
             collection must exist.
         tries: Number of times to retry publishing if it fails.
+        local_checksum: A callable that returns a checksum for a local file. Optional,
+            if None, each local file's MD5 checksum will be calculated. If local files
+            are large, it may improve the publishing time to use this argument to
+            supply pre-caculated checksums. The callable should take a single argument
+            (the file path) and return the checksum as a string.
         dir_index: Index of directory to publish (for logging). Defaults to None.
 
     Returns:
@@ -175,6 +194,7 @@ def publish_result_dir(
         fill=True,
         num_clients=4,
         tries=tries,
+        local_checksum=local_checksum,
     )
 
     if num_errors > 0:

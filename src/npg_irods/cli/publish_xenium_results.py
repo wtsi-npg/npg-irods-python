@@ -23,6 +23,7 @@ from npg.cli import add_io_arguments, add_logging_arguments, open_input, open_ou
 from npg.log import configure_structlog
 
 from npg_irods import add_appinfo_structlog_processor, version
+from npg_irods.arguments import make_checksum_fn, add_checksum_arguments
 from npg_irods.utilities import sanitise_path
 from npg_irods.xenium import publish_result_dirs
 
@@ -69,6 +70,7 @@ def main():
         help="Print to output those paths that were not successfully processed.",
         action="store_true",
     )
+    parser = add_checksum_arguments(parser)
     parser.add_argument(
         "--version",
         help="Print the version and exit.",
@@ -89,6 +91,8 @@ def main():
     input_path = sanitise_path(args.input)
     output_path = sanitise_path(args.output)
 
+    checksum_fn = make_checksum_fn(args)
+
     with open_input(input_path, encoding="utf-8") as reader:
         with open_output(output_path, encoding="utf-8") as writer:
 
@@ -98,6 +102,7 @@ def main():
                 remote_root=args.collection,
                 print_success=args.print_success,
                 print_fail=args.print_fail,
+                local_checksum=checksum_fn,
             )
 
             if num_failed:
