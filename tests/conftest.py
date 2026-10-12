@@ -35,11 +35,11 @@ import npgmlwarehouse.db.schema
 import pytest
 import structlog
 from npg.conf import IniData
+from npg.db import create_database, database_exists, drop_database
 from partisan.irods import AC, AVU, Collection, DataObject, Permission
 from partisan.metadata import DublinCore
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy_utils import create_database, database_exists, drop_database
 
 from helpers import (
     BEGIN,
