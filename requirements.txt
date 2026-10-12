@@ -5,7 +5,7 @@ npgmlwarehouse-python @ git+https://github.com/wtsi-npg/npgmlwarehouse-python.gi
 partisan@https://github.com/wtsi-npg/partisan/releases/download/4.4.0/partisan-4.4.0.tar.gz
 pymysql==1.2.3
 python-dateutil==2.9.0.post0
-setuptools-git-versioning==3.1.0
+setuptools-git-versioning==3.2.0
 setuptools==84.0.0
 sqlalchemy==2.0.50
 structlog==26.1.0
