@@ -178,11 +178,12 @@ def publish_result_dir(
     )
 
     def filter_item(item: Path) -> bool:
-        """Filter out symlinks and non-files/directories."""
+        """Filter out symlinks, non-files/directories and known non-instrument output."""
         return (
             item.is_symlink()
             or not (item.is_file() or item.is_dir())
             or item.name == ".DS_Store"
+            or item.name == "Thumbs.db"
         )
 
     num_items, num_processed, num_errors = publish_directory(

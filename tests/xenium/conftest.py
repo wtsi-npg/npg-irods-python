@@ -42,3 +42,23 @@ def xenium_staging_dir_with_error(
     yield xenium_staging_dir
 
     (xenium_staging_dir / "error").chmod(original_mode)
+
+
+@pytest.fixture(scope="function")
+def xenium_staging_dir_non_instrument_output(
+    tmp_path: Path,
+) -> Generator[Path, Any, None]:
+    non_instrument_output_dir = tmp_path / "non_instrument_output"
+    shutil.copytree(
+        "tests/data/xenium/synthetic/"
+        "output-XETG00000__0000000__synthetic_region_001__20000101__000000",
+        non_instrument_output_dir,
+    )
+
+    (non_instrument_output_dir / ".DS_Store").touch()
+    (non_instrument_output_dir / "Thumbs.db").touch()
+    (non_instrument_output_dir / "sub").mkdir()
+    (non_instrument_output_dir / "sub" / ".DS_Store").touch()
+    (non_instrument_output_dir / "sub" / ".Thumbs.db").touch()
+
+    yield non_instrument_output_dir
