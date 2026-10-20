@@ -24,7 +24,11 @@ from typing import BinaryIO, TextIO, Any
 from partisan.irods import AVU, Collection
 from structlog.stdlib import get_logger
 
-from npg_irods.common import PlatformNamespace
+from npg_irods.common import (
+    PlatformNamespace,
+    is_macos_finder_metadata,
+    is_windows_thumbnails_cache,
+)
 from npg_irods.exception import PublishingError
 from npg_irods.metadata.xenium import EXPERIMENT_FILENAME, Instrument
 from npg_irods.publish import publish_directory

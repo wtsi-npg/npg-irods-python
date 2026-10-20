@@ -22,6 +22,11 @@ from datetime import datetime, timedelta, UTC
 import operator
 from typing import BinaryIO, TextIO, Any
 
+from npg_irods.common import (
+    is_macos_finder_metadata,
+    is_windows_thumbnails_cache,
+    is_checksum,
+)
 from npg_irods.system_calls import get_now_utc, get_ctime
 
 from pathlib import Path
@@ -102,9 +107,9 @@ def get_recently_created_directories(
                     continue
 
                 if (
-                    file_path.suffix.lower() == ".md5"
-                    or file_path.name == ".DS_Store"
-                    or file_path.name == "Thumbs.db"
+                    is_checksum(file_path)
+                    or is_macos_finder_metadata(file_path)
+                    or is_windows_thumbnails_cache(file_path)
                 ):
                     continue
 
