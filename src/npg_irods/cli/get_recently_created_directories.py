@@ -101,7 +101,11 @@ def get_recently_created_directories(
                 if not file_path.is_file():
                     continue
 
-                if file_path.suffix.lower() == ".md5" or file_path.name == ".DS_Store":
+                if (
+                    file_path.suffix.lower() == ".md5"
+                    or file_path.name == ".DS_Store"
+                    or file_path.name == "Thumbs.db"
+                ):
                     continue
 
                 # Python is moving towards depreciating ctime and making birthtime available.
