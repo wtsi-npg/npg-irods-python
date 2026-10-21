@@ -20,6 +20,7 @@
 from hashlib import file_digest
 from pathlib import Path
 
+from npg_irods.common import is_checksum
 from npg_irods.utilities import read_md5sums_file, log
 
 
@@ -51,7 +52,7 @@ def checksum_directory(path: Path, md5sums_path: Path):
 
     with md5sums_path.open("a") as md5sums_file:
         for path in sorted(path.rglob("*")):
-            if path.is_file() and path.suffix.lower() != ".md5":
+            if path.is_file() and not is_checksum(path):
                 num_files += 1
 
                 if path in md5sums:

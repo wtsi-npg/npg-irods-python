@@ -19,7 +19,7 @@
 from pathlib import Path, PurePath
 from unittest.mock import MagicMock, patch
 
-from partisan.irods import AC, AVU, Collection, Permission
+from partisan.irods import AC, AVU, Collection, Permission, DataObject
 from pytest import mark as m
 
 from npg_irods.common import PlatformNamespace
@@ -105,3 +105,29 @@ class TestPublish:
         assert (
             num_checked == num_expected
         ), f"Unexpected number of checks for public read access: [{num_checked}/{num_expected}]"
+
+    @m.context(
+        "When a Xenium results directory has had known non-instrument output added"
+    )
+    @m.it("Publishes without known non-instrument output")
+    def test_publish_known_non_instrument_output(
+        self, xenium_staging_dir_non_instrument_output, empty_collection_path
+    ):
+        # Arrange
+        local_path = xenium_staging_dir_non_instrument_output
+        remote_path = empty_collection_path / "xenium"
+
+        Collection(remote_path).create()  # The root collection must exist
+
+        # Act
+        coll = publish_result_dir(local_path, remote_path, dir_index=0)
+
+        # Assert
+        names = [
+            x.name
+            for x in coll.iter_contents(recurse=True)
+            if isinstance(x, DataObject)
+        ]
+
+        assert ".DS_Store" not in names
+        assert "Thumbs.db" not in names

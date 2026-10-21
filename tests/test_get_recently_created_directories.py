@@ -356,7 +356,9 @@ class TestGetRecentlyCreatedDirectories:
 
         assert "Unexpected empty directory" in caplog.text
 
-    @m.it("Should exclude checksums (.md5) and macOS Finder metadata (.DS_Store) files")
+    @m.it(
+        "Should exclude checksum (.md5), macOS Finder metadata (.DS_Store) and Windows thumbnail cache (Thumbs.db) files"
+    )
     @patch("npg_irods.cli.get_recently_created_directories.get_ctime")
     @patch("npg_irods.cli.get_recently_created_directories.get_now_utc")
     def test_ignore(
@@ -375,6 +377,7 @@ class TestGetRecentlyCreatedDirectories:
         # Should be ignored and folder not be categorised as being created
         fs.create_file("recent/checksum.md5", SECOND_SUNDAY_3AM)
         fs.create_file("recent/.DS_Store", SECOND_SUNDAY_3AM)
+        fs.create_file("recent/Thumbs.db", SECOND_SUNDAY_3AM)
         directories = [str(recent)]
 
         # Act
