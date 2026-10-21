@@ -186,8 +186,8 @@ def publish_result_dir(
         return (
             item.is_symlink()
             or not (item.is_file() or item.is_dir())
-            or item.name == ".DS_Store"
-            or item.name == "Thumbs.db"
+            or is_macos_finder_metadata(item)
+            or is_windows_thumbnails_cache(item)
         )
 
     num_items, num_processed, num_errors = publish_directory(
