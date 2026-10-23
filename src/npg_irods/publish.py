@@ -25,7 +25,11 @@ from structlog.stdlib import get_logger
 
 from npg_irods.common import update_metadata, update_permissions
 from npg_irods.exception import PublishingError
-from npg_irods.metadata.common import ensure_common_metadata, PUBLIC_IRODS_GROUP
+from npg_irods.metadata.common import (
+    ensure_common_metadata,
+    PUBLIC_IRODS_GROUP,
+    ensure_matching_checksum_metadata,
+)
 from npg_irods.metadata.lims import is_public_access
 
 log = get_logger(__name__)
@@ -139,6 +143,10 @@ def publish_directory(
             ):
                 num_items += 1
 
+                def _annotate(o):
+                    ensure_matching_checksum_metadata(o)
+                    ensure_common_metadata(o)
+
                 match item:
                     case Exception():
                         num_errors += 1
@@ -151,9 +159,7 @@ def publish_directory(
                     case Collection():
                         num_processed += 1
                     case DataObject():
-                        meta_updates.append(
-                            executor.submit(ensure_common_metadata, item)
-                        )
+                        meta_updates.append(executor.submit(_annotate, item))
                         num_processed += 1
                     case _:
                         num_errors += 1
