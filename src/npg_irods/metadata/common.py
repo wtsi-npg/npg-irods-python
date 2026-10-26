@@ -27,6 +27,7 @@ from partisan.irods import AVU, DataObject, Replica, RodsItem
 from partisan.metadata import AsValueEnum, DublinCore, with_namespace
 from structlog import get_logger
 
+
 from npg_irods.exception import ChecksumError
 
 log = get_logger(__name__)
@@ -683,7 +684,7 @@ def ensure_common_metadata(obj: DataObject, creator=None) -> bool:
 
     This function doesn't handle cases where invalid checksum metadata are present
     e.g. if the object was overwritten with a new file but the checksum metadata was
-    not updated. For that, see utilities.ensure_matching_checksum_metadata.
+    not updated. For that, see ensure_matching_checksum_metadata.
 
     Args:
         obj: The data object to repair.
