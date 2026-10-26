@@ -21,7 +21,7 @@ dependencies = [
     "npgmlwarehouse-python >=1.1",
     "partisan >=4.3,<5",
     "pymysql >=1.1.1",
-    "python-dateutil >=2.9,<3",
+    "python-dateutil >=2.9,<4",
     "sqlalchemy >=2",
     "structlog >=25",
     "yattag"
