@@ -16,14 +16,15 @@ requires-python = ">=3.12"
 dynamic = ["version"]
 
 dependencies = [
-    "npg-python-lib >=2,<3",
+    "certifi >= 2026.10.19",
+    "npg-python-lib >=2.4,<3",
     "npg_id_generation >=5.0.1",
     "npgmlwarehouse-python >=1.1",
     "partisan >=4.3,<5",
     "pymysql >=1.1.1",
-    "python-dateutil >=2.9,<3",
-    "sqlalchemy >=2",
-    "structlog >=25",
+    "python-dateutil >=4,<5",
+    "sqlalchemy >=2.1",
+    "structlog >=26",
     "yattag"
 ]
 
@@ -31,7 +32,6 @@ dependencies = [
 test = [
     "black >=26,<27",
     "pytest >=9,<10",
-    "sqlalchemy-utils >=0.41.0",
 ]
 
 [project.urls]
