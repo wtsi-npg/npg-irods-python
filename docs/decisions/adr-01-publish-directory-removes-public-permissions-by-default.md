@@ -56,7 +56,12 @@ $ for p in "/seq/illumina/runs" "/seq/elembio/runs" "/seq/ont" "/seq/pacbio" "/s
         Inheritance - Enabled
 ```
 
-iRODS does not provide an operation to create items with specific permissions. Therefore across publishing methods methods, item creation is a two stage process:
+~~iRODS does not provide an operation to create items with specific permissions. Therefore across publishing methods methods, item creation is a two stage process:~~
+
+> [!NOTE]
+> Updates 11/2026
+> - Our understanding of iRODS capabilities has improved. iRODS does provide an operation to create items with specific permissions however we would need to test it is atomic in all the cases significant to us and plumb through the stack - both significant changes and out of scope at the moment. See "Atomic iput with metadata and ACLs" in [iRODS Release Notes](https://docs.irods.org/4.2.7/release_notes/).
+> - We're changing this to a model of updating destination collection ACL before creating items below so that in stage 1, permissions determined by desired ACL and not by inheritance.
 
 - Stage 1: Create collection / data object
 	- Initial access control determined by current user and any active inheritance policies
