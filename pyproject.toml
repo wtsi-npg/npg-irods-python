@@ -11,7 +11,8 @@ classifiers = [
     "Programming Language :: Python"
 ]
 keywords = ["irods", "npg"]
-requires-python = ">=3.12"
+# >= 3.13 for partisan, >= 3.13.18 for Emudhra
+requires-python = ">=3.13.18"
 
 dynamic = ["version"]
 
