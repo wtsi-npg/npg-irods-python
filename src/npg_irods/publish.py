@@ -123,6 +123,19 @@ def publish_directory(
         try:
             # Ensure parent collection exists (matching npg_publish_tree.pl).
             coll.create(parents=True, exist_ok=True, timeout=timeout, tries=tries)
+
+            # Update permissions on destination collection before adding collections and
+            # data objects beneath. This ordering is significant when inheritance is enabled
+            # as it:
+            # - Avoids public permissions being inherited from parent collection and
+            #    possibly not removed if there's a failure during data object creation.
+            # - Reduces iRODS operations later in the typical case of destination not
+            #   already existing. Items will be get desired permissions on creation.
+            # It is still necessary to update permissions later as inheritance might be disabled
+            # and/or items may already exist and need their permissions adjusted.
+            acl_update = _calculate_acl_update(coll, acl_to_add=acl)
+            if acl_update:
+                update_permissions(coll, acl_update)
         except Exception as e:
             log.error("Error creating collection", path=coll, error=str(e))
 
