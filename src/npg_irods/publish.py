@@ -100,12 +100,42 @@ def publish_directory(
 
     num_threads = num_clients + int(num_clients / 4) + 1
 
+    def _calculate_acl_update(
+        _item: Collection | DataObject, acl_to_add: list[AC] | None
+    ) -> list[AC]:
+        """
+        Calculate the ACL update needed to ensure item does not have public access
+        unless explicitly specified.
+        """
+        _acl_update = list(acl_to_add or [])
+        public_acl = [ac for ac in _item.permissions() if is_public_access(ac)]
+        if public_acl and not any(is_public_access(ac) for ac in _acl_update):
+            to_null = [
+                AC(PUBLIC_IRODS_GROUP, Permission.NULL, zone=ac.zone)
+                for ac in public_acl
+            ]
+            _acl_update.extend(to_null)
+        return _acl_update
+
     with client_pool(maxsize=num_clients) as bp:
         coll = Collection(dest, pool=bp)
 
         try:
-            # Follow npg_publish_tree.pl behaviour
+            # Ensure parent collection exists (matching npg_publish_tree.pl).
             coll.create(parents=True, exist_ok=True, timeout=timeout, tries=tries)
+
+            # Update permissions on destination collection before adding collections and
+            # data objects beneath. This ordering is significant when inheritance is enabled
+            # as it:
+            # - Avoids public permissions being inherited from parent collection and
+            #    possibly not removed if there's a failure during data object creation.
+            # - Reduces iRODS operations later in the typical case of destination not
+            #   already existing. Items will be get desired permissions on creation.
+            # It is still necessary to update permissions later as inheritance might be disabled
+            # and/or items may already exist and need their permissions adjusted.
+            acl_update = _calculate_acl_update(coll, acl_to_add=acl)
+            if acl_update:
+                update_permissions(coll, acl_update)
         except Exception as e:
             log.error("Error creating collection", path=coll, error=str(e))
 
@@ -166,17 +196,10 @@ def publish_directory(
                         log.error("Unknown item type", path=item)
                         continue
 
-                public_acl = [ac for ac in item.permissions() if is_public_access(ac)]
-                if public_acl and not any(is_public_access(ac) for ac in (acl or [])):
-                    to_null = [
-                        AC(PUBLIC_IRODS_GROUP, Permission.NULL, zone=ac.zone)
-                        for ac in public_acl
-                    ]
-                    acl = (acl or []) + to_null
-
-                if acl is not None:
+                acl_update = _calculate_acl_update(item, acl_to_add=acl)
+                if acl_update:
                     perm_updates.append(
-                        executor.submit(update_permissions, item, acl=acl)
+                        executor.submit(update_permissions, item, acl=acl_update)
                     )
 
             for future in meta_updates:
