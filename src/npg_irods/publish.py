@@ -104,11 +104,28 @@ def publish_directory(
 
     num_threads = num_clients + int(num_clients / 4) + 1
 
+    def _calculate_acl_update(
+        _item: Collection | DataObject, _acl: list[AC]
+    ) -> list[AC]:
+        """
+        Calculate the ACL update needed to ensure item does not have public access
+        unless explicitly specified.
+        """
+        _new_acl: list[AC] = _acl.copy()
+        curr_public_acl = [ac for ac in _item.permissions() if is_public_access(ac)]
+        if curr_public_acl and not any(is_public_access(ac) for ac in _new_acl):
+            to_null = [
+                AC(PUBLIC_IRODS_GROUP, Permission.NULL, zone=ac.zone)
+                for ac in curr_public_acl
+            ]
+            _new_acl.extend(to_null)
+        return _new_acl
+
     with client_pool(maxsize=num_clients) as bp:
         coll = Collection(dest, pool=bp)
 
         try:
-            # Follow npg_publish_tree.pl behaviour
+            # Ensure parent collection exists (matching npg_publish_tree.pl).
             coll.create(parents=True, exist_ok=True, timeout=timeout, tries=tries)
         except Exception as e:
             log.error("Error creating collection", path=coll, error=str(e))
@@ -170,17 +187,7 @@ def publish_directory(
                         log.error("Unknown item type", path=item)
                         continue
 
-                new_acl: list[AC] = acl.copy()
-                curr_public_acl = [
-                    ac for ac in item.permissions() if is_public_access(ac)
-                ]
-                if curr_public_acl and not any(is_public_access(ac) for ac in new_acl):
-                    to_null = [
-                        AC(PUBLIC_IRODS_GROUP, Permission.NULL, zone=ac.zone)
-                        for ac in curr_public_acl
-                    ]
-                    new_acl.extend(to_null)
-
+                new_acl = _calculate_acl_update(item, acl)
                 perm_updates.append(
                     executor.submit(update_permissions, item, acl=new_acl)
                 )
