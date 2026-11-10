@@ -235,9 +235,7 @@ class TestPublish:
     @m.parametrize(
         "existing_managed_or_public_acl, new_managed_or_public_acl, expected_managed_or_public_acl",
         [
-            pytest.param(
-                [STUDY_AC], None, [STUDY_AC], id="none"
-            ),  # Document as is behaviour, we want to remove this edge case.
+            pytest.param([STUDY_AC], None, [], id="none"),
             pytest.param([STUDY_AC, PUBLIC_AC], None, [], id="none-existing-public"),
             pytest.param([STUDY_AC], [], [], id="empty"),
             pytest.param([STUDY_AC, PUBLIC_AC], [], [], id="empty-existing-public"),

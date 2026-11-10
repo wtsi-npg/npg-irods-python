@@ -58,8 +58,8 @@ def publish_directory(
         avus: A list of AVU objects to add to each of the published root collection. The
             default is None, meaning no AVUs are added.
         acl: A list of AC objects to supersede any existing or inherited managed and/or
-            public ACL with. The default is None, meaning don't supersede (existing public)
-            or remove any existing managed or public permissions  (existing public).
+            public ACL with. The default is None, meaning remove any existing managed
+            and/or public permissions.
         filter_fn: A filter function to apply to each item in the source directory. The
             function should take a single argument (the item) and return True if the
             item should be filtered out, or False if it should be included. The default
@@ -88,6 +88,9 @@ def publish_directory(
     """
     num_items, num_processed, num_errors = 0, 0, 0
     first_error: Exception | None = None
+
+    if acl is None:
+        acl = []
 
     if filter_fn is None:
         filter_fn = lambda _: False
@@ -167,18 +170,20 @@ def publish_directory(
                         log.error("Unknown item type", path=item)
                         continue
 
-                public_acl = [ac for ac in item.permissions() if is_public_access(ac)]
-                if public_acl and not any(is_public_access(ac) for ac in (acl or [])):
+                new_acl: list[AC] = acl.copy()
+                curr_public_acl = [
+                    ac for ac in item.permissions() if is_public_access(ac)
+                ]
+                if curr_public_acl and not any(is_public_access(ac) for ac in new_acl):
                     to_null = [
                         AC(PUBLIC_IRODS_GROUP, Permission.NULL, zone=ac.zone)
-                        for ac in public_acl
+                        for ac in curr_public_acl
                     ]
-                    acl = (acl or []) + to_null
+                    new_acl.extend(to_null)
 
-                if acl is not None:
-                    perm_updates.append(
-                        executor.submit(update_permissions, item, acl=acl)
-                    )
+                perm_updates.append(
+                    executor.submit(update_permissions, item, acl=new_acl)
+                )
 
             for future in meta_updates:
                 try:
