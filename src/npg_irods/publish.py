@@ -57,8 +57,9 @@ def publish_directory(
             exist; the contents of the source directory will be published into it.
         avus: A list of AVU objects to add to each of the published root collection. The
             default is None, meaning no AVUs are added.
-        acl: A list of AC objects to add to each of the published items. The default is
-            None, meaning no ACL is added.
+        acl: A list of AC objects to supersede any existing or inherited managed and/or
+            public ACL with. The default is None, meaning don't supersede (existing public)
+            or remove any existing managed or public permissions  (existing public).
         filter_fn: A filter function to apply to each item in the source directory. The
             function should take a single argument (the item) and return True if the
             item should be filtered out, or False if it should be included. The default
@@ -66,7 +67,7 @@ def publish_directory(
         local_checksum: A callable that returns a checksum for a local file. Optional,
             if None, each local file's MD5 checksum will be calculated. If local files
             are large, it may improve the publishing time to use this argument to
-            supply pre-caculated checksums. The callable should take a single argument
+            supply pre-calculated checksums. The callable should take a single argument
             (the file path) and return the checksum as a string.
         fill: Fill in missing data objects in iRODS. If a data object already
             exists, the operation is skipped for that path. See DataObject.put() for

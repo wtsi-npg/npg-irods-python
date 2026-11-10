@@ -33,6 +33,7 @@ from helpers import (
     ADMIN_AC,
     STUDY_AC,
     UNMANAGED_AC,
+    STUDY2_AC,
 )
 from npg_irods.exception import PublishingError
 from npg_irods.metadata.common import DataFile
@@ -221,6 +222,86 @@ class TestPublish:
             perms = item.acl()
             for ac in acl:
                 assert ac in perms
+
+    @m.context("When items already have managed permissions")
+    @m.it("Replaces managed permissions when an ACL is specified")
+    @m.parametrize(
+        "force, fill",
+        [
+            pytest.param(True, False, id="force"),
+            pytest.param(False, True, id="fill"),
+        ],
+    )
+    @m.parametrize(
+        "existing_managed_or_public_acl, new_managed_or_public_acl, expected_managed_or_public_acl",
+        [
+            pytest.param(
+                [STUDY_AC], None, [STUDY_AC], id="none"
+            ),  # Document as is behaviour, we want to remove this edge case.
+            pytest.param([STUDY_AC, PUBLIC_AC], None, [], id="none-existing-public"),
+            pytest.param([STUDY_AC], [], [], id="empty"),
+            pytest.param([STUDY_AC, PUBLIC_AC], [], [], id="empty-existing-public"),
+            pytest.param([STUDY_AC], [PUBLIC_AC], [PUBLIC_AC], id="public"),
+            pytest.param(
+                [STUDY_AC, PUBLIC_AC],
+                [PUBLIC_AC],
+                [PUBLIC_AC],
+                id="public-existing-public",
+            ),
+            pytest.param(
+                [STUDY_AC],
+                [STUDY2_AC],
+                [STUDY2_AC],
+                id="other-study",
+            ),
+            pytest.param(
+                [STUDY_AC, PUBLIC_AC],
+                [STUDY2_AC],
+                [STUDY2_AC],
+                id="other-study-existing-public",
+            ),
+        ],
+    )
+    def test_republish_managed_permissions(
+        self,
+        public_unmanaged_inheritance_enabled_collection,
+        force: bool,
+        fill: bool,
+        existing_managed_or_public_acl: list[AC],
+        new_managed_or_public_acl: list[AC] | None,
+        expected_managed_or_public_acl: list[AC],
+    ):
+        # Arrange
+        src = Path("./tests/data/simple/collection")
+        dest = public_unmanaged_inheritance_enabled_collection
+        num_items, num_processed, num_errors = publish_directory(
+            src, dest, acl=existing_managed_or_public_acl
+        )
+        assert (num_items, num_processed, num_errors) == (4, 4, 0)
+        coll = Collection(dest)
+        items = [coll, *coll.contents(recurse=True)]
+        assert len(items) == 4
+        for item in items:
+            assert set(item.acl()) == {
+                ADMIN_AC,
+                UNMANAGED_AC,
+                *existing_managed_or_public_acl,
+            }
+
+        # Act
+        num_items, num_processed, num_errors = publish_directory(
+            src, dest, force=force, fill=fill, acl=new_managed_or_public_acl
+        )
+
+        # Assert
+        assert (num_items, num_processed, num_errors) == (4, 4, 0)
+
+        for item in items:
+            assert set(item.acl()) == {
+                ADMIN_AC,
+                UNMANAGED_AC,
+                *expected_managed_or_public_acl,
+            }
 
     @m.context("When metadata are provided")
     @m.it("Adds it to the published root collection, but not to its contents")
