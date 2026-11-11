@@ -70,6 +70,7 @@ ZONE = "testZone"
 ADMIN_AC = AC("irods", Permission.OWN, ZONE)
 PUBLIC_AC = AC("public", Permission.READ, ZONE)
 STUDY_AC = AC("ss_1000", Permission.READ, ZONE)
+STUDY2_AC = AC("ss_2000", Permission.READ, ZONE)
 UNMANAGED_AC = AC("unmanaged", Permission.READ, ZONE)
 """e.g. dnap-ro"""
 
