@@ -476,6 +476,24 @@ def public_unmanaged_inheritance_disabled_collection_path(
     )
 
 
+@pytest.fixture(
+    scope="function",
+    params=[
+        pytest.param(True, id="inheritance-enabled"),
+        pytest.param(False, id="inheritance-disabled"),
+    ],
+)
+def public_unmanaged_collection(
+    request,
+    tmp_path,
+) -> Generator[PurePath, Any, None]:
+    """A fixture providing a collection with public and unmanaged read permissions and
+    both inheritance modes."""
+    yield from _collection_with_permissions_inheritance(
+        tmp_path, [PUBLIC_AC, UNMANAGED_AC], request.param
+    )
+
+
 def _collection_with_permissions_inheritance(tmp_path, permissions: list[AC], inherit):
     root_path = PurePath(
         f"/testZone/home/irods/test/{"_".join(ac.user for ac in permissions)}_inherit_{inherit}_collection"

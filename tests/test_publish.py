@@ -23,7 +23,7 @@ from os.path import relpath
 from unittest.mock import patch, Mock
 
 import pytest
-from partisan.irods import AC, AVU, Collection, Permission, DataObject
+from partisan.irods import AC, AVU, Collection, Permission, DataObject, Baton
 from pytest import mark as m, MonkeyPatch
 
 from helpers import (
@@ -763,3 +763,47 @@ class TestPublish:
         assert (
             DataObject(dest / "outside.txt").read() == (outside / "c.txt").read_text()
         ), "Should follow link and archive contents of linked file, not the symbolic link"
+
+    @m.context("When publishing with non-public acl")
+    @m.context("and put operation fails")
+    @m.it("publishes without public permissions")
+    @m.parametrize(
+        "acl",
+        [
+            pytest.param([STUDY_AC], id="study"),
+            pytest.param([], id="private-empty"),
+            pytest.param(None, id="private-none"),
+        ],
+    )
+    def test_publish_put_failure_fail_non_public(
+        self,
+        public_unmanaged_collection: PurePath,
+        monkeypatch,
+        acl: list[AC] | None,
+    ):
+        # Arrange
+        src = Path("./tests/data/simple/collection")
+        dest = public_unmanaged_collection
+
+        # Simulate iRODS outage. Data objects created (inheriting public permissions)
+        # however reported as failure.
+        original_put = Baton.put
+
+        def patched_put(self_, *args, **kwargs):
+            original_put(self_, *args, **kwargs)
+            raise Exception("iRODS outage")
+
+        monkeypatch.setattr(Baton, "put", patched_put)
+
+        # Act
+        num_items, num_processed, num_errors = publish_directory(src, dest, acl=acl)
+
+        # Assert
+        assert num_items == 4
+        assert num_processed == 2
+        assert num_errors == 2
+
+        assert PUBLIC_AC not in Collection(dest).acl()
+        assert PUBLIC_AC not in DataObject(dest / "a.txt").acl()
+        assert PUBLIC_AC not in Collection(dest / "sub").acl()
+        assert PUBLIC_AC not in DataObject(dest / "sub/b.txt").acl()
