@@ -136,8 +136,8 @@ def main():
         "Items may also be published with unmanaged permissions, through inheritance or existing permissions. "
         "May be used multiple times to specify read permissions for multiple groups. "
         "Zone may be specified with #zone suffix, otherwise inferred from collection. "
-        "Unless explicitly specified, public permissions are removed. "  # See ADR 1
-        "Optional, defaults to no permission change (when no existing ACL) or remove any existing managed or public permissions (existing public ACL). ",  # Document as is behaviour, we want to remove this edge case
+        "Any existing managed or public permissions not explicitly specified are removed. "  # See ADR 1
+        "Optional, defaults to removing all managed and/or public permissions.",
         type=str,
         action="append",
         default=[],
