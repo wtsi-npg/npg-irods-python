@@ -56,13 +56,18 @@ $ for p in "/seq/illumina/runs" "/seq/elembio/runs" "/seq/ont" "/seq/pacbio" "/s
         Inheritance - Enabled
 ```
 
-iRODS does not provide an operation to create items with specific permissions. Therefore across publishing methods methods, item creation is a two stage process:
+> [!NOTE]
+> Updates 11/2026
+> - Our understanding of iRODS capabilities has improved. iRODS does provide atomic create/set permissions. See ADR 2.
+> - Item creation process changed by ADR 2.
+
+iRODS does not provide an operation to create items with specific permissions. Therefore across publishing methods, item creation is a two stage process:
 
 - Stage 1: Create collection / data object
 	- Initial access control determined by current user and any active inheritance policies
 - Stage 2: Permissions adjusted
 	- `npg_publish_tree.pl`
-		- All cases - Restriction access mechanism removes public.
+		- All cases - Restricted access mechanism removes public.
 		- `--group` is applied (including possibly `public#read`)
 	- `publish-directory`
 		- `--group ss_XXX` - public removed ("managed access public removal mechanism")
