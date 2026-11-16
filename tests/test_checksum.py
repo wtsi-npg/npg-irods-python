@@ -49,7 +49,7 @@ class TestChecksumScript:
             PosixPath("directory"),
             PosixPath("md5sums_path"),
         )
-        assert "Checksummed path successfully" in caplog.text
+        assert "Checksummed directory successfully" in caplog.text
         assert "num_files=2" in caplog.text
         assert "num_checksummed=1" in caplog.text
 
