@@ -86,13 +86,15 @@ def main():
     path = Path(args.directory)
     md5sums_path = Path(args.md5sums_path)
 
+    logger().info("Checksumming directory", argv=sys.argv, args=vars(args))
+
     try:
         num_files, num_checksummed = checksum_directory(
             path,
             md5sums_path,
         )
         logger().info(
-            "Checksummed path successfully",
+            "Checksummed directory successfully",
             num_files=num_files,
             num_checksummed=num_checksummed,
         )

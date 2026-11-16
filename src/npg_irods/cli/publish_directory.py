@@ -225,6 +225,8 @@ def main():
         fill=args.fill,
         force=args.force,
         num_clients=num_clients,
+        argv=sys.argv,
+        args=vars(args),
     )
 
     filter_fn = (
