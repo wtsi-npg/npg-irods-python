@@ -218,7 +218,7 @@ class TestPublish:
         assert num_processed == 4
         assert num_errors == 0
 
-        for item in Collection(dest).iter_contents():
+        for item in Collection(dest).iter_contents(recurse=True):
             perms = item.acl()
             for ac in acl:
                 assert ac in perms
@@ -317,7 +317,7 @@ class TestPublish:
         for avu in avus:
             assert avu in mc
 
-        for item in Collection(dest).iter_contents():
+        for item in Collection(dest).iter_contents(recurse=True):
             mi = item.metadata()
             for avu in avus:
                 assert avu not in mi
@@ -518,7 +518,7 @@ class TestPublish:
         assert not is_inheritance_enabled(dest)
         assert Collection(dest).acl() == [ADMIN_AC, PUBLIC_AC]
 
-        for item in Collection(dest).iter_contents():
+        for item in Collection(dest).iter_contents(recurse=True):
             if isinstance(item, Collection):
                 assert not is_inheritance_enabled(item)
             assert item.acl() == [ADMIN_AC, PUBLIC_AC]
@@ -556,7 +556,7 @@ class TestPublish:
         assert not is_inheritance_enabled(dest)
         assert Collection(dest).acl() == [ADMIN_AC, STUDY_AC]
 
-        for item in Collection(dest).iter_contents():
+        for item in Collection(dest).iter_contents(recurse=True):
             if isinstance(item, Collection):
                 assert not is_inheritance_enabled(item)
             assert item.acl() == [ADMIN_AC, STUDY_AC]
@@ -590,7 +590,7 @@ class TestPublish:
         assert not is_inheritance_enabled(dest)
         assert Collection(dest).acl() == [ADMIN_AC]
 
-        for item in Collection(dest).iter_contents():
+        for item in Collection(dest).iter_contents(recurse=True):
             if isinstance(item, Collection):
                 assert not is_inheritance_enabled(item)
             assert item.acl() == [ADMIN_AC]
@@ -628,7 +628,7 @@ class TestPublish:
         assert is_inheritance_enabled(dest)
         assert Collection(dest).acl() == [ADMIN_AC, PUBLIC_AC, UNMANAGED_AC]
 
-        for item in Collection(dest).iter_contents():
+        for item in Collection(dest).iter_contents(recurse=True):
             if isinstance(item, Collection):
                 assert is_inheritance_enabled(item)
             assert item.acl() == [ADMIN_AC, PUBLIC_AC, UNMANAGED_AC]
@@ -666,7 +666,7 @@ class TestPublish:
         assert is_inheritance_enabled(dest)
         assert Collection(dest).acl() == [ADMIN_AC, STUDY_AC, UNMANAGED_AC]
 
-        for item in Collection(dest).iter_contents():
+        for item in Collection(dest).iter_contents(recurse=True):
             if isinstance(item, Collection):
                 assert is_inheritance_enabled(item)
             assert item.acl() == [ADMIN_AC, STUDY_AC, UNMANAGED_AC]
@@ -700,7 +700,7 @@ class TestPublish:
         assert is_inheritance_enabled(dest)
         assert Collection(dest).acl() == [ADMIN_AC, UNMANAGED_AC]
 
-        for item in Collection(dest).iter_contents():
+        for item in Collection(dest).iter_contents(recurse=True):
             if isinstance(item, Collection):
                 assert is_inheritance_enabled(item)
             assert item.acl() == [ADMIN_AC, UNMANAGED_AC]

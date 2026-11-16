@@ -218,7 +218,7 @@ class TestONTMetadataCreation(object):
             AC("ss_2000", Permission.READ, zone=zone),
         ]
         assert coll.acl() == expected_acl, f"ACL of {coll} is { expected_acl}"
-        for item in coll.contents():
+        for item in coll.contents(recurse=True):
             assert item.acl() == expected_acl, f"ACL of {item} is {expected_acl}"
 
     @tests_have_admin
@@ -306,7 +306,7 @@ class TestONTMetadataCreation(object):
                 ]
 
                 assert bc_coll.acl() == expected_acl
-                for item in bc_coll.contents():
+                for item in bc_coll.contents(recurse=True):
                     assert item.acl() == expected_acl
 
     @tests_have_admin
@@ -381,7 +381,7 @@ class TestONTMetadataCreation(object):
                 ]
 
                 assert bc_coll.acl() == expected_acl
-                for item in bc_coll.contents():
+                for item in bc_coll.contents(recurse=True):
                     assert item.acl() == expected_acl
 
 
