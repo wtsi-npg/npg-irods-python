@@ -466,10 +466,14 @@ def find_run_collections(
     args = []
     if zone is not None:
         args.extend(["-z", shlex.quote(zone)])
+
+    # Note: tab separation, creation time, then path
     args.append("%s\t%s")
 
+    # Put the timestamp output first because it will not contain tabs, while the iRODS
+    # patch technically could contain tabs.
     query = (
-        "select COLL_NAME, COLL_CREATE_TIME where "
+        "select COLL_CREATE_TIME, COLL_NAME where "
         f"META_COLL_ATTR_NAME = '{Instrument.EXPERIMENT_NAME}' and "
         f"META_COLL_ATTR_NAME = '{Instrument.INSTRUMENT_SLOT}'"
     )
@@ -480,10 +484,9 @@ def find_run_collections(
 
     paths = []
     for line in iquest(*args, query).splitlines():
-        p = line.strip()
-        if p.startswith(ignore1) or p.startswith(ignore2):
+        if line.startswith(ignore1) or line.startswith(ignore2):
             continue
-        path, created = p.split("\t", 1)
+        created, path = line.split("\t", 1)
         if int(since.timestamp()) <= int(created) <= int(until.timestamp()):
             paths.append(path)
 

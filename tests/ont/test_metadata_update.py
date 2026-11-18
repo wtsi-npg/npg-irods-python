@@ -92,8 +92,8 @@ class TestONTFindUpdates:
             ont,
             name="iquest",
             value=lambda *args: (
-                f"{older.path}\t{int(EARLY.timestamp())}\n"
-                f"{newer.path}\t{int(LATEST.timestamp())}"
+                f"{int(EARLY.timestamp())}\t{older.path}\n"
+                f"{int(LATEST.timestamp())}\t{newer.path}"
             ),
         )
 
