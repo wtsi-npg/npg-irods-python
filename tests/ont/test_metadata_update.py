@@ -25,6 +25,7 @@ from partisan.irods import AC, AVU, Collection, DataObject, Permission, format_t
 from pytest import mark as m, raises
 
 from helpers import (
+    EARLY,
     LATEST,
     history_in_meta,
     tests_have_admin,
@@ -51,12 +52,8 @@ from ont.conftest import ont_tag_identifier
 
 class TestONTFindUpdates:
     @tests_have_admin
-    @m.context(
-        "When an ONT metadata update is requested and "
-        "no experiment name is specified, and "
-        "no time window is specified"
-    )
-    @m.it("Finds all collections")
+    @m.context("When an ONT metadata are added and no time window is specified")
+    @m.it("Finds all collections, including re-basecalls")
     def test_find_all(self, ont_synthetic_irods, ont_synthetic_mlwh):
         num_simple_expts = 5
         num_multiplexed_expts = 3
@@ -77,101 +74,41 @@ class TestONTFindUpdates:
         assert num_updated == num_expected
         assert num_errors == 0
 
-    @m.context(
-        "When an ONT metadata update is requested and "
-        "no experiment name is specified, and "
-        "a time window is specified"
-    )
-    @m.it("Finds only collections updated in that time window")
-    def test_find_recent_updates(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        num_found, num_updated, num_errors = apply_metadata(
-            mlwh_session=ont_synthetic_mlwh, since=LATEST
-        )
-
-        # Only slots 1, 3 and 5 of multiplexed experiments 1 and 3 were updated in
-        # the MLWH since time LATEST i.e.
-        expected_colls = [
-            Collection(ont_synthetic_irods / path)
-            for path in [
-                "multiplexed_experiment_001/20190904_1514_GA10000_flowcell101_cf751ba1",
-                "multiplexed_experiment_001/20190904_1514_GA30000_flowcell103_cf751ba1",
-                "multiplexed_experiment_001/20190904_1514_GA50000_flowcell105_cf751ba1",
-                "multiplexed_experiment_003/20190904_1514_GA10000_flowcell101_cf751ba1",
-                "multiplexed_experiment_003/20190904_1514_GA30000_flowcell103_cf751ba1",
-                "multiplexed_experiment_003/20190904_1514_GA50000_flowcell105_cf751ba1",
-                "old_rebasecalled_multiplexed_experiment_001/20190904_1514_GA10000_flowcell201_b4a1fd79",
-                "rebasecalled_multiplexed_experiment_001/20190904_1514_GA10000_flowcell301_08c179cd",
-            ]
-        ]
-        num_expected = len(expected_colls)
-
-        assert num_found == num_expected, (
-            f"Found {num_expected} collections "
-            "(slots 1, 3 and 5 of multiplexed experiments 1 and 3)"
-        )
-        assert num_updated == num_expected
-        assert num_errors == 0
-
-    @m.context(
-        "When an ONT metadata update is requested and "
-        "an experiment name is specified"
-    )
-    @m.it("Finds only collections with that experiment name")
-    def test_find_updates_for_experiment(self, ont_synthetic_irods, ont_synthetic_mlwh):
-        expt = "simple_experiment_001"
-        slot = 1
-
-        num_found, num_updated, num_errors = apply_metadata(
-            experiment_name=expt, mlwh_session=ont_synthetic_mlwh
-        )
-
-        expected_colls = [
-            Collection(ont_synthetic_irods / path)
-            for path in [
-                "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024",
-                "simple_experiment_001/20190904_1514_G200000_flowcell012_69126024",
-                "simple_experiment_001/20190904_1514_G300000_flowcell013_69126024",
-                "simple_experiment_001/20190904_1514_G400000_flowcell014_69126024",
-                "simple_experiment_001/20190904_1514_G500000_flowcell015_69126024",
-            ]
-        ]
-        num_expected = len(expected_colls)
-
-        assert (
-            num_found == num_expected
-        ), f"Found {num_expected} collections (all slots from simple experiment 1)"
-        assert num_updated == num_expected
-        assert num_errors == 0
-
-    @m.context(
-        "When an ONT metadata update is requested and "
-        "an experiment name is specified and, "
-        "a slot position is specified"
-    )
-    @m.it("Finds only collections with that experiment name and slot position")
-    def test_find_updates_for_experiment_slot(
-        self, ont_simple_experiment_001_slot_1, ont_synthetic_mlwh
+    @m.context("When an ONT metadata are added and a time window is specified")
+    @m.it("Finds collections by iRODS creation time")
+    def test_find_recent_creations(
+        self, ont_synthetic_irods, ont_synthetic_mlwh, monkeypatch
     ):
-        expt = "simple_experiment_001"
-        slot = 1
-        path = (
-            ont_simple_experiment_001_slot_1
-            / expt
-            / "20190904_1514_G100000_flowcell011_69126024"
+        older = Collection(
+            ont_synthetic_irods
+            / "simple_experiment_001/20190904_1514_G100000_flowcell011_69126024"
         )
+        newer = Collection(
+            ont_synthetic_irods
+            / "simple_experiment_002/20190904_1514_G100000_flowcell011_69126024"
+        )
+
+        monkeypatch.setattr(
+            ont,
+            name="iquest",
+            value=lambda *args: (
+                f"{older.path}\t{int(EARLY.timestamp())}\n"
+                f"{newer.path}\t{int(LATEST.timestamp())}"
+            ),
+        )
+
+        assert AVU(TrackedSample.NAME, "name1") not in older.metadata()
+        assert AVU(TrackedSample.NAME, "name2") not in newer.metadata()
 
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
+            mlwh_session=ont_synthetic_mlwh, since=LATEST, until=LATEST
         )
 
-        expected_colls = [Collection(path)]
-        num_expected = len(expected_colls)
-
-        assert (
-            num_found == num_expected
-        ), f"Found {num_expected} collections (slot 1 from simple experiment 1)"
-        assert num_updated == num_expected
+        assert num_found == 1
+        assert num_updated == 1
         assert num_errors == 0
+        assert AVU(TrackedSample.NAME, "name1") not in older.metadata()
+        assert AVU(TrackedSample.NAME, "name2") in newer.metadata()
 
 
 class TestONTMetadataCreation(object):
@@ -404,7 +341,7 @@ class TestONTMetadataUpdate(object):
         assert AVU(TrackedSample.NAME, "name1") not in coll.metadata()
 
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
+            mlwh_session=ont_synthetic_mlwh
         )
 
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
@@ -431,7 +368,7 @@ class TestONTMetadataUpdate(object):
         coll.add_metadata(AVU(TrackedSample.NAME, "name1"))
 
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
+            mlwh_session=ont_synthetic_mlwh
         )
 
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
@@ -456,7 +393,7 @@ class TestONTMetadataUpdate(object):
         coll.add_metadata(AVU(TrackedSample.NAME, "name0"))
 
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
+            mlwh_session=ont_synthetic_mlwh
         )
 
         assert AVU(TrackedSample.NAME, "name1") in coll.metadata()
@@ -489,7 +426,7 @@ class TestONTMetadataUpdate(object):
         coll.add_metadata(AVU(TrackedStudy.NAME, "Study B"))
 
         num_found, num_updated, num_errors = apply_metadata(
-            experiment_name=expt, instrument_slot=slot, mlwh_session=ont_synthetic_mlwh
+            mlwh_session=ont_synthetic_mlwh
         )
 
         assert AVU(TrackedStudy.NAME, "Study Y") in coll.metadata()

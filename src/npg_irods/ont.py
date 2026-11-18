@@ -39,6 +39,7 @@ from structlog import get_logger
 from npg_irods.common import infer_zone, update_metadata, update_permissions
 from npg_irods.db.mlwh import SQL_CHUNK_SIZE
 from npg_irods.db.mlwh_cache import SAMPLE_KEY, STUDY_KEY
+from npg_irods.illumina import split_name
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
@@ -86,17 +87,12 @@ class Component:
 
 
 def apply_metadata(
-    mlwh_session: Session,
-    experiment_name=None,
-    instrument_slot=None,
-    since: datetime = None,
-    until: datetime = None,
-    zone=None,
+    mlwh_session: Session, since: datetime = None, until: datetime = None, zone=None
 ) -> tuple[int, int, int]:
-    """Apply iRODS metadata on ONT run collections whose corresponding ML warehouse
-    records have been updated within a specified time range. This function detects
-    runs that are multiplexed and adds relevant tag identifier and tag index primary
-    metadata to the deplexed collections.
+    """Apply iRODS metadata to ONT run collections that have been created in iRODS
+    within a specified time range. This function detects runs that are multiplexed
+    and adds relevant tag identifier and tag index primary metadata to the deplexed
+    collections.
 
     Collections to annotate are identified by having ont:experiment_name and
     ont:instrument_slot metadata already attached to them. This is done for example,
@@ -104,11 +100,8 @@ def apply_metadata(
 
     Args:
         mlwh_session: An open SQL session.
-        experiment_name: Limit updates to this experiment. Optional.
-        instrument_slot: Limit updates to this instrument slot. Optional, requires
-          an experiment_name to be supplied.
-        since: A datetime. Limit updates to experiments changed at this time or later.
-        until: A datetime. Limit updates to experiments before at this time or earlier.
+        since: A datetime. Limit updates to collections created at this time or later.
+        until: A datetime. Limit updates to collections created at this time or earlier.
         zone: The iRODS zone to search for metadata to update.
 
     Returns:
@@ -120,57 +113,42 @@ def apply_metadata(
     if until is None:
         until = datetime.now()
 
-    if experiment_name is None and instrument_slot is not None:
-        raise ValueError(
-            f"An instrument_slot {instrument_slot} was supplied "
-            "without an experiment_name"
-        )
-
     num_found, num_updated, num_errors = 0, 0, 0
 
-    for i, c in enumerate(
-        find_updated_components(
-            mlwh_session, include_tags=False, since=since, until=until
-        )
-    ):
-        if experiment_name is not None and c.experiment_name != experiment_name:
-            continue
-        if instrument_slot is not None and c.instrument_slot != instrument_slot:
-            continue
+    try:
+        colls = find_run_collections(since=since, until=until, zone=zone)
+        num_found = len(colls)
+        log.info("Collections found", num_colls=len(colls))
 
-        avus = [
-            AVU(Instrument.EXPERIMENT_NAME, c.experiment_name),
-            AVU(Instrument.INSTRUMENT_SLOT, c.instrument_slot),
-        ]
+        for i, coll in enumerate(colls):
+            try:
+                expt = coll.avu(Instrument.EXPERIMENT_NAME).value
+                slot = coll.avu(Instrument.INSTRUMENT_SLOT).value
+                tag_id = (
+                    coll.avu(Instrument.TAG_IDENTIFIER).value
+                    if coll.has_metadata_attrs(Instrument.TAG_IDENTIFIER)
+                    else None
+                )
 
-        try:
-            log.info("Searching", item=i, comp=c, zone=zone)
-            colls = query_metadata(*avus, data_object=False, zone=zone)
+                c: Component = Component(
+                    experiment_name=expt, instrument_slot=slot, tag_identifier=tag_id
+                )
 
-            num_colls = len(colls)
-            num_found += num_colls
-            if num_colls:
-                log.info("Found collections", item=i, comp=c, num_coll=num_colls)
-            else:
-                log.warn("Found no collections", item=i, comp=c)
-
-            for coll in colls:
-                try:
-                    if annotate_results_collection(coll, c, mlwh_session):
-                        log.info("Updated", item=i, path=coll, comp=c)
-                        num_updated += 1
-                    else:
-                        num_errors += 1
-                except RodsError as re1:
-                    log.error(re1.message, item=i, code=re1.code)
+                if annotate_results_collection(coll, c, mlwh_session):
+                    log.info("Updated", item=i, path=coll, comp=c)
+                    num_updated += 1
+                else:
                     num_errors += 1
+            except RodsError as re1:
+                log.error(re1.message, item=i, code=re1.code)
+                num_errors += 1
 
-        except RodsError as re2:
-            log.error(re2.message, item=i, code=re2.code)
-            num_errors += 1
-        except Exception as e:
-            log.error(e)
-            num_errors += 1
+    except RodsError as re2:
+        log.error(re2.message, code=re2.code)
+        num_errors += 1
+    except Exception as e:
+        log.error(e)
+        num_errors += 1
 
     return num_found, num_updated, num_errors
 
@@ -488,14 +466,12 @@ def find_run_collections(
     args = []
     if zone is not None:
         args.extend(["-z", shlex.quote(zone)])
-    args.append("%s")
+    args.append("%s\t%s")
 
     query = (
-        "select COLL_NAME where "
+        "select COLL_NAME, COLL_CREATE_TIME where "
         f"META_COLL_ATTR_NAME = '{Instrument.EXPERIMENT_NAME}' and "
-        f"META_COLL_ATTR_NAME = '{Instrument.INSTRUMENT_SLOT}' and "
-        f"COLL_CREATE_TIME >= '{int(since.timestamp()) :>011}' and "
-        f"COLL_CREATE_TIME <= '{int(until.timestamp()) :>011}'"
+        f"META_COLL_ATTR_NAME = '{Instrument.INSTRUMENT_SLOT}'"
     )
 
     # iquest mixes logging and data in its output
@@ -507,7 +483,9 @@ def find_run_collections(
         p = line.strip()
         if p.startswith(ignore1) or p.startswith(ignore2):
             continue
-        paths.append(p)
+        path, created = p.split("\t", 1)
+        if int(since.timestamp()) <= int(created) <= int(until.timestamp()):
+            paths.append(path)
 
     return [Collection(p) for p in paths]
 
