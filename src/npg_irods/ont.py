@@ -141,6 +141,9 @@ def apply_metadata(
             except RodsError as re1:
                 log.error(re1.message, item=i, code=re1.code)
                 num_errors += 1
+            except Exception as e:
+                log.error(e)
+                num_errors += 1
 
     except RodsError as re2:
         log.error(re2.message, code=re2.code)
