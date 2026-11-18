@@ -39,7 +39,6 @@ from structlog import get_logger
 from npg_irods.common import infer_zone, update_metadata, update_permissions
 from npg_irods.db.mlwh import SQL_CHUNK_SIZE
 from npg_irods.db.mlwh_cache import SAMPLE_KEY, STUDY_KEY
-from npg_irods.illumina import split_name
 from npg_irods.metadata.common import SeqConcept
 from npg_irods.metadata.lims import (
     ensure_consent_withdrawn,
