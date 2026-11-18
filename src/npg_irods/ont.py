@@ -471,7 +471,7 @@ def find_run_collections(
     args.append("%s\t%s")
 
     # Put the timestamp output first because it will not contain tabs, while the iRODS
-    # patch technically could contain tabs.
+    # path technically could contain tabs.
     query = (
         "select COLL_CREATE_TIME, COLL_NAME where "
         f"META_COLL_ATTR_NAME = '{Instrument.EXPERIMENT_NAME}' and "
