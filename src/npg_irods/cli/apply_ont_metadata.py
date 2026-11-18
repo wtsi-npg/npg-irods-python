@@ -45,9 +45,10 @@ secondary metadata (like `update-secondary-metadata` does), but that is purely a
 optimisation to make the data available without waiting for an
 `update-secondary-metadata` to be scheduled. 
 
-Only runs whose ML warehouse records have been updated within the specified date range.
-The default window for detecting changes is the 14 days prior to the time when the
-script is run. This can be changed using the --begin-date and --end-date CLI options.
+Only runs whose iRODS collections have been created in the specified date range are
+updated. The default window for collection creation is the 14 days prior to the time
+when the script is run. This can be changed using the --begin-date and --end-date CLI
+options.
 """
 
 
