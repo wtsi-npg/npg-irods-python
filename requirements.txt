@@ -8,6 +8,6 @@ pymysql==1.2.4
 python-dateutil==4.0.0
 setuptools-git-versioning==3.2.1
 setuptools==84.2.1
-sqlalchemy==2.1.6
+sqlalchemy==2.1.9
 structlog==26.1.0
 yattag==1.16.1
